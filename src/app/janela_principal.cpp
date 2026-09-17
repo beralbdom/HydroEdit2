@@ -17,6 +17,7 @@
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
+#include "formulario_usina.h"
 #include "modelo_hidr.h"
 
 namespace {
@@ -31,6 +32,12 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     splitter_ = new QSplitter(Qt::Horizontal, this);
     setCentralWidget(splitter_);
     criarTabela();
+    formulario_ = new FormularioUsina(modelo_, splitter_);
+    splitter_->addWidget(formulario_);
+    splitter_->setStretchFactor(0, 3);
+    splitter_->setStretchFactor(1, 2);
+    connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
+            [this](const QModelIndex&, const QModelIndex&) { formulario_->definirLinha(linhaSelecionada()); });
     criarMenus();
 
     status_arquivo_ = new QLabel(this);

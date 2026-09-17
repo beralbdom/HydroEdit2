@@ -1,0 +1,47 @@
+#pragma once
+#include <QWidget>
+#include <map>
+#include <string>
+#include <string_view>
+#include <vector>
+#include "campos.h"
+
+class QComboBox;
+class QFormLayout;
+class QGroupBox;
+class QLabel;
+class QLineEdit;
+class ModeloHidr;
+class GradeVetor;
+
+class FormularioUsina : public QWidget {
+    Q_OBJECT
+public:
+    explicit FormularioUsina(ModeloHidr* modelo, QWidget* parent = nullptr);
+    void definirLinha(int linha);
+    int linha() const { return linha_; }
+    void focarCampo(std::string_view nome);
+    void marcarProblemas(const std::vector<std::string>& campos_com_erro);
+
+private:
+    struct Combo { QComboBox* widget; const Campo* campo; };
+    struct Edit { QLineEdit* widget; const Campo* campo; QLabel* nome_lookup; };
+
+    QGroupBox* criarCadastro();
+    QGroupBox* criarReservatorio();
+    QGroupBox* criarUsina();
+    QLineEdit* ligarEdit(QFormLayout* f, const QString& rotulo, const char* campo, bool com_lookup = false);
+    QComboBox* ligarCombo(QFormLayout* f, const QString& rotulo, const char* campo);
+    void recarregarListas();
+    void atualizar();
+    void aoEditarEdit(const char* nome);
+    void aoEscolherCombo(const char* nome, int indice);
+
+    ModeloHidr* modelo_;
+    int linha_ = -1;
+    bool atualizando_ = false;
+    std::map<std::string, Edit> edits_;
+    std::map<std::string, Combo> combos_;
+    std::vector<GradeVetor*> grades_;
+    QLabel* titulo_;
+};

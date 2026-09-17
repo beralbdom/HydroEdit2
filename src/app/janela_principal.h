@@ -8,6 +8,7 @@ class QSplitter;
 class QTableView;
 class ModeloHidr;
 class FiltroUsinas;
+class FormularioUsina;
 
 class JanelaPrincipal : public QMainWindow {
     Q_OBJECT
@@ -26,6 +27,7 @@ protected:
     FiltroUsinas* filtro_;
     QTableView* tabela_;
     QSplitter* splitter_;
+    FormularioUsina* formulario_;
 
 private slots:
     void abrir();

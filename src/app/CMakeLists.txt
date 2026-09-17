@@ -7,6 +7,8 @@ qt_add_library(hydroedit_ui STATIC
     filtro_usinas.cpp filtro_usinas.h
     janela_principal.cpp janela_principal.h
     delegate_numerico.cpp delegate_numerico.h
+    grade_vetor.cpp grade_vetor.h
+    formulario_usina.cpp formulario_usina.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets)
