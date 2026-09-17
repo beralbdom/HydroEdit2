@@ -9,10 +9,12 @@ class QLineEdit;
 class QMenu;
 class QSplitter;
 class QTableView;
+class QTabWidget;
 class ModeloHidr;
 class FiltroUsinas;
 class FormularioUsina;
 class PainelProblemas;
+class VistaCascata;
 struct ProblemaUsina;
 
 class JanelaPrincipal : public QMainWindow {
@@ -41,6 +43,7 @@ protected:
     QSplitter* splitter_;
     FormularioUsina* formulario_;
     PainelProblemas* painel_problemas_;
+    VistaCascata* vista_cascata_;
 
 private slots:
     void abrir();

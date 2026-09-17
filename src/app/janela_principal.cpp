@@ -11,12 +11,15 @@
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QSettings>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTableView>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
@@ -25,6 +28,7 @@
 #include "modelo_hidr.h"
 #include "painel_problemas.h"
 #include "validacao.h"
+#include "vista_cascata.h"
 
 namespace {
 std::filesystem::path paraPath(const QString& s) { return std::filesystem::path(s.toStdWString()); }
@@ -59,6 +63,15 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     });
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { marcarProblemasDaLinha(linhaSelecionada()); });
+    connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
+            [this](const QModelIndex&, const QModelIndex&) { vista_cascata_->selecionar(linhaSelecionada()); });
+    connect(vista_cascata_, &VistaCascata::usinaEscolhida, this, &JanelaPrincipal::selecionarLinha);
+    connect(modelo_, &QAbstractItemModel::modelReset, vista_cascata_, &VistaCascata::reconstruir);
+    connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int, const Campo* campo) {
+        static constexpr std::array<std::string_view, 4> campos_cascata = {"nome", "jusante", "desvio", "subsistema"};
+        bool afeta_cascata = !campo || std::find(campos_cascata.begin(), campos_cascata.end(), campo->nome) != campos_cascata.end();
+        if (afeta_cascata) vista_cascata_->reconstruir();
+    });
 
     criarMenus();
 
@@ -97,7 +110,9 @@ void JanelaPrincipal::criarTabela() {
     linha_filtro->addWidget(ocultar_vazias_);
     layout->addLayout(linha_filtro);
 
-    tabela_ = new QTableView(painel);
+    auto* abas_esquerda = new QTabWidget(painel);
+
+    tabela_ = new QTableView(abas_esquerda);
     tabela_->setModel(filtro_);
     tabela_->setItemDelegate(new DelegateNumerico(modelo_, tabela_));
     tabela_->setSortingEnabled(true);
@@ -111,9 +126,26 @@ void JanelaPrincipal::criarTabela() {
     tabela_->verticalHeader()->setVisible(false);
     tabela_->verticalHeader()->setDefaultSectionSize(20);
     tabela_->setAlternatingRowColors(true);
-    layout->addWidget(tabela_, 1);
+    abas_esquerda->addTab(tabela_, QStringLiteral("Tabela"));
+
+    auto* painel_cascata = new QWidget(abas_esquerda);
+    auto* layout_cascata = new QVBoxLayout(painel_cascata);
+    layout_cascata->setContentsMargins(0, 0, 0, 0);
+    layout_cascata->setSpacing(4);
+    auto* barra_cascata = new QHBoxLayout;
+    auto* botao_ajustar = new QPushButton(QStringLiteral("Ajustar"), painel_cascata);
+    barra_cascata->addWidget(botao_ajustar);
+    barra_cascata->addStretch(1);
+    layout_cascata->addLayout(barra_cascata);
+    vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
+    layout_cascata->addWidget(vista_cascata_, 1);
+    connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
+    abas_esquerda->addTab(painel_cascata, QStringLiteral("Cascata"));
+
+    layout->addWidget(abas_esquerda, 1);
 
     connect(campo_filtro_, &QLineEdit::textChanged, filtro_, &FiltroUsinas::definirTexto);
+    connect(campo_filtro_, &QLineEdit::textChanged, vista_cascata_, &VistaCascata::definirFiltro);
     connect(ocultar_vazias_, &QCheckBox::toggled, filtro_, &FiltroUsinas::definirOcultarVazias);
     splitter_->addWidget(painel);
 }

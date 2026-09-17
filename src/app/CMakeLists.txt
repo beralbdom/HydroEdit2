@@ -11,6 +11,7 @@ qt_add_library(hydroedit_ui STATIC
     formulario_usina.cpp formulario_usina.h
     paginas_usina.cpp
     painel_problemas.cpp painel_problemas.h
+    vista_cascata.cpp vista_cascata.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets)

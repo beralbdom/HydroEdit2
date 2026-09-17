@@ -1,0 +1,124 @@
+#include <QtTest>
+#include "cascata.h"
+
+class TestCascata : public QObject {
+    Q_OBJECT
+    static const NoCascata* noDe(const Cascata& c, int codigo) {
+        for (const NoCascata& n : c.nos)
+            if (n.codigo == codigo) return &n;
+        return nullptr;
+    }
+    static bool temAresta(const Cascata& c, int origem, int destino, bool desvio) {
+        for (const ArestaCascata& a : c.arestas)
+            if (a.origem == origem && a.destino == destino && a.desvio == desvio) return true;
+        return false;
+    }
+private slots:
+    void cadeiaLinearUmaBacia() {
+        std::vector<UsinaHidr> u(3);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 3;
+        u[2].nome = "U3"; u[2].jusante = 0;
+        Cascata c = montarCascata(u);
+        QCOMPARE(c.nos.size(), size_t(3));
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n2 = noDe(c, 2);
+        const NoCascata* n3 = noDe(c, 3);
+        QVERIFY(n1 && n2 && n3);
+        QCOMPARE(n1->coluna, n2->coluna);
+        QCOMPARE(n2->coluna, n3->coluna);
+        QCOMPARE(n1->linha, 0);
+        QCOMPARE(n2->linha, 1);
+        QCOMPARE(n3->linha, 2);
+        QCOMPARE(n1->bacia, n2->bacia);
+        QCOMPARE(n2->bacia, n3->bacia);
+        QCOMPARE(c.arestas.size(), size_t(2));
+        QVERIFY(temAresta(c, 1, 2, false));
+        QVERIFY(temAresta(c, 2, 3, false));
+    }
+    void bifurcacaoConflui() {
+        std::vector<UsinaHidr> u(3);
+        u[0].nome = "U1"; u[0].jusante = 3;
+        u[1].nome = "U2"; u[1].jusante = 3;
+        u[2].nome = "U3"; u[2].jusante = 0;
+        Cascata c = montarCascata(u);
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n2 = noDe(c, 2);
+        const NoCascata* n3 = noDe(c, 3);
+        QVERIFY(n1 && n2 && n3);
+        QCOMPARE(n1->coluna, 0.0);
+        QCOMPARE(n2->coluna, 1.0);
+        QCOMPARE(n3->coluna, 0.5);
+        QCOMPARE(n1->linha, 0);
+        QCOMPARE(n2->linha, 0);
+        QCOMPARE(n3->linha, 1);
+    }
+    void duasBaciasSeparadasPorColuna() {
+        std::vector<UsinaHidr> u(4);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 0;
+        u[2].nome = "U3"; u[2].jusante = 4;
+        u[3].nome = "U4"; u[3].jusante = 0;
+        Cascata c = montarCascata(u);
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n2 = noDe(c, 2);
+        const NoCascata* n3 = noDe(c, 3);
+        const NoCascata* n4 = noDe(c, 4);
+        QVERIFY(n1 && n2 && n3 && n4);
+        QCOMPARE(n1->coluna, 0.0);
+        QCOMPARE(n2->coluna, 0.0);
+        QCOMPARE(n3->coluna, 2.0);
+        QCOMPARE(n4->coluna, 2.0);
+        QVERIFY(n1->bacia != n3->bacia);
+        QCOMPARE(c.num_colunas, 3);
+    }
+    void jusanteInvalidoViraRaiz() {
+        std::vector<UsinaHidr> u(3);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[2].nome = "U3"; u[2].jusante = 99;
+        Cascata c = montarCascata(u);
+        QCOMPARE(c.nos.size(), size_t(2));
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n3 = noDe(c, 3);
+        QVERIFY(n1 && n3);
+        QVERIFY(n1->bacia != n3->bacia);
+        QCOMPARE(c.arestas.size(), size_t(0));
+    }
+    void cicloTerminaEDescartaUmaAresta() {
+        std::vector<UsinaHidr> u(2);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 1;
+        Cascata c = montarCascata(u);
+        QCOMPARE(c.nos.size(), size_t(2));
+        QCOMPARE(c.arestas.size(), size_t(1));
+        QVERIFY(temAresta(c, 2, 1, false));
+        QVERIFY(!temAresta(c, 1, 2, false));
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n2 = noDe(c, 2);
+        QVERIFY(n1 && n2);
+        QCOMPARE(n1->bacia, n2->bacia);
+    }
+    void desvioGeraArestaSemAlterarColunas() {
+        std::vector<UsinaHidr> u(2);
+        u[0].nome = "U1"; u[0].desvio = 2;
+        u[1].nome = "U2";
+        Cascata c = montarCascata(u);
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n2 = noDe(c, 2);
+        QVERIFY(n1 && n2);
+        QVERIFY(n1->bacia != n2->bacia);
+        QCOMPARE(n1->coluna, 0.0);
+        QCOMPARE(n2->coluna, 2.0);
+        QCOMPARE(c.arestas.size(), size_t(1));
+        QVERIFY(temAresta(c, 1, 2, true));
+    }
+    void usinasVaziasNaoAparecem() {
+        std::vector<UsinaHidr> u(3);
+        u[1].nome = "U2";
+        Cascata c = montarCascata(u);
+        QCOMPARE(c.nos.size(), size_t(1));
+        QCOMPARE(c.nos[0].codigo, 2);
+    }
+};
+QTEST_APPLESS_MAIN(TestCascata)
+#include "test_cascata.moc"
