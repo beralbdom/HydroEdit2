@@ -8,21 +8,12 @@
 #include <QIntValidator>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidget>
 #include <QScrollArea>
-#include <QStackedWidget>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <algorithm>
-#include <array>
 #include "grade_vetor.h"
 #include "modelo_hidr.h"
-
-namespace {
-bool semLimiteDeLargura(const char* nome) {
-    static constexpr std::array<std::string_view, 4> kSemLimite = {"nome", "data", "observacao", "posto_bdh"};
-    return std::find(kSemLimite.begin(), kSemLimite.end(), std::string_view(nome)) != kSemLimite.end();
-}
-}  // namespace
 
 FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(parent), modelo_(modelo) {
     auto* externo = new QVBoxLayout(this);
@@ -35,36 +26,25 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     titulo_->setFont(fonte);
     externo->addWidget(titulo_);
 
-    auto* corpo = new QHBoxLayout;
-    configurarLayout(corpo);
+    abas_ = new QTabWidget(this);
+    abas_->setTabPosition(QTabWidget::North);
+    abas_->setDocumentMode(false);
 
-    menu_ = new QListWidget(this);
-    menu_->setFixedWidth(150);
-    menu_->setFrameShape(QFrame::StyledPanel);
-    menu_->addItems({QStringLiteral("Cadastro"), QStringLiteral("Reservatório"), QStringLiteral("Polinômios"),
-                     QStringLiteral("Conjuntos"), QStringLiteral("Jusante"), QStringLiteral("Operação")});
-
-    paginas_ = new QStackedWidget(this);
-    auto adicionarPagina = [this](QWidget* conteudo) {
-        auto* scroll = new QScrollArea(paginas_);
+    auto adicionarPagina = [this](QWidget* conteudo, const QString& titulo) {
+        auto* scroll = new QScrollArea(abas_);
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
         scroll->setWidget(conteudo);
-        paginas_->addWidget(scroll);
+        abas_->addTab(scroll, titulo);
     };
-    adicionarPagina(criarPaginaCadastro());
-    adicionarPagina(criarPaginaReservatorio());
-    adicionarPagina(criarPaginaPolinomios());
-    adicionarPagina(criarPaginaConjuntos());
-    adicionarPagina(criarPaginaJusante());
-    adicionarPagina(criarPaginaOperacao());
+    adicionarPagina(criarPaginaCadastro(), QStringLiteral("Cadastro"));
+    adicionarPagina(criarPaginaReservatorio(), QStringLiteral("Reservatório"));
+    adicionarPagina(criarPaginaPolinomios(), QStringLiteral("Polinômios"));
+    adicionarPagina(criarPaginaConjuntos(), QStringLiteral("Conjuntos"));
+    adicionarPagina(criarPaginaJusante(), QStringLiteral("Jusante"));
+    adicionarPagina(criarPaginaOperacao(), QStringLiteral("Operação"));
 
-    corpo->addWidget(menu_);
-    corpo->addWidget(paginas_, 1);
-    externo->addLayout(corpo, 1);
-
-    connect(menu_, &QListWidget::currentRowChanged, paginas_, &QStackedWidget::setCurrentIndex);
-    menu_->setCurrentRow(0);
+    externo->addWidget(abas_, 1);
 
     connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int linha, const Campo* c) {
         if (!c || c->nome == "nome") {
@@ -93,20 +73,35 @@ QVBoxLayout* FormularioUsina::novaPagina(QWidget* pai) {
     return v;
 }
 
+QHBoxLayout* FormularioUsina::novaLinha() {
+    auto* h = new QHBoxLayout;
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(4);
+    return h;
+}
+
 QGroupBox* FormularioUsina::novoGrupo(QWidget* pai, const QString& titulo) {
     auto* g = new QGroupBox(titulo, pai);
-    g->setFlat(true);
-    g->setContentsMargins(0, 2, 0, 2);
+    g->setFlat(false);
     return g;
+}
+
+QVBoxLayout* FormularioUsina::novoConteudo(QWidget* pai) {
+    auto* v = new QVBoxLayout(pai);
+    v->setContentsMargins(8, 6, 8, 6);
+    v->setSpacing(4);
+    return v;
 }
 
 QFormLayout* FormularioUsina::novoForm(QWidget* pai) {
     auto* f = new QFormLayout(pai);
-    configurarLayout(f);
+    f->setContentsMargins(8, 6, 8, 6);
     f->setHorizontalSpacing(8);
-    f->setVerticalSpacing(3);
-    f->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    f->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    f->setVerticalSpacing(4);
+    f->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    f->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
+    f->setFieldGrowthPolicy(QFormLayout::FieldsStayAtSizeHint);
+    f->setRowWrapPolicy(QFormLayout::DontWrapRows);
     return f;
 }
 
@@ -123,7 +118,12 @@ QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, int pagina, const QString&
     } else {
         e->setMaxLength(c->tamanho_elemento);
     }
-    if (!semLimiteDeLargura(nome)) e->setMaximumWidth(140);
+    if (c->tipo == TipoCampo::Texto) {
+        if (std::string_view(nome) == "observacao") e->setMinimumWidth(320);
+        else e->setFixedWidth(160);
+    } else {
+        e->setFixedWidth(110);
+    }
     QLabel* lookup = nullptr;
     if (com_lookup) {
         auto* linha = new QWidget(this);
@@ -144,6 +144,7 @@ QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, int pagina, const QString&
 
 QComboBox* FormularioUsina::ligarCombo(QFormLayout* f, int pagina, const QString& rotulo, const char* nome) {
     auto* cb = new QComboBox(this);
+    cb->setMinimumWidth(180);
     f->addRow(rotulo, cb);
     combos_[nome] = {cb, campo(nome)};
     pagina_do_campo_[nome] = pagina;
@@ -235,7 +236,7 @@ void FormularioUsina::aoEscolherCombo(const char* nome, int indice) {
 
 void FormularioUsina::focarCampo(std::string_view nome) {
     std::string n(nome);
-    if (auto it = pagina_do_campo_.find(n); it != pagina_do_campo_.end()) menu_->setCurrentRow(it->second);
+    if (auto it = pagina_do_campo_.find(n); it != pagina_do_campo_.end()) abas_->setCurrentIndex(it->second);
     if (auto it = edits_.find(n); it != edits_.end()) {
         it->second.widget->setFocus();
         it->second.widget->selectAll();

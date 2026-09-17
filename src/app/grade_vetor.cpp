@@ -11,10 +11,11 @@ GradeVetor::GradeVetor(ModeloHidr* modelo, int linhas, int colunas, const QStrin
     else setVerticalHeaderLabels(cab_v);
     horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     verticalHeader()->setDefaultSectionSize(20);
-    horizontalHeader()->setFixedHeight(20);
     setShowGrid(true);
     setAlternatingRowColors(true);
     setFrameShape(QFrame::StyledPanel);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     for (int l = 0; l < linhas; ++l)
@@ -24,7 +25,6 @@ GradeVetor::GradeVetor(ModeloHidr* modelo, int linhas, int colunas, const QStrin
             item->setFlags(Qt::ItemIsSelectable);
             setItem(l, c, item);
         }
-    setFixedHeight(verticalHeader()->defaultSectionSize() * linhas + horizontalHeader()->height() + 4);
     connect(this, &QTableWidget::cellChanged, this, &GradeVetor::aoEditar);
 }
 
@@ -58,6 +58,13 @@ void GradeVetor::aoEditar(int l, int c) {
     if (v) modelo_->definirValor(linha_modelo_, *ce.campo, ce.indice, *v);
     atualizar();
 }
+
+QSize GradeVetor::sizeHint() const {
+    return QSize(QTableWidget::sizeHint().width(),
+                horizontalHeader()->sizeHint().height() + rowCount() * verticalHeader()->defaultSectionSize() + 2 * frameWidth() + 2);
+}
+
+QSize GradeVetor::minimumSizeHint() const { return sizeHint(); }
 
 bool GradeVetor::contemCampo(std::string_view nome) const {
     for (const Celula& ce : celulas_)

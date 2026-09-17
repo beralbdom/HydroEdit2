@@ -1,7 +1,7 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGroupBox>
-#include <QLabel>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include "formulario_usina.h"
 #include "grade_vetor.h"
@@ -15,22 +15,34 @@ QWidget* FormularioUsina::criarPaginaCadastro() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Cadastro"));
-    auto* f = novoForm(g);
-    ligarEdit(f, kCadastro, QStringLiteral("Nome"), "nome");
-    ligarEdit(f, kCadastro, QStringLiteral("Posto"), "posto", true);
-    ligarEdit(f, kCadastro, QStringLiteral("Posto BDH"), "posto_bdh");
-    ligarCombo(f, kCadastro, QStringLiteral("Subsistema"), "subsistema");
-    ligarEdit(f, kCadastro, QStringLiteral("Empresa"), "empresa", true);
-    ligarCombo(f, kCadastro, QStringLiteral("Jusante"), "jusante");
-    ligarCombo(f, kCadastro, QStringLiteral("Desvio"), "desvio");
-    QComboBox* reg = ligarCombo(f, kCadastro, QStringLiteral("Regulação"), "regulacao");
+    auto* linha1 = novaLinha();
+    QGroupBox* identificacao = novoGrupo(pagina, QStringLiteral("Identificação"));
+    auto* fi = novoForm(identificacao);
+    ligarEdit(fi, kCadastro, QStringLiteral("Nome"), "nome");
+    ligarEdit(fi, kCadastro, QStringLiteral("Posto"), "posto", true);
+    ligarEdit(fi, kCadastro, QStringLiteral("Posto BDH"), "posto_bdh");
+    QComboBox* reg = ligarCombo(fi, kCadastro, QStringLiteral("Regulação"), "regulacao");
     reg->addItem(QStringLiteral("M  Mensal"), QStringLiteral("M"));
     reg->addItem(QStringLiteral("S  Semanal"), QStringLiteral("S"));
     reg->addItem(QStringLiteral("D  Diária"), QStringLiteral("D"));
-    ligarEdit(f, kCadastro, QStringLiteral("Data"), "data");
-    ligarEdit(f, kCadastro, QStringLiteral("Observação"), "observacao");
-    v->addWidget(g);
+    ligarEdit(fi, kCadastro, QStringLiteral("Data"), "data");
+    linha1->addWidget(identificacao);
+
+    QGroupBox* vinculos = novoGrupo(pagina, QStringLiteral("Vínculos"));
+    auto* fv = novoForm(vinculos);
+    ligarCombo(fv, kCadastro, QStringLiteral("Subsistema"), "subsistema");
+    ligarEdit(fv, kCadastro, QStringLiteral("Empresa"), "empresa", true);
+    ligarCombo(fv, kCadastro, QStringLiteral("Jusante"), "jusante");
+    ligarCombo(fv, kCadastro, QStringLiteral("Desvio"), "desvio");
+    linha1->addWidget(vinculos);
+    linha1->addStretch(1);
+    v->addLayout(linha1);
+
+    QGroupBox* obs = novoGrupo(pagina, QStringLiteral("Observação"));
+    auto* fo = novoForm(obs);
+    ligarEdit(fo, kCadastro, QStringLiteral("Observação"), "observacao");
+    v->addWidget(obs);
+
     v->addStretch(1);
     return pagina;
 }
@@ -39,6 +51,7 @@ QWidget* FormularioUsina::criarPaginaReservatorio() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
+    auto* linha1 = novaLinha();
     QGroupBox* volumes = novoGrupo(pagina, QStringLiteral("Volumes (hm³)"));
     auto* fv = novoForm(volumes);
     ligarEdit(fv, kReservatorio, QStringLiteral("Mínimo"), "volume_minimo");
@@ -46,17 +59,18 @@ QWidget* FormularioUsina::criarPaginaReservatorio() {
     ligarEdit(fv, kReservatorio, QStringLiteral("Referência"), "volume_referencia");
     ligarEdit(fv, kReservatorio, QStringLiteral("Crista do vertedouro"), "volume_vertedouro");
     ligarEdit(fv, kReservatorio, QStringLiteral("Canal de desvio"), "volume_desvio");
-    v->addWidget(volumes);
+    linha1->addWidget(volumes);
 
     QGroupBox* cotas = novoGrupo(pagina, QStringLiteral("Cotas (m)"));
     auto* fc = novoForm(cotas);
     ligarEdit(fc, kReservatorio, QStringLiteral("Mínima"), "cota_minima");
     ligarEdit(fc, kReservatorio, QStringLiteral("Máxima"), "cota_maxima");
-    v->addWidget(cotas);
+    linha1->addWidget(cotas);
+    linha1->addStretch(1);
+    v->addLayout(linha1);
 
     QGroupBox* evaporacao = novoGrupo(pagina, QStringLiteral("Evaporação mensal (mm/mês)"));
-    auto* ve = new QVBoxLayout(evaporacao);
-    configurarLayout(ve);
+    auto* ve = novoConteudo(evaporacao);
     QStringList meses = {"jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"};
     auto* evap = new GradeVetor(modelo_, 1, 12, meses, {}, evaporacao);
     for (int m = 0; m < 12; ++m) evap->definirCelula(0, m, campo("evaporacao"), m);
@@ -73,9 +87,8 @@ QWidget* FormularioUsina::criarPaginaPolinomios() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Polinômios"));
-    auto* vg = new QVBoxLayout(g);
-    configurarLayout(vg);
+    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Cota x Volume / Área x Cota"));
+    auto* vg = novoConteudo(g);
     auto* pol = new GradeVetor(modelo_, 2, 5, coeficientes(), {QStringLiteral("Cota x Volume"), QStringLiteral("Área x Cota")}, g);
     for (int k = 0; k < 5; ++k) {
         pol->definirCelula(0, k, campo("pol_cota_volume"), k);
@@ -95,7 +108,7 @@ QWidget* FormularioUsina::criarPaginaConjuntos() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Conjuntos"));
+    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Configuração"));
     auto* f = novoForm(g);
     ligarEdit(f, kConjuntos, QStringLiteral("Número de conjuntos"), "num_conjuntos");
     ligarEdit(f, kConjuntos, QStringLiteral("Unidades de base"), "num_unidades_base");
@@ -107,8 +120,7 @@ QWidget* FormularioUsina::criarPaginaConjuntos() {
     v->addWidget(g);
 
     QGroupBox* maquinas = novoGrupo(pagina, QStringLiteral("Conjuntos de máquinas"));
-    auto* vm = new QVBoxLayout(maquinas);
-    configurarLayout(vm);
+    auto* vm = novoConteudo(maquinas);
     QStringList conj;
     for (int i = 1; i <= 5; ++i) conj << QStringLiteral("Conj. %1").arg(i);
     auto* conjuntos = new GradeVetor(modelo_, 5, 4,
@@ -128,9 +140,8 @@ QWidget* FormularioUsina::criarPaginaConjuntos() {
     registrarCampoGrade(kConjuntos, "altura_efetiva");
     v->addWidget(maquinas);
 
-    QGroupBox* polConjunto = novoGrupo(pagina, QStringLiteral("Polinômios por conjunto (turbina / gerador / potência)"));
-    auto* vp = new QVBoxLayout(polConjunto);
-    configurarLayout(vp);
+    QGroupBox* polConjunto = novoGrupo(pagina, QStringLiteral("Polinômios turbina / gerador / potência"));
+    auto* vp = novoConteudo(polConjunto);
     QStringList linhas_pc;
     static const char* pol[] = {"turbina", "gerador", "potência"};
     for (int c = 0; c < 5; ++c)
@@ -150,7 +161,7 @@ QWidget* FormularioUsina::criarPaginaJusante() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Jusante"));
+    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Canal de fuga"));
     auto* f = novoForm(g);
     ligarEdit(f, kJusante, QStringLiteral("Número de polinômios"), "num_pol_jusante");
     ligarEdit(f, kJusante, QStringLiteral("Canal de fuga médio (m)"), "canal_fuga_medio");
@@ -160,8 +171,7 @@ QWidget* FormularioUsina::criarPaginaJusante() {
     v->addWidget(g);
 
     QGroupBox* polJusante = novoGrupo(pagina, QStringLiteral("Polinômios de jusante"));
-    auto* vp = new QVBoxLayout(polJusante);
-    configurarLayout(vp);
+    auto* vp = novoConteudo(polJusante);
     QStringList linhas_pj;
     for (int j = 1; j <= 6; ++j) linhas_pj << QStringLiteral("Pol. %1").arg(j);
     auto* pj = new GradeVetor(modelo_, 6, 6, coeficientes() << QStringLiteral("Ref. (m)"), linhas_pj, polJusante);
@@ -183,17 +193,28 @@ QWidget* FormularioUsina::criarPaginaOperacao() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    QGroupBox* g = novoGrupo(pagina, QStringLiteral("Operação"));
-    auto* f = novoForm(g);
-    ligarEdit(f, kOperacao, QStringLiteral("Produtibilidade específica (MW/m³/s/m)"), "produtibilidade");
-    ligarEdit(f, kOperacao, QStringLiteral("Perdas"), "perdas");
-    ligarEdit(f, kOperacao, QStringLiteral("Tipo de perda"), "tipo_perda");
-    ligarEdit(f, kOperacao, QStringLiteral("Fator de carga máximo (%)"), "fator_carga_maximo");
-    ligarEdit(f, kOperacao, QStringLiteral("Fator de carga mínimo (%)"), "fator_carga_minimo");
-    ligarEdit(f, kOperacao, QStringLiteral("TEIF (%)"), "teif");
-    ligarEdit(f, kOperacao, QStringLiteral("IP (%)"), "ip");
-    ligarEdit(f, kOperacao, QStringLiteral("Vazão mínima do histórico (m³/s)"), "vazao_minima_historica");
-    v->addWidget(g);
+    auto* linha1 = novaLinha();
+    QGroupBox* producao = novoGrupo(pagina, QStringLiteral("Produção"));
+    auto* fp = novoForm(producao);
+    ligarEdit(fp, kOperacao, QStringLiteral("Produtibilidade específica (MW/m³/s/m)"), "produtibilidade");
+    ligarEdit(fp, kOperacao, QStringLiteral("Perdas"), "perdas");
+    ligarEdit(fp, kOperacao, QStringLiteral("Tipo de perda"), "tipo_perda");
+    linha1->addWidget(producao);
+
+    QGroupBox* fatores = novoGrupo(pagina, QStringLiteral("Fatores de carga (%)"));
+    auto* ff = novoForm(fatores);
+    ligarEdit(ff, kOperacao, QStringLiteral("Máximo"), "fator_carga_maximo");
+    ligarEdit(ff, kOperacao, QStringLiteral("Mínimo"), "fator_carga_minimo");
+    linha1->addWidget(fatores);
+    linha1->addStretch(1);
+    v->addLayout(linha1);
+
+    QGroupBox* indisp = novoGrupo(pagina, QStringLiteral("Indisponibilidade e vazão"));
+    auto* fi = novoForm(indisp);
+    ligarEdit(fi, kOperacao, QStringLiteral("TEIF (%)"), "teif");
+    ligarEdit(fi, kOperacao, QStringLiteral("IP (%)"), "ip");
+    ligarEdit(fi, kOperacao, QStringLiteral("Vazão mínima do histórico (m³/s)"), "vazao_minima_historica");
+    v->addWidget(indisp);
 
     v->addStretch(1);
     return pagina;

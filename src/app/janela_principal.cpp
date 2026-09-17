@@ -41,9 +41,9 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     criarTabela();
     formulario_ = new FormularioUsina(modelo_, splitter_);
     splitter_->addWidget(formulario_);
-    splitter_->setStretchFactor(0, 3);
-    splitter_->setStretchFactor(1, 2);
-    splitter_->setSizes({900, 500});
+    splitter_->setStretchFactor(0, 1);
+    splitter_->setStretchFactor(1, 1);
+    splitter_->setSizes({760, 740});
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { formulario_->definirLinha(linhaSelecionada()); });
 
@@ -61,6 +61,9 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
             [this](const QModelIndex&, const QModelIndex&) { marcarProblemasDaLinha(linhaSelecionada()); });
 
     criarMenus();
+
+    statusBar()->setSizeGripEnabled(false);
+    statusBar()->setContentsMargins(4, 0, 4, 0);
 
     status_arquivo_ = new QLabel(this);
     status_usinas_ = new QLabel(this);
@@ -114,6 +117,9 @@ void JanelaPrincipal::criarTabela() {
 }
 
 void JanelaPrincipal::criarMenus() {
+    menuBar()->setNativeMenuBar(false);
+    menuBar()->setStyleSheet(QStringLiteral("QMenuBar { padding: 0px; spacing: 2px; } QMenuBar::item { padding: 2px 8px; margin: 0px; }"));
+
     QMenu* arquivo = menuBar()->addMenu(QStringLiteral("&Arquivo"));
     arquivo->addAction(QStringLiteral("&Abrir..."), QKeySequence::Open, this, &JanelaPrincipal::abrir);
     menu_recentes_ = arquivo->addMenu(QStringLiteral("&Recentes"));

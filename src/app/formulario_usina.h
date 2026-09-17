@@ -9,11 +9,11 @@
 class QComboBox;
 class QFormLayout;
 class QGroupBox;
+class QHBoxLayout;
 class QLabel;
 class QLayout;
 class QLineEdit;
-class QListWidget;
-class QStackedWidget;
+class QTabWidget;
 class QVBoxLayout;
 class ModeloHidr;
 class GradeVetor;
@@ -42,7 +42,9 @@ private:
 
     static void configurarLayout(QLayout* l);
     static QVBoxLayout* novaPagina(QWidget* pai);
+    static QHBoxLayout* novaLinha();
     static QGroupBox* novoGrupo(QWidget* pai, const QString& titulo);
+    static QVBoxLayout* novoConteudo(QWidget* pai);
     static QFormLayout* novoForm(QWidget* pai);
     QLineEdit* ligarEdit(QFormLayout* f, int pagina, const QString& rotulo, const char* campo, bool com_lookup = false);
     QComboBox* ligarCombo(QFormLayout* f, int pagina, const QString& rotulo, const char* campo);
@@ -60,6 +62,5 @@ private:
     std::vector<GradeVetor*> grades_;
     std::map<std::string, int> pagina_do_campo_;
     QLabel* titulo_;
-    QListWidget* menu_;
-    QStackedWidget* paginas_;
+    QTabWidget* abas_;
 };

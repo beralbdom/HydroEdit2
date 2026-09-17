@@ -17,6 +17,8 @@ public:
     void atualizar();
     bool contemCampo(std::string_view nome) const;
     void focarCampo(std::string_view nome);
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
 private:
     struct Celula { const Campo* campo = nullptr; int indice = 0; };
