@@ -1,6 +1,6 @@
 # HydroEdit2
 
-Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`), em C++20 / Qt 6 Widgets.
+Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`). Inspirado no HydroEdit clássico.
 
 <img width="828" height="462" alt="image" src="https://github.com/user-attachments/assets/68321708-4912-4608-9cb6-52f2ce5f77b5" />
 
