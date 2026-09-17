@@ -8,7 +8,10 @@ function(adicionar_teste nome)
         DIR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
         DIR_DECK="${CMAKE_SOURCE_DIR}/deck_newave_2026_09_rev1")
     add_test(NAME ${nome} COMMAND ${nome})
-    set_tests_properties(${nome} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    get_filename_component(qt_bin_dir "${Qt6_DIR}/../../../bin" ABSOLUTE)
+    set_tests_properties(${nome} PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:${qt_bin_dir}")
 endfunction()
 
 adicionar_teste(test_campos)
