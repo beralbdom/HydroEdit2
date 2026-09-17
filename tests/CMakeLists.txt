@@ -16,3 +16,4 @@ endfunction()
 
 adicionar_teste(test_campos)
 adicionar_teste(test_registro)
+adicionar_teste(test_deck_lookup)
