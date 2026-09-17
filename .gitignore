@@ -8,3 +8,5 @@ dist/
 rev/dfm/*.bin
 .vs/
 CMakeUserPresets.json
+.superpowers/
+.claude/
