@@ -1,10 +1,12 @@
 #include "janela_principal.h"
 #include <QApplication>
 #include <QCheckBox>
+#include <QCloseEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
@@ -13,12 +15,15 @@
 #include <QStatusBar>
 #include <QTableView>
 #include <QVBoxLayout>
+#include <algorithm>
 #include <filesystem>
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
 #include "formulario_usina.h"
 #include "modelo_hidr.h"
+#include "painel_problemas.h"
+#include "validacao.h"
 
 namespace {
 std::filesystem::path paraPath(const QString& s) { return std::filesystem::path(s.toStdWString()); }
@@ -38,6 +43,20 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     splitter_->setStretchFactor(1, 2);
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { formulario_->definirLinha(linhaSelecionada()); });
+
+    painel_problemas_ = new PainelProblemas(this);
+    addDockWidget(Qt::BottomDockWidgetArea, painel_problemas_);
+    painel_problemas_->hide();
+    connect(painel_problemas_, &PainelProblemas::problemaEscolhido, this, [this](int linha, const QString& campo) {
+        selecionarLinha(linha);
+        formulario_->focarCampo(campo.toStdString());
+    });
+    connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int linha, const Campo*) {
+        if (linha == formulario_->linha()) marcarProblemasDaLinha(linha);
+    });
+    connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
+            [this](const QModelIndex&, const QModelIndex&) { marcarProblemasDaLinha(linhaSelecionada()); });
+
     criarMenus();
 
     status_arquivo_ = new QLabel(this);
@@ -104,6 +123,14 @@ void JanelaPrincipal::criarMenus() {
     editar->addAction(desfazer);
     editar->addAction(refazer);
 
+    menu_usina_ = menuBar()->addMenu(QStringLiteral("&Usina"));
+    menu_usina_->addAction(QStringLiteral("&Nova no primeiro código livre"), QKeySequence(Qt::CTRL | Qt::Key_N), this, &JanelaPrincipal::novaUsina);
+    menu_usina_->addAction(QStringLiteral("Nova em &código..."), this, &JanelaPrincipal::novaUsinaEmCodigo);
+    menu_usina_->addAction(QStringLiteral("&Duplicar"), this, &JanelaPrincipal::duplicarUsina);
+    menu_usina_->addSeparator();
+    menu_usina_->addAction(QStringLiteral("&Excluir (zerar registro)"), QKeySequence::Delete, this, &JanelaPrincipal::excluirUsina);
+    menu_usina_->setEnabled(false);
+
     acao_salvar_->setEnabled(false);
     acao_salvar_como_->setEnabled(false);
     acao_exportar_->setEnabled(false);
@@ -128,6 +155,7 @@ void JanelaPrincipal::selecionarLinha(int linha) {
 }
 
 void JanelaPrincipal::abrir() {
+    if (!confirmarDescarte()) return;
     QString caminho = QFileDialog::getOpenFileName(this, QStringLiteral("Abrir cadastro hidr.dat"), {},
                                                    QStringLiteral("Cadastro NEWAVE (hidr.dat *.dat);;Todos (*.*)"));
     if (!caminho.isEmpty()) abrirCaminho(caminho);
@@ -149,12 +177,15 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     acao_salvar_->setEnabled(true);
     acao_salvar_como_->setEnabled(true);
     acao_exportar_->setEnabled(true);
+    menu_usina_->setEnabled(true);
+    painel_problemas_->definirProblemas({});
     if (modelo_->numUsinas() > 0) selecionarLinha(0);
     atualizarTitulo();
     atualizarStatus();
 }
 
 bool JanelaPrincipal::salvarEm(const QString& caminho) {
+    if (!validarAntesDeSalvar()) return false;
     Resultado r = modelo_->arquivo().salvar(paraPath(caminho));
     if (!r.ok) {
         QMessageBox::critical(this, QStringLiteral("Erro ao salvar"), QString::fromUtf8(r.mensagem));
@@ -206,4 +237,126 @@ void JanelaPrincipal::atualizarStatus() {
     QStringList notas;
     for (const std::string& n : modelo_->lookup().notas) notas << QString::fromUtf8(n);
     status_notas_->setText(notas.join(QStringLiteral(" | ")));
+}
+
+std::vector<ProblemaUsina> JanelaPrincipal::validarTudo() const {
+    std::vector<ProblemaUsina> saida;
+    ContextoValidacao ctx;
+    ctx.num_usinas = modelo_->numUsinas();
+    for (int i = 0; i < modelo_->numUsinas(); ++i) {
+        const UsinaHidr& u = modelo_->usina(i);
+        if (u.vazia()) continue;
+        ctx.codigo = i + 1;
+        for (Problema& p : validar(u, ctx)) saida.push_back({i, std::move(p)});
+    }
+    return saida;
+}
+
+bool JanelaPrincipal::validarAntesDeSalvar() {
+    std::vector<ProblemaUsina> problemas = validarTudo();
+    painel_problemas_->definirProblemas(problemas);
+    int erros = 0, avisos = 0;
+    for (const ProblemaUsina& p : problemas) (p.problema.severidade == Severidade::Erro ? erros : avisos)++;
+    if (erros > 0) {
+        QMessageBox::critical(this, QStringLiteral("Não é possível salvar"),
+                              QStringLiteral("%1 erro(s) de consistência. Corrija os itens do painel de problemas.").arg(erros));
+        return false;
+    }
+    if (avisos > 0) {
+        auto r = QMessageBox::question(this, QStringLiteral("Avisos"),
+                                       QStringLiteral("%1 aviso(s) de consistência. Salvar mesmo assim?").arg(avisos),
+                                       QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        return r == QMessageBox::Yes;
+    }
+    return true;
+}
+
+void JanelaPrincipal::marcarProblemasDaLinha(int linha) {
+    std::vector<std::string> campos;
+    if (linha >= 0 && !modelo_->usina(linha).vazia()) {
+        ContextoValidacao ctx{modelo_->numUsinas(), linha + 1};
+        for (const Problema& p : validar(modelo_->usina(linha), ctx))
+            if (p.severidade == Severidade::Erro) campos.push_back(p.campo);
+    }
+    formulario_->marcarProblemas(campos);
+}
+
+int JanelaPrincipal::primeiroCodigoLivre() const {
+    for (int i = 0; i < modelo_->numUsinas(); ++i)
+        if (modelo_->usina(i).vazia()) return i + 1;
+    return -1;
+}
+
+void JanelaPrincipal::novaUsina() {
+    int codigo = primeiroCodigoLivre();
+    if (codigo < 0) {
+        QMessageBox::warning(this, QStringLiteral("Sem espaço"), QStringLiteral("Não há registro livre no arquivo."));
+        return;
+    }
+    UsinaHidr u;
+    u.nome = "NOVA";
+    u.regulacao = "M";
+    u.num_pol_jusante = 1;
+    modelo_->substituirUsina(codigo - 1, u, QStringLiteral("Nova usina %1").arg(codigo));
+    selecionarLinha(codigo - 1);
+    formulario_->focarCampo("nome");
+}
+
+void JanelaPrincipal::novaUsinaEmCodigo() {
+    bool ok = false;
+    int codigo = QInputDialog::getInt(this, QStringLiteral("Nova usina"), QStringLiteral("Código (1..%1):").arg(modelo_->numUsinas()),
+                                      std::max(1, primeiroCodigoLivre()), 1, modelo_->numUsinas(), 1, &ok);
+    if (!ok) return;
+    if (!modelo_->usina(codigo - 1).vazia()) {
+        QMessageBox::warning(this, QStringLiteral("Código ocupado"),
+                             QStringLiteral("O código %1 já corresponde à usina %2.").arg(codigo).arg(QString::fromLatin1(modelo_->usina(codigo - 1).nome.c_str())));
+        return;
+    }
+    UsinaHidr u;
+    u.nome = "NOVA";
+    u.regulacao = "M";
+    u.num_pol_jusante = 1;
+    modelo_->substituirUsina(codigo - 1, u, QStringLiteral("Nova usina %1").arg(codigo));
+    selecionarLinha(codigo - 1);
+    formulario_->focarCampo("nome");
+}
+
+void JanelaPrincipal::duplicarUsina() {
+    int origem = linhaSelecionada();
+    if (origem < 0 || modelo_->usina(origem).vazia()) return;
+    int codigo = primeiroCodigoLivre();
+    if (codigo < 0) {
+        QMessageBox::warning(this, QStringLiteral("Sem espaço"), QStringLiteral("Não há registro livre no arquivo."));
+        return;
+    }
+    modelo_->substituirUsina(codigo - 1, modelo_->usina(origem), QStringLiteral("Duplicar usina %1 em %2").arg(origem + 1).arg(codigo));
+    selecionarLinha(codigo - 1);
+}
+
+void JanelaPrincipal::excluirUsina() {
+    int linha = linhaSelecionada();
+    if (linha < 0 || modelo_->usina(linha).vazia()) return;
+    auto r = QMessageBox::question(this, QStringLiteral("Excluir usina"),
+                                   QStringLiteral("Zerar o registro %1 (%2)? A operação pode ser desfeita com Ctrl+Z.")
+                                       .arg(linha + 1).arg(QString::fromLatin1(modelo_->usina(linha).nome.c_str())));
+    if (r != QMessageBox::Yes) return;
+    modelo_->substituirUsina(linha, UsinaHidr{}, QStringLiteral("Excluir usina %1").arg(linha + 1));
+}
+
+bool JanelaPrincipal::confirmarDescarte() {
+    if (modelo_->pilhaUndo()->isClean()) return true;
+    auto r = QMessageBox::question(this, QStringLiteral("Alterações não salvas"),
+                                   QStringLiteral("Salvar as alterações em %1?").arg(QFileInfo(modelo_->caminho()).fileName()),
+                                   QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
+    if (r == QMessageBox::Cancel) return false;
+    if (r == QMessageBox::Save) {
+        salvar();
+        return modelo_->pilhaUndo()->isClean();
+    }
+    return true;
+}
+
+void JanelaPrincipal::closeEvent(QCloseEvent* ev) {
+    if (confirmarDescarte()) ev->accept();
+    else ev->ignore();
 }
