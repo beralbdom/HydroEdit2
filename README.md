@@ -2,6 +2,8 @@
 
 Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`), em C++20 / Qt 6 Widgets.
 
+![Tela principal do HydroEdit2](imagens/tela_principal.png)
+
 ## Requisitos
 
 - Qt 6.11.2, kit MSVC 2022 x64, instalado em `C:\Qt\6.11.2\msvc2022_64`.
