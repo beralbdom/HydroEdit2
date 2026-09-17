@@ -121,22 +121,18 @@ void VistaCascata::reconstruir() {
             if (!incluido[i + 1]) usinas[i].nome.clear();
         }
         c = montarCascata(usinas);
-    } else if (bacia_filtro_ != 0) {
-        c = completa;
-        int indiceBacia = -1;
-        for (const BaciaCascata& bacia : completa.bacias) {
-            if (bacia.codigo_foz == bacia_filtro_) {
-                indiceBacia = bacia.indice;
-                break;
-            }
-        }
-        std::vector<NoCascata> nosFiltrados;
-        for (const NoCascata& no : completa.nos)
-            if (no.bacia == indiceBacia) nosFiltrados.push_back(no);
-        c.nos = std::move(nosFiltrados);
     } else {
-        int largura_maxima = std::max(8, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(completa.nos.size()) * 2.5))));
-        c = empacotarBacias(completa, largura_maxima);
+        if (bacia_filtro_ != 0) {
+            c = filtrarBacia(completa, bacia_filtro_);
+            // Bacia sumiu do deck (foz zerada ou jusante trocado): volta para "Todas" em vez de
+            // deixar a cena vazia com o combo tambem tentando resincronizar sozinho.
+            if (c.nos.empty()) bacia_filtro_ = 0;
+        }
+        if (bacia_filtro_ == 0) {
+            int largura_maxima =
+                std::max(8, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(completa.nos.size()) * 2.5))));
+            c = empacotarBacias(completa, largura_maxima);
+        }
     }
 
     for (const NoCascata& no : c.nos) criarItemNo(no, modelo_->usina(no.codigo - 1));

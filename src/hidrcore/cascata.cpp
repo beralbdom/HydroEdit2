@@ -168,6 +168,40 @@ Cascata empacotarBacias(const Cascata& c, int largura_maxima) {
     return resultado;
 }
 
+// Extrai os nos e arestas internas da bacia cuja foz e codigo_foz, deslocando as colunas para a
+// bacia comecar em zero (coluna_inicial passa a 0). Cascata retornada com nos.empty() se
+// nenhuma bacia tiver essa foz (por exemplo, apos a foz deixar de existir no deck).
+Cascata filtrarBacia(const Cascata& c, int codigo_foz) {
+    Cascata resultado;
+
+    const BaciaCascata* bacia = nullptr;
+    for (const BaciaCascata& b : c.bacias) {
+        if (b.codigo_foz == codigo_foz) {
+            bacia = &b;
+            break;
+        }
+    }
+    if (bacia == nullptr) return resultado;
+
+    std::unordered_map<int, bool> membro;
+    for (const NoCascata& no : c.nos) {
+        if (no.bacia != bacia->indice) continue;
+        NoCascata copia = no;
+        copia.coluna -= bacia->coluna_inicial;
+        resultado.nos.push_back(copia);
+        membro[no.codigo] = true;
+    }
+    for (const ArestaCascata& aresta : c.arestas) {
+        if (membro.count(aresta.origem) && membro.count(aresta.destino)) resultado.arestas.push_back(aresta);
+    }
+
+    resultado.bacias = {*bacia};
+    resultado.bacias[0].coluna_inicial = 0;
+    resultado.num_colunas = bacia->largura;
+    resultado.num_linhas = bacia->altura;
+    return resultado;
+}
+
 // Sobe pelos jusantes validos ate a foz (com protecao contra ciclo, via marcacao de visitado) e
 // desce recursivamente por quem aponta pra cada no ja incluido, cobrindo toda a arvore de
 // contribuintes a montante alem do caminho a jusante.

@@ -153,7 +153,7 @@ void JanelaPrincipal::criarTabela() {
         int foz_atual = bacia_cascata_->currentData().toInt();
         std::vector<BaciaCascata> ordenadas = bacias;
         std::sort(ordenadas.begin(), ordenadas.end(),
-                   [](const BaciaCascata& a, const BaciaCascata& b) { return a.num_usinas > b.num_usinas; });
+                  [](const BaciaCascata& a, const BaciaCascata& b) { return a.num_usinas > b.num_usinas; });
 
         bacia_cascata_->blockSignals(true);
         bacia_cascata_->clear();

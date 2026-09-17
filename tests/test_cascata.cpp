@@ -216,6 +216,34 @@ private slots:
         QCOMPARE(r.bacias[0].coluna_inicial, c.bacias[0].coluna_inicial);
         QCOMPARE(r.num_colunas, c.num_colunas);
     }
+    void filtrarBaciaExistenteMantemNosEArestasEDeslocaColunas() {
+        std::vector<UsinaHidr> u(4);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 0;
+        u[2].nome = "U3"; u[2].jusante = 4;
+        u[3].nome = "U4"; u[3].jusante = 0;
+        Cascata c = montarCascata(u);
+        Cascata filtrada = filtrarBacia(c, 4);
+        QCOMPARE(filtrada.nos.size(), size_t(2));
+        const NoCascata* n3 = noDe(filtrada, 3);
+        const NoCascata* n4 = noDe(filtrada, 4);
+        QVERIFY(n3 && n4);
+        QCOMPARE(n3->coluna, 0.0);
+        QCOMPARE(n4->coluna, 0.0);
+        QCOMPARE(filtrada.arestas.size(), size_t(1));
+        QVERIFY(temAresta(filtrada, 3, 4, false));
+        QCOMPARE(filtrada.bacias.size(), size_t(1));
+        QCOMPARE(filtrada.bacias[0].coluna_inicial, 0);
+    }
+    void filtrarBaciaInexistenteRetornaVazia() {
+        std::vector<UsinaHidr> u(2);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 0;
+        Cascata c = montarCascata(u);
+        Cascata filtrada = filtrarBacia(c, 99);
+        QVERIFY(filtrada.nos.empty());
+        QVERIFY(filtrada.arestas.empty());
+    }
     void cascataDaUsinaIncluiMontanteEJusante() {
         std::vector<UsinaHidr> u(5);
         u[0].nome = "U1"; u[0].jusante = 2;
