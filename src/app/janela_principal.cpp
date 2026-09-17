@@ -389,6 +389,6 @@ void JanelaPrincipal::atualizarRecentes() {
     menu_recentes_->clear();
     QStringList lista = QSettings().value(QStringLiteral("recentes")).toStringList();
     for (const QString& c : lista)
-        menu_recentes_->addAction(c, this, [this, c] { abrirCaminho(c); });
+        menu_recentes_->addAction(c, this, [this, c] { if (confirmarDescarte()) abrirCaminho(c); });
     menu_recentes_->setEnabled(!lista.isEmpty());
 }
