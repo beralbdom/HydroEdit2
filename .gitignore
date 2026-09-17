@@ -4,6 +4,7 @@ docs/*.pdf
 build/
 build-*/
 out/
+dist/
 rev/dfm/*.bin
 .vs/
 CMakeUserPresets.json

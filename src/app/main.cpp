@@ -3,6 +3,7 @@
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
+    QApplication::setOrganizationName(QStringLiteral("HydroEdit"));
     QApplication::setApplicationName(QStringLiteral("HydroEdit"));
     QApplication::setApplicationVersion(QStringLiteral("5.0.0"));
     JanelaPrincipal janela;

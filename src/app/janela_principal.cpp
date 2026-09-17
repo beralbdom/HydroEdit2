@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSettings>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTableView>
@@ -108,6 +109,7 @@ void JanelaPrincipal::criarTabela() {
 void JanelaPrincipal::criarMenus() {
     QMenu* arquivo = menuBar()->addMenu(QStringLiteral("&Arquivo"));
     arquivo->addAction(QStringLiteral("&Abrir..."), QKeySequence::Open, this, &JanelaPrincipal::abrir);
+    menu_recentes_ = arquivo->addMenu(QStringLiteral("&Recentes"));
     acao_salvar_ = arquivo->addAction(QStringLiteral("&Salvar"), QKeySequence::Save, this, &JanelaPrincipal::salvar);
     acao_salvar_como_ = arquivo->addAction(QStringLiteral("Salvar &como..."), QKeySequence::SaveAs, this, &JanelaPrincipal::salvarComo);
     arquivo->addSeparator();
@@ -134,6 +136,16 @@ void JanelaPrincipal::criarMenus() {
     acao_salvar_->setEnabled(false);
     acao_salvar_como_->setEnabled(false);
     acao_exportar_->setEnabled(false);
+
+    QMenu* ajuda = menuBar()->addMenu(QStringLiteral("A&juda"));
+    ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
+        QMessageBox::about(this, QStringLiteral("Sobre o HydroEdit"),
+                           QStringLiteral("<b>HydroEdit 5.0.0</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
+                                          "Reescrita em C++/Qt 6 do HydroEdit 4.0a (ONS, Rodrigo Vilanova).<br>"
+                                          "Layout do registro: 792 bytes, %1 usinas por arquivo.")
+                               .arg(modelo_->numUsinas()));
+    });
+    atualizarRecentes();
 }
 
 int JanelaPrincipal::linhaSelecionada() const {
@@ -182,6 +194,7 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     if (modelo_->numUsinas() > 0) selecionarLinha(0);
     atualizarTitulo();
     atualizarStatus();
+    registrarRecente(caminho);
 }
 
 bool JanelaPrincipal::salvarEm(const QString& caminho) {
@@ -195,6 +208,7 @@ bool JanelaPrincipal::salvarEm(const QString& caminho) {
     modelo_->pilhaUndo()->setClean();
     atualizarTitulo();
     atualizarStatus();
+    registrarRecente(caminho);
     return true;
 }
 
@@ -359,4 +373,22 @@ bool JanelaPrincipal::confirmarDescarte() {
 void JanelaPrincipal::closeEvent(QCloseEvent* ev) {
     if (confirmarDescarte()) ev->accept();
     else ev->ignore();
+}
+
+void JanelaPrincipal::registrarRecente(const QString& caminho) {
+    QSettings s;
+    QStringList lista = s.value(QStringLiteral("recentes")).toStringList();
+    lista.removeAll(caminho);
+    lista.prepend(caminho);
+    while (lista.size() > 5) lista.removeLast();
+    s.setValue(QStringLiteral("recentes"), lista);
+    atualizarRecentes();
+}
+
+void JanelaPrincipal::atualizarRecentes() {
+    menu_recentes_->clear();
+    QStringList lista = QSettings().value(QStringLiteral("recentes")).toStringList();
+    for (const QString& c : lista)
+        menu_recentes_->addAction(c, this, [this, c] { abrirCaminho(c); });
+    menu_recentes_->setEnabled(!lista.isEmpty());
 }

@@ -27,6 +27,8 @@ protected:
     bool salvarEm(const QString& caminho);
     void atualizarTitulo();
     void atualizarStatus();
+    void registrarRecente(const QString& caminho);
+    void atualizarRecentes();
     void closeEvent(QCloseEvent* ev) override;
     std::vector<ProblemaUsina> validarTudo() const;
     bool validarAntesDeSalvar();
@@ -64,4 +66,5 @@ private:
     QAction* acao_salvar_como_;
     QAction* acao_exportar_;
     QMenu* menu_usina_;
+    QMenu* menu_recentes_;
 };
