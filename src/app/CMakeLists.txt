@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
 qt_standard_project_setup()
 
 qt_add_library(hydroedit_ui STATIC
@@ -12,9 +12,10 @@ qt_add_library(hydroedit_ui STATIC
     paginas_usina.cpp
     painel_problemas.cpp painel_problemas.h
     vista_cascata.cpp vista_cascata.h
+    grafico_polinomio.cpp grafico_polinomio.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets)
+target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts)
 
 qt_add_executable(HydroEdit WIN32 main.cpp hydroedit.rc)
 qt_add_resources(HydroEdit "icone"

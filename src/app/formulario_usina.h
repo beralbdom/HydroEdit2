@@ -16,6 +16,7 @@ class QTabWidget;
 class QVBoxLayout;
 class ModeloHidr;
 class GradeVetor;
+class GraficoPolinomio;
 
 class FormularioUsina : public QWidget {
     Q_OBJECT
@@ -49,6 +50,7 @@ private:
     void registrarCampoGrade(int pagina, const char* nome);
     void recarregarListas();
     void atualizar();
+    void atualizarGraficos();
     void aoEditarEdit(const char* nome);
     void aoEscolherCombo(const char* nome, int indice);
 
@@ -61,4 +63,7 @@ private:
     std::map<std::string, int> pagina_do_campo_;
     QLabel* titulo_;
     QTabWidget* abas_;
+    GraficoPolinomio* grafico_cota_volume_ = nullptr;
+    GraficoPolinomio* grafico_area_cota_ = nullptr;
+    GraficoPolinomio* grafico_jusante_ = nullptr;
 };

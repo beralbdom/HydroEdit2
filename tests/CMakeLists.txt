@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Test Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Test Widgets Charts)
 qt_standard_project_setup()
 
 function(adicionar_teste nome)
@@ -22,3 +22,4 @@ adicionar_teste(test_validacao)
 adicionar_teste(test_deck_lookup)
 adicionar_teste(test_cascata)
 adicionar_teste(test_modelo_hidr hydroedit_ui)
+adicionar_teste(test_grafico_polinomio hydroedit_ui)

@@ -13,6 +13,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include "grade_vetor.h"
+#include "grafico_polinomio.h"
 #include "modelo_hidr.h"
 
 FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(parent), modelo_(modelo) {
@@ -208,6 +209,40 @@ void FormularioUsina::atualizar() {
     }
     for (GradeVetor* g : grades_) g->atualizar();
     atualizando_ = false;
+    atualizarGraficos();
+}
+
+void FormularioUsina::atualizarGraficos() {
+    if (linha_ < 0) {
+        grafico_cota_volume_->definirCurvas({}, {});
+        grafico_area_cota_->definirCurvas({}, {});
+        grafico_jusante_->definirCurvas({}, {});
+        return;
+    }
+    const UsinaHidr& u = modelo_->usina(linha_);
+
+    grafico_cota_volume_->definirCurvas(
+        {{QStringLiteral("Cota x Volume"), u.pol_cota_volume, u.volume_minimo, u.volume_maximo}},
+        {static_cast<double>(u.volume_minimo), static_cast<double>(u.volume_maximo)});
+
+    grafico_area_cota_->definirCurvas(
+        {{QStringLiteral("Área x Cota"), u.pol_area_cota, u.cota_minima, u.cota_maxima}},
+        {static_cast<double>(u.cota_minima), static_cast<double>(u.cota_maxima)});
+
+    double vazao_maxima = 0.0;
+    int num_conjuntos = std::min(u.num_conjuntos, static_cast<int32_t>(MAX_CONJUNTOS));
+    for (int i = 0; i < num_conjuntos; ++i)
+        vazao_maxima += static_cast<double>(u.vazao_efetiva[static_cast<size_t>(i)]) * static_cast<double>(u.num_maquinas[static_cast<size_t>(i)]);
+    double x_max_jusante = std::max(100.0, 1.5 * vazao_maxima);
+
+    std::vector<GraficoPolinomio::Curva> curvas_jusante;
+    int num_pol_jusante = std::min(u.num_pol_jusante, static_cast<int32_t>(MAX_POL_JUSANTE));
+    for (int j = 0; j < num_pol_jusante; ++j) {
+        curvas_jusante.push_back(
+            {QStringLiteral("Pol. %1 (ref. %2 m)").arg(j + 1).arg(static_cast<double>(u.ref_pol_jusante[static_cast<size_t>(j)])),
+             u.pol_jusante[static_cast<size_t>(j)], 0.0, x_max_jusante});
+    }
+    grafico_jusante_->definirCurvas(curvas_jusante, {});
 }
 
 void FormularioUsina::aoEditarEdit(const char* nome) {
