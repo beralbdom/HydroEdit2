@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QIcon>
 #include <QPalette>
 #include "janela_principal.h"
 
@@ -14,6 +15,7 @@ int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
     QApplication::setStyle(QStringLiteral("Fusion"));
     ajustarLinhasAlternadas(app);
+    app.setWindowIcon(QIcon(QStringLiteral(":/hidro.ico")));
     QApplication::setOrganizationName(QStringLiteral("HydroEdit"));
     QApplication::setApplicationName(QStringLiteral("HydroEdit"));
     QApplication::setApplicationVersion(QStringLiteral("5.0.0"));
