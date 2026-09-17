@@ -2,6 +2,7 @@ deck_*/
 docs/*.pdf
 *.exe
 build/
+build-*/
 out/
 rev/dfm/*.bin
 .vs/
