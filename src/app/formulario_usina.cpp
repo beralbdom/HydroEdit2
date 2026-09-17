@@ -39,8 +39,12 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     scroll->setWidget(conteudo);
 
     connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int linha, const Campo* c) {
-        if (!c || c->nome == "nome") recarregarListas();
-        if (linha == linha_) atualizar();
+        if (!c || c->nome == "nome") {
+            recarregarListas();
+            atualizar();
+        } else if (linha == linha_) {
+            atualizar();
+        }
     });
     connect(modelo_, &QAbstractItemModel::modelReset, this, [this] {
         recarregarListas();
