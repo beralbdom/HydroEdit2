@@ -3,19 +3,11 @@
 #include <functional>
 #include <map>
 #include <unordered_map>
+#include <utility>
 
 namespace {
 
-int jusanteValido(const std::vector<UsinaHidr>& usinas, int codigo) {
-    int32_t alvo = usinas[static_cast<size_t>(codigo - 1)].jusante;
-    if (alvo < 1 || alvo > static_cast<int32_t>(usinas.size())) return 0;
-    if (alvo == codigo) return 0;
-    if (usinas[static_cast<size_t>(alvo - 1)].vazia()) return 0;
-    return alvo;
-}
-
-int desvioValido(const std::vector<UsinaHidr>& usinas, int codigo) {
-    int32_t alvo = usinas[static_cast<size_t>(codigo - 1)].desvio;
+int alvoValido(const std::vector<UsinaHidr>& usinas, int codigo, int32_t alvo) {
     if (alvo < 1 || alvo > static_cast<int32_t>(usinas.size())) return 0;
     if (alvo == codigo) return 0;
     if (usinas[static_cast<size_t>(alvo - 1)].vazia()) return 0;
@@ -26,7 +18,12 @@ int desvioValido(const std::vector<UsinaHidr>& usinas, int codigo) {
 
 // Raizes explicitas (jusante invalido) sao processadas primeiro, em ordem de codigo; depois,
 // qualquer no ainda nao visitado (so ocorre em ciclo) vira raiz adicional, e a aresta de
-// jusante que o levaria de volta a um no ja visitado no mesmo ciclo e descartada.
+// jusante que o levaria de volta a um no ja visitado no mesmo ciclo e descartada. Um no e
+// "leaf" (recebe a proxima coluna livre) quando nao sobra nenhum filho para visitar depois
+// de descartar os ja visitados; um no cuja subarvore tocou um ciclo tambem recebe coluna
+// propria em vez da media dos filhos, senao ele colapsaria sobre o mesmo valor do filho
+// unico que restou (media de um elemento e o proprio elemento), sobrepondo colunas ao
+// longo de toda a cadeia que sobra de um ciclo resolvido.
 Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
     Cascata cascata;
     int n = static_cast<int>(usinas.size());
@@ -41,22 +38,22 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
     std::map<int, std::vector<int>> filhosDe;
     for (int codigo = 1; codigo <= n; ++codigo) {
         if (!indiceDoCodigo.contains(codigo)) continue;
-        int pai = jusanteValido(usinas, codigo);
+        int pai = alvoValido(usinas, codigo, usinas[static_cast<size_t>(codigo - 1)].jusante);
         if (pai != 0) filhosDe[pai].push_back(codigo);
     }
 
     std::vector<int> raizesExplicitas;
     for (int codigo = 1; codigo <= n; ++codigo) {
         if (!indiceDoCodigo.contains(codigo)) continue;
-        if (jusanteValido(usinas, codigo) == 0) raizesExplicitas.push_back(codigo);
+        if (alvoValido(usinas, codigo, usinas[static_cast<size_t>(codigo - 1)].jusante) == 0) raizesExplicitas.push_back(codigo);
     }
 
     std::vector<bool> visitado(static_cast<size_t>(n) + 1, false);
     int proximaColuna = 0;
     int numBacias = 0;
 
-    std::function<double(int, int, int&, std::vector<int>&)> visitar =
-        [&](int codigo, int profundidade, int& profundidadeMaxima, std::vector<int>& membros) -> double {
+    std::function<std::pair<double, bool>(int, int, int&, std::vector<int>&)> visitar =
+        [&](int codigo, int profundidade, int& profundidadeMaxima, std::vector<int>& membros) -> std::pair<double, bool> {
         visitado[static_cast<size_t>(codigo)] = true;
         membros.push_back(codigo);
         profundidadeMaxima = std::max(profundidadeMaxima, profundidade);
@@ -64,19 +61,27 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
         no.linha = profundidade;
         no.bacia = numBacias;
 
-        auto it = filhosDe.find(codigo);
-        if (it == filhosDe.end() || it->second.empty()) {
-            no.coluna = static_cast<double>(proximaColuna++);
-            return no.coluna;
-        }
         double soma = 0.0;
-        for (int filho : it->second) {
-            if (visitado[static_cast<size_t>(filho)]) continue;
-            soma += visitar(filho, profundidade + 1, profundidadeMaxima, membros);
-            cascata.arestas.push_back(ArestaCascata{filho, codigo, false});
+        int visitados = 0;
+        bool tocaCiclo = false;
+        auto it = filhosDe.find(codigo);
+        if (it != filhosDe.end()) {
+            for (int filho : it->second) {
+                if (visitado[static_cast<size_t>(filho)]) {
+                    tocaCiclo = true;
+                    continue;
+                }
+                auto [colunaFilho, filhoTocaCiclo] = visitar(filho, profundidade + 1, profundidadeMaxima, membros);
+                soma += colunaFilho;
+                ++visitados;
+                if (filhoTocaCiclo) tocaCiclo = true;
+                cascata.arestas.push_back(ArestaCascata{filho, codigo, false});
+            }
         }
-        no.coluna = soma / static_cast<double>(it->second.size());
-        return no.coluna;
+
+        if (visitados == 0 || tocaCiclo) no.coluna = static_cast<double>(proximaColuna++);
+        else no.coluna = soma / static_cast<double>(visitados);
+        return {no.coluna, tocaCiclo};
     };
 
     auto processarRaiz = [&](int raiz) {
@@ -100,7 +105,7 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
 
     for (int codigo = 1; codigo <= n; ++codigo) {
         if (!indiceDoCodigo.contains(codigo)) continue;
-        int alvo = desvioValido(usinas, codigo);
+        int alvo = alvoValido(usinas, codigo, usinas[static_cast<size_t>(codigo - 1)].desvio);
         if (alvo != 0) cascata.arestas.push_back(ArestaCascata{codigo, alvo, true});
     }
 

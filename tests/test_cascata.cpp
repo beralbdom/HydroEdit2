@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <algorithm>
 #include "cascata.h"
 
 class TestCascata : public QObject {
@@ -97,6 +98,33 @@ private slots:
         const NoCascata* n2 = noDe(c, 2);
         QVERIFY(n1 && n2);
         QCOMPARE(n1->bacia, n2->bacia);
+        QVERIFY(n1->coluna != n2->coluna);
+    }
+    void cicloDeTresNosNaoSobrepoeColunas() {
+        std::vector<UsinaHidr> u(3);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 3;
+        u[2].nome = "U3"; u[2].jusante = 1;
+        Cascata c = montarCascata(u);
+        QCOMPARE(c.nos.size(), size_t(3));
+        QCOMPARE(c.arestas.size(), size_t(2));
+        QVERIFY(temAresta(c, 2, 3, false));
+        QVERIFY(temAresta(c, 3, 1, false));
+        QVERIFY(!temAresta(c, 1, 2, false));
+        const NoCascata* n1 = noDe(c, 1);
+        const NoCascata* n2 = noDe(c, 2);
+        const NoCascata* n3 = noDe(c, 3);
+        QVERIFY(n1 && n2 && n3);
+        QCOMPARE(n1->bacia, n2->bacia);
+        QCOMPARE(n2->bacia, n3->bacia);
+        QVERIFY(n1->coluna != n2->coluna);
+        QVERIFY(n2->coluna != n3->coluna);
+        QVERIFY(n1->coluna != n3->coluna);
+        std::vector<double> colunas = {n1->coluna, n2->coluna, n3->coluna};
+        std::sort(colunas.begin(), colunas.end());
+        QCOMPARE(colunas[0], 0.0);
+        QCOMPARE(colunas[1], 1.0);
+        QCOMPARE(colunas[2], 2.0);
     }
     void desvioGeraArestaSemAlterarColunas() {
         std::vector<UsinaHidr> u(2);

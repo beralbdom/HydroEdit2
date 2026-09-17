@@ -40,9 +40,14 @@ VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(
     pena_normal_ = QPen(palette().mid().color(), 1);
     pena_selecionada_ = QPen(palette().highlight().color(), 2);
 
-    // Sinaliza que a proxima reconstrucao deve ajustar o zoom, sem refazer a cena aqui
-    // (quem chama reconstruir() apos o reset e a JanelaPrincipal).
-    connect(modelo_, &QAbstractItemModel::modelReset, this, [this] { ajustar_no_proximo_ = true; });
+    connect(modelo_, &QAbstractItemModel::modelReset, this, &VistaCascata::aoResetarModelo);
+}
+
+// Conexao unica com o reset do modelo: liga a flag de ajuste automatico e reconstroi a cena
+// aqui mesmo, sem depender da ordem de conexao com nenhum sinal externo.
+void VistaCascata::aoResetarModelo() {
+    ajustar_no_proximo_ = true;
+    reconstruir();
 }
 
 void VistaCascata::criarItemNo(const NoCascata& no, const UsinaHidr& usina) {

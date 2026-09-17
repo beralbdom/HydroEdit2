@@ -14,7 +14,6 @@ struct NoCascata;
 struct ArestaCascata;
 struct UsinaHidr;
 
-// Grafo das usinas ligadas por jusante (seta cheia) e desvio (seta tracejada), layout em arvore por bacia.
 class VistaCascata : public QGraphicsView {
     Q_OBJECT
 public:
@@ -30,6 +29,9 @@ signals:
 protected:
     void wheelEvent(QWheelEvent* ev) override;
     void mousePressEvent(QMouseEvent* ev) override;
+
+private slots:
+    void aoResetarModelo();
 
 private:
     struct ItemAresta {

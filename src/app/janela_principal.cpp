@@ -66,7 +66,6 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { vista_cascata_->selecionar(linhaSelecionada()); });
     connect(vista_cascata_, &VistaCascata::usinaEscolhida, this, &JanelaPrincipal::selecionarLinha);
-    connect(modelo_, &QAbstractItemModel::modelReset, vista_cascata_, &VistaCascata::reconstruir);
     connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int, const Campo* campo) {
         static constexpr std::array<std::string_view, 4> campos_cascata = {"nome", "jusante", "desvio", "subsistema"};
         bool afeta_cascata = !campo || std::find(campos_cascata.begin(), campos_cascata.end(), campo->nome) != campos_cascata.end();
