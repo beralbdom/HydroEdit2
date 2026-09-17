@@ -67,9 +67,11 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
 
     status_arquivo_ = new QLabel(this);
     status_usinas_ = new QLabel(this);
+    status_validacao_ = new QLabel(this);
     status_notas_ = new QLabel(this);
     statusBar()->addWidget(status_arquivo_, 1);
     statusBar()->addWidget(status_usinas_);
+    statusBar()->addWidget(status_validacao_);
     statusBar()->addPermanentWidget(status_notas_);
 
     connect(modelo_->pilhaUndo(), &QUndoStack::cleanChanged, this, [this](bool) { atualizarTitulo(); });
@@ -261,6 +263,14 @@ void JanelaPrincipal::atualizarStatus() {
     status_usinas_->setText(QStringLiteral("%1 / %2 usinas")
                                 .arg(modelo_->arquivo().numUsinasPreenchidas())
                                 .arg(modelo_->numUsinas()));
+    if (modelo_->caminho().isEmpty()) {
+        status_validacao_->setText(QString());
+    } else {
+        std::vector<ProblemaUsina> problemas = validarTudo();
+        int erros = 0, avisos = 0;
+        for (const ProblemaUsina& p : problemas) (p.problema.severidade == Severidade::Erro ? erros : avisos)++;
+        status_validacao_->setText(QStringLiteral("%1 erros, %2 avisos").arg(erros).arg(avisos));
+    }
     QStringList notas;
     for (const std::string& n : modelo_->lookup().notas) notas << QString::fromUtf8(n);
     status_notas_->setText(notas.join(QStringLiteral(" | ")));
@@ -282,18 +292,13 @@ std::vector<ProblemaUsina> JanelaPrincipal::validarTudo() const {
 bool JanelaPrincipal::validarAntesDeSalvar() {
     std::vector<ProblemaUsina> problemas = validarTudo();
     painel_problemas_->definirProblemas(problemas);
-    int erros = 0, avisos = 0;
-    for (const ProblemaUsina& p : problemas) (p.problema.severidade == Severidade::Erro ? erros : avisos)++;
+    int erros = 0;
+    for (const ProblemaUsina& p : problemas)
+        if (p.problema.severidade == Severidade::Erro) ++erros;
     if (erros > 0) {
         QMessageBox::critical(this, QStringLiteral("Não é possível salvar"),
                               QStringLiteral("%1 erro(s) de consistência. Corrija os itens do painel de problemas.").arg(erros));
         return false;
-    }
-    if (avisos > 0) {
-        auto r = QMessageBox::question(this, QStringLiteral("Avisos"),
-                                       QStringLiteral("%1 aviso(s) de consistência. Salvar mesmo assim?").arg(avisos),
-                                       QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-        return r == QMessageBox::Yes;
     }
     return true;
 }

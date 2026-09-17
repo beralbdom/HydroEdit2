@@ -49,13 +49,38 @@ private slots:
     void postoZero() { auto u = valida(); u.posto = 0; QVERIFY(temErroEm(validar(u, ctx()), "posto")); }
     void volumeNegativo() { auto u = valida(); u.volume_desvio = -1; QVERIFY(temErroEm(validar(u, ctx()), "volume_desvio")); }
     void vminMaiorQueVmax() { auto u = valida(); u.volume_minimo = 300; QVERIFY(temErroEm(validar(u, ctx()), "volume_minimo")); }
-    void vvertForaDaFaixa() { auto u = valida(); u.volume_vertedouro = 250; QVERIFY(temErroEm(validar(u, ctx()), "volume_vertedouro")); }
-    void vdesvForaDaFaixa() { auto u = valida(); u.volume_desvio = 50; QVERIFY(temErroEm(validar(u, ctx()), "volume_desvio")); }
-    void vrefForaDaFaixa() { auto u = valida(); u.volume_referencia = 201; QVERIFY(temErroEm(validar(u, ctx()), "volume_referencia")); }
+    void vvertForaDaFaixa() {
+        auto u = valida(); u.volume_vertedouro = 250;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "volume_vertedouro"));
+        QVERIFY(!temErro(ps));
+    }
+    void vdesvForaDaFaixa() {
+        auto u = valida(); u.volume_desvio = 50;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "volume_desvio"));
+        QVERIFY(!temErro(ps));
+    }
+    void vrefForaDaFaixa() {
+        auto u = valida(); u.volume_referencia = 201;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "volume_referencia"));
+        QVERIFY(!temErro(ps));
+    }
     void cotaNegativa() { auto u = valida(); u.cota_minima = -1; QVERIFY(temErroEm(validar(u, ctx()), "cota_minima")); }
     void cminMaiorQueCmax() { auto u = valida(); u.cota_maxima = 400; QVERIFY(temErroEm(validar(u, ctx()), "cota_minima")); }
-    void a0CotaVolumeZero() { auto u = valida(); u.pol_cota_volume[0] = 0; QVERIFY(temErroEm(validar(u, ctx()), "pol_cota_volume")); }
-    void a0AreaCotaZero() { auto u = valida(); u.pol_area_cota[0] = 0; QVERIFY(temErroEm(validar(u, ctx()), "pol_area_cota")); }
+    void a0CotaVolumeZero() {
+        auto u = valida(); u.pol_cota_volume[0] = 0;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "pol_cota_volume"));
+        QVERIFY(!temErro(ps));
+    }
+    void a0AreaCotaZero() {
+        auto u = valida(); u.pol_area_cota[0] = 0;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "pol_area_cota"));
+        QVERIFY(!temErro(ps));
+    }
     void numConjuntosForaDaFaixa() { auto u = valida(); u.num_conjuntos = 6; QVERIFY(temErroEm(validar(u, ctx()), "num_conjuntos")); }
     void conjuntoAtivoNegativo() { auto u = valida(); u.potencia_efetiva[0] = -1; QVERIFY(temErroEm(validar(u, ctx()), "potencia_efetiva")); }
     void conjuntoInativoNaoEhValidado() { auto u = valida(); u.potencia_efetiva[3] = -1; QVERIFY(!temErroEm(validar(u, ctx()), "potencia_efetiva")); }
@@ -65,10 +90,26 @@ private slots:
         QVERIFY(temAvisoEm(ps, "pol_conjunto"));
         QVERIFY(!temErro(ps));
     }
-    void numPolJusanteForaDaFaixa() { auto u = valida(); u.num_pol_jusante = 0; QVERIFY(temErroEm(validar(u, ctx()), "num_pol_jusante")); }
-    void a0PolJusanteAtivoZero() { auto u = valida(); u.num_pol_jusante = 2; u.pol_jusante[1][0] = 0; QVERIFY(temErroEm(validar(u, ctx()), "pol_jusante")); }
+    void numPolJusanteForaDaFaixa() {
+        auto u = valida(); u.num_pol_jusante = 0;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "num_pol_jusante"));
+        QVERIFY(!temErro(ps));
+    }
+    void numPolJusanteAcimaDeSeisEhErro() { auto u = valida(); u.num_pol_jusante = 7; QVERIFY(temErroEm(validar(u, ctx()), "num_pol_jusante")); }
+    void a0PolJusanteAtivoZero() {
+        auto u = valida(); u.num_pol_jusante = 2; u.pol_jusante[1][0] = 0;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "pol_jusante"));
+        QVERIFY(!temErro(ps));
+    }
     void refPolJusanteNegativa() { auto u = valida(); u.ref_pol_jusante[0] = -1; QVERIFY(temErroEm(validar(u, ctx()), "ref_pol_jusante")); }
-    void canalFugaMaiorOuIgualCotaMinima() { auto u = valida(); u.canal_fuga_medio = 500; QVERIFY(temErroEm(validar(u, ctx()), "canal_fuga_medio")); }
+    void canalFugaMaiorOuIgualCotaMinima() {
+        auto u = valida(); u.canal_fuga_medio = 500;
+        auto ps = validar(u, ctx());
+        QVERIFY(temAvisoEm(ps, "canal_fuga_medio"));
+        QVERIFY(!temErro(ps));
+    }
     void canalFugaNegativo() { auto u = valida(); u.canal_fuga_medio = -1; QVERIFY(temErroEm(validar(u, ctx()), "canal_fuga_medio")); }
     void produtibilidadeNegativa() { auto u = valida(); u.produtibilidade = -1; QVERIFY(temErroEm(validar(u, ctx()), "produtibilidade")); }
     void perdasNegativas() { auto u = valida(); u.perdas = -1; QVERIFY(temErroEm(validar(u, ctx()), "perdas")); }

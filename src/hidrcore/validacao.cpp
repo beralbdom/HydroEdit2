@@ -37,15 +37,15 @@ void validarReservatorio(const UsinaHidr& u, Coletor& c) {
     c.naoNegativo("cota_maxima", u.cota_maxima, "Cota maxima");
     if (u.volume_minimo > u.volume_maximo) c.erro("volume_minimo", "Volume minimo maior que o maximo");
     auto entreVminVmax = [&](const char* campo, float v, const char* rotulo) {
-        if (v < u.volume_minimo) c.erro(campo, std::string(rotulo) + " menor que o volume minimo");
-        if (v > u.volume_maximo) c.erro(campo, std::string(rotulo) + " maior que o volume maximo");
+        if (v < u.volume_minimo) c.aviso(campo, std::string(rotulo) + " menor que o volume minimo");
+        if (v > u.volume_maximo) c.aviso(campo, std::string(rotulo) + " maior que o volume maximo");
     };
     entreVminVmax("volume_vertedouro", u.volume_vertedouro, "Volume do vertedouro");
     entreVminVmax("volume_desvio", u.volume_desvio, "Volume do desvio");
     entreVminVmax("volume_referencia", u.volume_referencia, "Volume de referencia");
     if (u.cota_minima > u.cota_maxima) c.erro("cota_minima", "Cota minima maior que a maxima");
-    if (u.pol_cota_volume[0] == 0) c.erro("pol_cota_volume", "Termo A0 do polinomio cota x volume igual a zero");
-    if (u.pol_area_cota[0] == 0) c.erro("pol_area_cota", "Termo A0 do polinomio area x cota igual a zero");
+    if (u.pol_cota_volume[0] == 0) c.aviso("pol_cota_volume", "Termo A0 do polinomio cota x volume igual a zero");
+    if (u.pol_area_cota[0] == 0) c.aviso("pol_area_cota", "Termo A0 do polinomio area x cota igual a zero");
 }
 
 void validarConjuntos(const UsinaHidr& u, Coletor& c) {
@@ -67,19 +67,21 @@ void validarConjuntos(const UsinaHidr& u, Coletor& c) {
 }
 
 void validarJusante(const UsinaHidr& u, Coletor& c) {
-    if (u.num_pol_jusante < 1 || u.num_pol_jusante > MAX_POL_JUSANTE) {
-        c.erro("num_pol_jusante", "Numero de polinomios de jusante deve estar entre 1 e 6");
+    if (u.num_pol_jusante < 0 || u.num_pol_jusante > MAX_POL_JUSANTE) {
+        c.erro("num_pol_jusante", "Numero de polinomios de jusante deve estar entre 0 e 6");
+    } else if (u.num_pol_jusante == 0) {
+        c.aviso("num_pol_jusante", "Numero de polinomios de jusante igual a zero");
     } else {
         for (int j = 0; j < u.num_pol_jusante; ++j) {
             std::string k = " do polinomio de jusante " + std::to_string(j + 1);
-            if (u.pol_jusante[j][0] == 0) c.erro("pol_jusante", "Termo A0" + k + " igual a zero");
+            if (u.pol_jusante[j][0] == 0) c.aviso("pol_jusante", "Termo A0" + k + " igual a zero");
             if (u.ref_pol_jusante[j] < 0) c.erro("ref_pol_jusante", "Referencia" + k + " negativa");
         }
     }
     if (u.canal_fuga_medio < 0)
         c.erro("canal_fuga_medio", "Canal de fuga medio negativo");
     else if (u.canal_fuga_medio >= u.cota_minima)
-        c.erro("canal_fuga_medio", "Canal de fuga medio deve ser menor que a cota minima");
+        c.aviso("canal_fuga_medio", "Canal de fuga medio deve ser menor que a cota minima");
     if (u.influencia_vertimento != 0 && u.influencia_vertimento != 1)
         c.erro("influencia_vertimento", "Influencia do vertimento deve ser 0 ou 1");
 }

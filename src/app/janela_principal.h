@@ -61,6 +61,7 @@ private:
     QCheckBox* ocultar_vazias_;
     QLabel* status_arquivo_;
     QLabel* status_usinas_;
+    QLabel* status_validacao_;
     QLabel* status_notas_;
     QAction* acao_salvar_;
     QAction* acao_salvar_como_;
