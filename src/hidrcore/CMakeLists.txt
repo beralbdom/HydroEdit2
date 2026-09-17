@@ -6,5 +6,6 @@ add_library(hidrcore STATIC
     arquivo_hidr.cpp
     exportador_csv.cpp
     validacao.cpp
+    deck_lookup.cpp
 )
 target_include_directories(hidrcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

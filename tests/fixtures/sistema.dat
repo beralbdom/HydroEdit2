@@ -1,0 +1,14 @@
+ PATAMAR DE DEFICIT                                                        
+ NUMERO DE PATAMARES DE DEFICIT                                            
+ XXX                                                                       
+   1                                                                       
+ CUSTO DO DEFICIT                                                          
+ NUM|NOME SSIS.|    CUSTO DE DEFICIT POR PATAMAR  | P.U. CORTE POR PATAMAR|
+ XXX|XXXXXXXXXX| F|XXXX.XX XXXX.XX XXXX.XX XXXX.XX|X.XXX X.XXX X.XXX X.XXX|
+ 1   SUDESTE     0 8291.25    0.00    0.00    0.00 1.000 0.000 0.000 0.000 
+ 2   SUL         0 8291.25    0.00    0.00    0.00 1.000 0.000 0.000 0.000 
+ 3   NORDESTE    0 8291.25    0.00    0.00    0.00 1.000 0.000 0.000 0.000 
+ 4   NORTE       0 8291.25    0.00    0.00    0.00 1.000 0.000 0.000 0.000 
+ 11  NOFICT1     1                                                         
+ 999                                                                       
+ LIMITES DE INTERCAMBIO                                                                               
