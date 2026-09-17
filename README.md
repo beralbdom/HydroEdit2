@@ -2,14 +2,13 @@
 
 Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`). Inspirado no HydroEdit clássico.
 
-<img width="828" height="462" alt="image" src="https://github.com/user-attachments/assets/68321708-4912-4608-9cb6-52f2ce5f77b5" />
-
+<img width="861" height="520" alt="image" src="https://github.com/user-attachments/assets/419d7e77-e07e-437a-9698-9b8a6c9ff919" />
 
 ## Requisitos
 
-- Qt 6.11.2, kit MSVC 2022 x64, instalado em `C:\Qt\6.11.2\msvc2022_64`.
+- Qt 6.11.2, kit MSVC 2022 x64.
 - Visual Studio 2026 Community (v18) com as ferramentas de C++.
-- CMake 3.30 e Ninja, distribuídos com o Qt em `C:\Qt\Tools`.
+- CMake 3.30 e Ninja, distribuídos com o Qt.
 
 ## Compilar
 
@@ -21,9 +20,7 @@ cmake --build --preset msvc-debug
 ctest --preset msvc-debug
 ```
 
-O executável de depuração fica em `build-debug\src\app\HydroEdit2.exe`.
-
-## Empacotar
+## Distribuição
 
 ```bat
 scripts\empacotar.bat
