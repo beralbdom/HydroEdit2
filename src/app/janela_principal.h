@@ -4,6 +4,7 @@
 
 class QCheckBox;
 class QCloseEvent;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QMenu;
@@ -62,6 +63,8 @@ private:
 
     QLineEdit* campo_filtro_;
     QCheckBox* ocultar_vazias_;
+    QComboBox* bacia_cascata_;
+    QCheckBox* so_selecionada_cascata_;
     QLabel* status_arquivo_;
     QLabel* status_usinas_;
     QLabel* status_validacao_;

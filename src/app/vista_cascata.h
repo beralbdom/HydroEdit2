@@ -4,14 +4,13 @@
 #include <QString>
 #include <unordered_map>
 #include <vector>
+#include "cascata.h"
 
 class ModeloHidr;
 class QGraphicsScene;
 class QGraphicsPathItem;
 class QGraphicsLineItem;
 class QGraphicsPolygonItem;
-struct NoCascata;
-struct ArestaCascata;
 struct UsinaHidr;
 
 class VistaCascata : public QGraphicsView {
@@ -21,10 +20,13 @@ public:
     void reconstruir();
     void selecionar(int linha);
     void definirFiltro(const QString& texto);
+    void definirBacia(int codigo_foz);
+    void definirSoSelecionada(bool ligado);
     void ajustar();
 
 signals:
     void usinaEscolhida(int linha);
+    void baciasAtualizadas(const std::vector<BaciaCascata>& bacias);
 
 protected:
     void wheelEvent(QWheelEvent* ev) override;
@@ -54,4 +56,6 @@ private:
     QPen pena_normal_;
     QPen pena_selecionada_;
     bool ajustar_no_proximo_ = true;
+    int bacia_filtro_ = 0;
+    bool so_selecionada_ = false;
 };
