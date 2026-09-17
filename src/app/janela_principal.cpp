@@ -36,12 +36,14 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     filtro_->setSourceModel(modelo_);
 
     splitter_ = new QSplitter(Qt::Horizontal, this);
+    splitter_->setHandleWidth(4);
     setCentralWidget(splitter_);
     criarTabela();
     formulario_ = new FormularioUsina(modelo_, splitter_);
     splitter_->addWidget(formulario_);
     splitter_->setStretchFactor(0, 3);
     splitter_->setStretchFactor(1, 2);
+    splitter_->setSizes({900, 500});
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { formulario_->definirLinha(linhaSelecionada()); });
 
@@ -78,6 +80,8 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
 void JanelaPrincipal::criarTabela() {
     auto* painel = new QWidget(splitter_);
     auto* layout = new QVBoxLayout(painel);
+    layout->setContentsMargins(4, 4, 4, 4);
+    layout->setSpacing(4);
     auto* linha_filtro = new QHBoxLayout;
     campo_filtro_ = new QLineEdit(painel);
     campo_filtro_->setPlaceholderText(QStringLiteral("Filtrar por código ou nome"));
@@ -98,7 +102,10 @@ void JanelaPrincipal::criarTabela() {
     tabela_->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela_->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     tabela_->horizontalHeader()->setDefaultSectionSize(90);
+    tabela_->horizontalHeader()->setFixedHeight(22);
     tabela_->verticalHeader()->setVisible(false);
+    tabela_->verticalHeader()->setDefaultSectionSize(20);
+    tabela_->setAlternatingRowColors(true);
     layout->addWidget(tabela_, 1);
 
     connect(campo_filtro_, &QLineEdit::textChanged, filtro_, &FiltroUsinas::definirTexto);

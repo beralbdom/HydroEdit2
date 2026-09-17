@@ -9,6 +9,7 @@ qt_add_library(hydroedit_ui STATIC
     delegate_numerico.cpp delegate_numerico.h
     grade_vetor.cpp grade_vetor.h
     formulario_usina.cpp formulario_usina.h
+    paginas_usina.cpp
     painel_problemas.cpp painel_problemas.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

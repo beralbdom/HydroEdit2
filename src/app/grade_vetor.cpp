@@ -1,4 +1,5 @@
 #include "grade_vetor.h"
+#include <QFrame>
 #include <QHeaderView>
 #include "modelo_hidr.h"
 
@@ -9,7 +10,11 @@ GradeVetor::GradeVetor(ModeloHidr* modelo, int linhas, int colunas, const QStrin
     if (cab_v.isEmpty()) verticalHeader()->setVisible(false);
     else setVerticalHeaderLabels(cab_v);
     horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    verticalHeader()->setDefaultSectionSize(22);
+    verticalHeader()->setDefaultSectionSize(20);
+    horizontalHeader()->setFixedHeight(20);
+    setShowGrid(true);
+    setAlternatingRowColors(true);
+    setFrameShape(QFrame::StyledPanel);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     for (int l = 0; l < linhas; ++l)

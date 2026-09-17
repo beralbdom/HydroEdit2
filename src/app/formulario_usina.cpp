@@ -2,41 +2,69 @@
 #include <QComboBox>
 #include <QDoubleValidator>
 #include <QFormLayout>
-#include <QGridLayout>
+#include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIntValidator>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QScrollArea>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <array>
 #include "grade_vetor.h"
 #include "modelo_hidr.h"
 
 namespace {
-QStringList coeficientes() { return {"A0", "A1", "A2", "A3", "A4"}; }
+bool semLimiteDeLargura(const char* nome) {
+    static constexpr std::array<std::string_view, 4> kSemLimite = {"nome", "data", "observacao", "posto_bdh"};
+    return std::find(kSemLimite.begin(), kSemLimite.end(), std::string_view(nome)) != kSemLimite.end();
+}
 }  // namespace
 
 FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(parent), modelo_(modelo) {
     auto* externo = new QVBoxLayout(this);
-    externo->setContentsMargins(0, 0, 0, 0);
-    auto* scroll = new QScrollArea(this);
-    scroll->setWidgetResizable(true);
-    externo->addWidget(scroll);
-    auto* conteudo = new QWidget(scroll);
-    auto* layout = new QVBoxLayout(conteudo);
-    titulo_ = new QLabel(conteudo);
-    QFont f = titulo_->font();
-    f.setPointSize(f.pointSize() + 3);
-    f.setBold(true);
-    titulo_->setFont(f);
-    layout->addWidget(titulo_);
-    layout->addWidget(criarCadastro());
-    layout->addWidget(criarReservatorio());
-    layout->addWidget(criarUsina());
-    layout->addStretch(1);
-    scroll->setWidget(conteudo);
+    configurarLayout(externo);
+
+    titulo_ = new QLabel(this);
+    QFont fonte = titulo_->font();
+    fonte.setPointSize(fonte.pointSize() + 1);
+    fonte.setBold(true);
+    titulo_->setFont(fonte);
+    externo->addWidget(titulo_);
+
+    auto* corpo = new QHBoxLayout;
+    configurarLayout(corpo);
+
+    menu_ = new QListWidget(this);
+    menu_->setFixedWidth(150);
+    menu_->setFrameShape(QFrame::StyledPanel);
+    menu_->addItems({QStringLiteral("Cadastro"), QStringLiteral("Reservatório"), QStringLiteral("Polinômios"),
+                     QStringLiteral("Conjuntos"), QStringLiteral("Jusante"), QStringLiteral("Operação")});
+
+    paginas_ = new QStackedWidget(this);
+    auto adicionarPagina = [this](QWidget* conteudo) {
+        auto* scroll = new QScrollArea(paginas_);
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setWidget(conteudo);
+        paginas_->addWidget(scroll);
+    };
+    adicionarPagina(criarPaginaCadastro());
+    adicionarPagina(criarPaginaReservatorio());
+    adicionarPagina(criarPaginaPolinomios());
+    adicionarPagina(criarPaginaConjuntos());
+    adicionarPagina(criarPaginaJusante());
+    adicionarPagina(criarPaginaOperacao());
+
+    corpo->addWidget(menu_);
+    corpo->addWidget(paginas_, 1);
+    externo->addLayout(corpo, 1);
+
+    connect(menu_, &QListWidget::currentRowChanged, paginas_, &QStackedWidget::setCurrentIndex);
+    menu_->setCurrentRow(0);
 
     connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int linha, const Campo* c) {
         if (!c || c->nome == "nome") {
@@ -54,7 +82,35 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     definirLinha(-1);
 }
 
-QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, const QString& rotulo, const char* nome, bool com_lookup) {
+void FormularioUsina::configurarLayout(QLayout* l) {
+    l->setContentsMargins(6, 4, 6, 4);
+    l->setSpacing(4);
+}
+
+QVBoxLayout* FormularioUsina::novaPagina(QWidget* pai) {
+    auto* v = new QVBoxLayout(pai);
+    configurarLayout(v);
+    return v;
+}
+
+QGroupBox* FormularioUsina::novoGrupo(QWidget* pai, const QString& titulo) {
+    auto* g = new QGroupBox(titulo, pai);
+    g->setFlat(true);
+    g->setContentsMargins(0, 2, 0, 2);
+    return g;
+}
+
+QFormLayout* FormularioUsina::novoForm(QWidget* pai) {
+    auto* f = new QFormLayout(pai);
+    configurarLayout(f);
+    f->setHorizontalSpacing(8);
+    f->setVerticalSpacing(3);
+    f->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    f->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    return f;
+}
+
+QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, int pagina, const QString& rotulo, const char* nome, bool com_lookup) {
     const Campo* c = campo(nome);
     auto* e = new QLineEdit(this);
     if (c->tipo == TipoCampo::Inteiro) {
@@ -67,6 +123,7 @@ QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, const QString& rotulo, con
     } else {
         e->setMaxLength(c->tamanho_elemento);
     }
+    if (!semLimiteDeLargura(nome)) e->setMaximumWidth(140);
     QLabel* lookup = nullptr;
     if (com_lookup) {
         auto* linha = new QWidget(this);
@@ -80,129 +137,21 @@ QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, const QString& rotulo, con
         f->addRow(rotulo, e);
     }
     edits_[nome] = {e, c, lookup};
+    pagina_do_campo_[nome] = pagina;
     connect(e, &QLineEdit::editingFinished, this, [this, nome] { aoEditarEdit(nome); });
     return e;
 }
 
-QComboBox* FormularioUsina::ligarCombo(QFormLayout* f, const QString& rotulo, const char* nome) {
+QComboBox* FormularioUsina::ligarCombo(QFormLayout* f, int pagina, const QString& rotulo, const char* nome) {
     auto* cb = new QComboBox(this);
     f->addRow(rotulo, cb);
     combos_[nome] = {cb, campo(nome)};
+    pagina_do_campo_[nome] = pagina;
     connect(cb, &QComboBox::activated, this, [this, nome](int i) { aoEscolherCombo(nome, i); });
     return cb;
 }
 
-QGroupBox* FormularioUsina::criarCadastro() {
-    auto* g = new QGroupBox(QStringLiteral("Cadastro"), this);
-    auto* f = new QFormLayout(g);
-    ligarEdit(f, QStringLiteral("Nome"), "nome");
-    ligarEdit(f, QStringLiteral("Posto"), "posto", true);
-    ligarEdit(f, QStringLiteral("Posto BDH"), "posto_bdh");
-    ligarCombo(f, QStringLiteral("Subsistema"), "subsistema");
-    ligarEdit(f, QStringLiteral("Empresa"), "empresa", true);
-    ligarCombo(f, QStringLiteral("Jusante"), "jusante");
-    ligarCombo(f, QStringLiteral("Desvio"), "desvio");
-    ligarEdit(f, QStringLiteral("Data"), "data");
-    ligarEdit(f, QStringLiteral("Observação"), "observacao");
-    return g;
-}
-
-QGroupBox* FormularioUsina::criarReservatorio() {
-    auto* g = new QGroupBox(QStringLiteral("Reservatório"), this);
-    auto* v = new QVBoxLayout(g);
-    auto* f = new QFormLayout;
-    QComboBox* reg = ligarCombo(f, QStringLiteral("Regulação"), "regulacao");
-    reg->addItem(QStringLiteral("M  Mensal"), QStringLiteral("M"));
-    reg->addItem(QStringLiteral("S  Semanal"), QStringLiteral("S"));
-    reg->addItem(QStringLiteral("D  Diária"), QStringLiteral("D"));
-    ligarEdit(f, QStringLiteral("Volume mínimo (hm³)"), "volume_minimo");
-    ligarEdit(f, QStringLiteral("Volume máximo (hm³)"), "volume_maximo");
-    ligarEdit(f, QStringLiteral("Volume de referência (hm³)"), "volume_referencia");
-    ligarEdit(f, QStringLiteral("Volume crista vertedouro (hm³)"), "volume_vertedouro");
-    ligarEdit(f, QStringLiteral("Volume canal de desvio (hm³)"), "volume_desvio");
-    ligarEdit(f, QStringLiteral("Cota mínima (m)"), "cota_minima");
-    ligarEdit(f, QStringLiteral("Cota máxima (m)"), "cota_maxima");
-    v->addLayout(f);
-
-    auto* pol = new GradeVetor(modelo_, 2, 5, coeficientes(), {QStringLiteral("Cota x Volume"), QStringLiteral("Área x Cota")}, g);
-    for (int k = 0; k < 5; ++k) {
-        pol->definirCelula(0, k, campo("pol_cota_volume"), k);
-        pol->definirCelula(1, k, campo("pol_area_cota"), k);
-    }
-    v->addWidget(new QLabel(QStringLiteral("Polinômios"), g));
-    v->addWidget(pol);
-    grades_.push_back(pol);
-
-    QStringList meses = {"jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"};
-    auto* evap = new GradeVetor(modelo_, 1, 12, meses, {}, g);
-    for (int m = 0; m < 12; ++m) evap->definirCelula(0, m, campo("evaporacao"), m);
-    v->addWidget(new QLabel(QStringLiteral("Evaporação mensal (mm/mês)"), g));
-    v->addWidget(evap);
-    grades_.push_back(evap);
-    return g;
-}
-
-QGroupBox* FormularioUsina::criarUsina() {
-    auto* g = new QGroupBox(QStringLiteral("Usina"), this);
-    auto* v = new QVBoxLayout(g);
-    auto* f = new QFormLayout;
-    ligarEdit(f, QStringLiteral("Produtibilidade específica (MW/m³/s/m)"), "produtibilidade");
-    ligarEdit(f, QStringLiteral("Perdas"), "perdas");
-    ligarEdit(f, QStringLiteral("Tipo de perda"), "tipo_perda");
-    ligarEdit(f, QStringLiteral("Canal de fuga médio (m)"), "canal_fuga_medio");
-    QComboBox* infl = ligarCombo(f, QStringLiteral("Influência do vertimento no canal de fuga"), "influencia_vertimento");
-    infl->addItem(QStringLiteral("0  Não"), 0);
-    infl->addItem(QStringLiteral("1  Sim"), 1);
-    ligarEdit(f, QStringLiteral("Fator de carga máximo (%)"), "fator_carga_maximo");
-    ligarEdit(f, QStringLiteral("Fator de carga mínimo (%)"), "fator_carga_minimo");
-    ligarEdit(f, QStringLiteral("TEIF (%)"), "teif");
-    ligarEdit(f, QStringLiteral("IP (%)"), "ip");
-    ligarEdit(f, QStringLiteral("Vazão mínima do histórico (m³/s)"), "vazao_minima_historica");
-    ligarEdit(f, QStringLiteral("Unidades de base"), "num_unidades_base");
-    ligarEdit(f, QStringLiteral("Tipo de turbina"), "tipo_turbina", true);
-    QComboBox* repr = ligarCombo(f, QStringLiteral("Representação do conjunto"), "representacao_conjunto");
-    repr->addItem(QStringLiteral("0  Aproximada"), 0);
-    repr->addItem(QStringLiteral("1  Detalhada"), 1);
-    repr->addItem(QStringLiteral("2  Simplificada"), 2);
-    ligarEdit(f, QStringLiteral("Número de conjuntos"), "num_conjuntos");
-    ligarEdit(f, QStringLiteral("Número de polinômios de jusante"), "num_pol_jusante");
-    v->addLayout(f);
-
-    QStringList conj;
-    for (int i = 1; i <= 5; ++i) conj << QStringLiteral("Conj. %1").arg(i);
-    auto* conjuntos = new GradeVetor(modelo_, 5, 4, {QStringLiteral("Máquinas"), QStringLiteral("Pot. ef. (MW)"), QStringLiteral("Q ef. (m³/s)"), QStringLiteral("H ef. (m)")}, conj, g);
-    for (int i = 0; i < 5; ++i) {
-        conjuntos->definirCelula(i, 0, campo("num_maquinas"), i);
-        conjuntos->definirCelula(i, 1, campo("potencia_efetiva"), i);
-        conjuntos->definirCelula(i, 2, campo("vazao_efetiva"), i);
-        conjuntos->definirCelula(i, 3, campo("altura_efetiva"), i);
-    }
-    v->addWidget(new QLabel(QStringLiteral("Conjuntos de máquinas"), g));
-    v->addWidget(conjuntos);
-    grades_.push_back(conjuntos);
-
-    QStringList linhas_pc;
-    static const char* pol[] = {"turbina", "gerador", "potência"};
-    for (int c = 0; c < 5; ++c)
-        for (int p = 0; p < 3; ++p) linhas_pc << QStringLiteral("C%1 %2").arg(c + 1).arg(QString::fromUtf8(pol[p]));
-    auto* pc = new GradeVetor(modelo_, 15, 5, coeficientes(), linhas_pc, g);
-    for (int i = 0; i < 75; ++i) pc->definirCelula(i / 5, i % 5, campo("pol_conjunto"), i);
-    v->addWidget(new QLabel(QStringLiteral("Polinômios turbina / gerador / potência por conjunto"), g));
-    v->addWidget(pc);
-    grades_.push_back(pc);
-
-    QStringList linhas_pj;
-    for (int j = 1; j <= 6; ++j) linhas_pj << QStringLiteral("Pol. %1").arg(j);
-    auto* pj = new GradeVetor(modelo_, 6, 6, coeficientes() << QStringLiteral("Ref. (m)"), linhas_pj, g);
-    for (int j = 0; j < 6; ++j) {
-        for (int k = 0; k < 5; ++k) pj->definirCelula(j, k, campo("pol_jusante"), j * 5 + k);
-        pj->definirCelula(j, 5, campo("ref_pol_jusante"), j);
-    }
-    v->addWidget(new QLabel(QStringLiteral("Polinômios de jusante"), g));
-    v->addWidget(pj);
-    grades_.push_back(pj);
-    return g;
-}
+void FormularioUsina::registrarCampoGrade(int pagina, const char* nome) { pagina_do_campo_[nome] = pagina; }
 
 void FormularioUsina::recarregarListas() {
     atualizando_ = true;
@@ -286,6 +235,7 @@ void FormularioUsina::aoEscolherCombo(const char* nome, int indice) {
 
 void FormularioUsina::focarCampo(std::string_view nome) {
     std::string n(nome);
+    if (auto it = pagina_do_campo_.find(n); it != pagina_do_campo_.end()) menu_->setCurrentRow(it->second);
     if (auto it = edits_.find(n); it != edits_.end()) {
         it->second.widget->setFocus();
         it->second.widget->selectAll();
