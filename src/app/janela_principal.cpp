@@ -215,13 +215,16 @@ void JanelaPrincipal::criarMenus() {
 
     QMenu* ajuda = menuBar()->addMenu(QStringLiteral("A&juda"));
     ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
-        QMessageBox::about(this, QStringLiteral("Sobre o HydroEdit"),
-                           QStringLiteral("<b>HydroEdit 5.0.0</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
-                                          "Reescrita em C++/Qt 6 do HydroEdit 4.0a (ONS, Rodrigo Vilanova).<br>"
-                                          "Layout do registro: 792 bytes, %1 usinas por arquivo.<br><br>"
-                                          "Desenvolvido por Bernardo Albuquerque Domingues<br>"
-                                          "<a href=\"https://github.com/beralbdom\">github.com/beralbdom</a>")
-                               .arg(modelo_->numUsinas()));
+        QMessageBox sobre(this);
+        sobre.setWindowTitle(QStringLiteral("Sobre o HydroEdit2"));
+        sobre.setIcon(QMessageBox::NoIcon);
+        sobre.setTextFormat(Qt::RichText);
+        sobre.setText(QStringLiteral("<b>HydroEdit2 1.0.0</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
+                                     "Layout do registro: 792 bytes, %1 usinas por arquivo.<br><br>"
+                                     "Desenvolvido por Bernardo Albuquerque Domingues<br>"
+                                     "<a href=\"https://github.com/beralbdom\">github.com/beralbdom</a>")
+                          .arg(modelo_->numUsinas()));
+        sobre.exec();
     });
     atualizarRecentes();
 }
@@ -318,7 +321,7 @@ void JanelaPrincipal::exportarCsv() {
 void JanelaPrincipal::atualizarTitulo() {
     QString nome = modelo_->caminho().isEmpty() ? QStringLiteral("sem arquivo") : QFileInfo(modelo_->caminho()).fileName();
     QString sujo = modelo_->pilhaUndo()->isClean() ? QString() : QStringLiteral("*");
-    setWindowTitle(QStringLiteral("HydroEdit 5 - %1%2").arg(nome, sujo));
+    setWindowTitle(QStringLiteral("HydroEdit2 - %1%2").arg(nome, sujo));
 }
 
 void JanelaPrincipal::atualizarStatus() {

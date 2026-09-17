@@ -17,9 +17,9 @@ qt_add_library(hydroedit_ui STATIC
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts)
 
-qt_add_executable(HydroEdit WIN32 main.cpp hydroedit.rc)
-qt_add_resources(HydroEdit "icone"
+qt_add_executable(HydroEdit2 WIN32 main.cpp hydroedit.rc)
+qt_add_resources(HydroEdit2 "icone"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/.."
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/../hidro.ico")
-target_link_libraries(HydroEdit PRIVATE hydroedit_ui)
+target_link_libraries(HydroEdit2 PRIVATE hydroedit_ui)
