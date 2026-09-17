@@ -1,4 +1,13 @@
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 qt_standard_project_setup()
+
+qt_add_library(hydroedit_ui STATIC
+    modelo_hidr.cpp modelo_hidr.h
+    comandos.cpp comandos.h
+    filtro_usinas.cpp filtro_usinas.h
+)
+target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets)
+
 qt_add_executable(HydroEdit WIN32 main.cpp)
-target_link_libraries(HydroEdit PRIVATE hidrcore Qt6::Widgets)
+target_link_libraries(HydroEdit PRIVATE hydroedit_ui)
