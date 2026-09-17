@@ -73,13 +73,6 @@ QVBoxLayout* FormularioUsina::novaPagina(QWidget* pai) {
     return v;
 }
 
-QHBoxLayout* FormularioUsina::novaLinha() {
-    auto* h = new QHBoxLayout;
-    h->setContentsMargins(0, 0, 0, 0);
-    h->setSpacing(4);
-    return h;
-}
-
 QGroupBox* FormularioUsina::novoGrupo(QWidget* pai, const QString& titulo) {
     auto* g = new QGroupBox(titulo, pai);
     g->setFlat(false);

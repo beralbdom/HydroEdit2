@@ -9,7 +9,6 @@
 class QComboBox;
 class QFormLayout;
 class QGroupBox;
-class QHBoxLayout;
 class QLabel;
 class QLayout;
 class QLineEdit;
@@ -42,7 +41,6 @@ private:
 
     static void configurarLayout(QLayout* l);
     static QVBoxLayout* novaPagina(QWidget* pai);
-    static QHBoxLayout* novaLinha();
     static QGroupBox* novoGrupo(QWidget* pai, const QString& titulo);
     static QVBoxLayout* novoConteudo(QWidget* pai);
     static QFormLayout* novoForm(QWidget* pai);
