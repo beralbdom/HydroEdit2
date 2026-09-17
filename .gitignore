@@ -1,0 +1,8 @@
+deck_*/
+docs/*.pdf
+*.exe
+build/
+out/
+rev/dfm/*.bin
+.vs/
+CMakeUserPresets.json
