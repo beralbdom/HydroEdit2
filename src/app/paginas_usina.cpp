@@ -1,7 +1,6 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include "formulario_usina.h"
 #include "grade_vetor.h"
@@ -15,7 +14,6 @@ QWidget* FormularioUsina::criarPaginaCadastro() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    auto* linha1 = novaLinha();
     QGroupBox* identificacao = novoGrupo(pagina, QStringLiteral("Identificação"));
     auto* fi = novoForm(identificacao);
     ligarEdit(fi, kCadastro, QStringLiteral("Nome"), "nome");
@@ -26,7 +24,7 @@ QWidget* FormularioUsina::criarPaginaCadastro() {
     reg->addItem(QStringLiteral("S  Semanal"), QStringLiteral("S"));
     reg->addItem(QStringLiteral("D  Diária"), QStringLiteral("D"));
     ligarEdit(fi, kCadastro, QStringLiteral("Data"), "data");
-    linha1->addWidget(identificacao);
+    v->addWidget(identificacao);
 
     QGroupBox* vinculos = novoGrupo(pagina, QStringLiteral("Vínculos"));
     auto* fv = novoForm(vinculos);
@@ -34,9 +32,7 @@ QWidget* FormularioUsina::criarPaginaCadastro() {
     ligarEdit(fv, kCadastro, QStringLiteral("Empresa"), "empresa", true);
     ligarCombo(fv, kCadastro, QStringLiteral("Jusante"), "jusante");
     ligarCombo(fv, kCadastro, QStringLiteral("Desvio"), "desvio");
-    linha1->addWidget(vinculos);
-    linha1->addStretch(1);
-    v->addLayout(linha1);
+    v->addWidget(vinculos);
 
     QGroupBox* obs = novoGrupo(pagina, QStringLiteral("Observação"));
     auto* fo = novoForm(obs);
@@ -51,7 +47,6 @@ QWidget* FormularioUsina::criarPaginaReservatorio() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    auto* linha1 = novaLinha();
     QGroupBox* volumes = novoGrupo(pagina, QStringLiteral("Volumes (hm³)"));
     auto* fv = novoForm(volumes);
     ligarEdit(fv, kReservatorio, QStringLiteral("Mínimo"), "volume_minimo");
@@ -59,15 +54,13 @@ QWidget* FormularioUsina::criarPaginaReservatorio() {
     ligarEdit(fv, kReservatorio, QStringLiteral("Referência"), "volume_referencia");
     ligarEdit(fv, kReservatorio, QStringLiteral("Crista do vertedouro"), "volume_vertedouro");
     ligarEdit(fv, kReservatorio, QStringLiteral("Canal de desvio"), "volume_desvio");
-    linha1->addWidget(volumes);
+    v->addWidget(volumes);
 
     QGroupBox* cotas = novoGrupo(pagina, QStringLiteral("Cotas (m)"));
     auto* fc = novoForm(cotas);
     ligarEdit(fc, kReservatorio, QStringLiteral("Mínima"), "cota_minima");
     ligarEdit(fc, kReservatorio, QStringLiteral("Máxima"), "cota_maxima");
-    linha1->addWidget(cotas);
-    linha1->addStretch(1);
-    v->addLayout(linha1);
+    v->addWidget(cotas);
 
     QGroupBox* evaporacao = novoGrupo(pagina, QStringLiteral("Evaporação mensal (mm/mês)"));
     auto* ve = novoConteudo(evaporacao);
@@ -193,21 +186,18 @@ QWidget* FormularioUsina::criarPaginaOperacao() {
     auto* pagina = new QWidget(this);
     auto* v = novaPagina(pagina);
 
-    auto* linha1 = novaLinha();
     QGroupBox* producao = novoGrupo(pagina, QStringLiteral("Produção"));
     auto* fp = novoForm(producao);
     ligarEdit(fp, kOperacao, QStringLiteral("Produtibilidade específica (MW/m³/s/m)"), "produtibilidade");
     ligarEdit(fp, kOperacao, QStringLiteral("Perdas"), "perdas");
     ligarEdit(fp, kOperacao, QStringLiteral("Tipo de perda"), "tipo_perda");
-    linha1->addWidget(producao);
+    v->addWidget(producao);
 
     QGroupBox* fatores = novoGrupo(pagina, QStringLiteral("Fatores de carga (%)"));
     auto* ff = novoForm(fatores);
     ligarEdit(ff, kOperacao, QStringLiteral("Máximo"), "fator_carga_maximo");
     ligarEdit(ff, kOperacao, QStringLiteral("Mínimo"), "fator_carga_minimo");
-    linha1->addWidget(fatores);
-    linha1->addStretch(1);
-    v->addLayout(linha1);
+    v->addWidget(fatores);
 
     QGroupBox* indisp = novoGrupo(pagina, QStringLiteral("Indisponibilidade e vazão"));
     auto* fi = novoForm(indisp);
