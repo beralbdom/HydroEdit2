@@ -15,3 +15,4 @@ function(adicionar_teste nome)
 endfunction()
 
 adicionar_teste(test_campos)
+adicionar_teste(test_registro)
