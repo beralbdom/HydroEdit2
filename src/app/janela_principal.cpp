@@ -189,7 +189,9 @@ void JanelaPrincipal::criarMenus() {
         QMessageBox::about(this, QStringLiteral("Sobre o HydroEdit"),
                            QStringLiteral("<b>HydroEdit 5.0.0</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
                                           "Reescrita em C++/Qt 6 do HydroEdit 4.0a (ONS, Rodrigo Vilanova).<br>"
-                                          "Layout do registro: 792 bytes, %1 usinas por arquivo.")
+                                          "Layout do registro: 792 bytes, %1 usinas por arquivo.<br><br>"
+                                          "Desenvolvido por Bernardo Albuquerque Domingues<br>"
+                                          "<a href=\"https://github.com/beralbdom\">github.com/beralbdom</a>")
                                .arg(modelo_->numUsinas()));
     });
     atualizarRecentes();
