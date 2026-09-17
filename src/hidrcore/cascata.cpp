@@ -87,11 +87,14 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
     auto processarRaiz = [&](int raiz) {
         int profundidadeMaxima = 0;
         std::vector<int> membros;
+        int colunaInicial = proximaColuna;
         visitar(raiz, 0, profundidadeMaxima, membros);
         for (int codigo : membros) {
             NoCascata& no = cascata.nos[indiceDoCodigo[codigo]];
             no.linha = profundidadeMaxima - no.linha;
         }
+        cascata.bacias.push_back(BaciaCascata{numBacias, raiz, static_cast<int>(membros.size()), colunaInicial,
+                                               proximaColuna - colunaInicial, profundidadeMaxima + 1});
         ++numBacias;
         ++proximaColuna;
     };
@@ -115,4 +118,86 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
     cascata.num_linhas = linhaMaxima + 1;
 
     return cascata;
+}
+
+// Reposiciona as bacias em linhas, na ordem em que ja aparecem em c.bacias. A primeira bacia de
+// cada linha sempre entra, mesmo que sozinha ja estoure largura_maxima, para nao travar em bacia
+// muito larga; as demais so entram se sobrar espaco (mais 1 coluna de folga entre bacias).
+Cascata empacotarBacias(const Cascata& c, int largura_maxima) {
+    if (largura_maxima <= 0) return c;
+
+    Cascata resultado = c;
+
+    std::unordered_map<int, std::vector<size_t>> nosPorBacia;
+    for (size_t i = 0; i < resultado.nos.size(); ++i) nosPorBacia[resultado.nos[i].bacia].push_back(i);
+
+    int larguraAcumulada = 0;
+    int deslocamentoLinha = 0;
+    int alturaMaximaLinha = 0;
+    bool primeiraDaLinha = true;
+    int numColunas = 0;
+    int numLinhas = 0;
+
+    for (BaciaCascata& bacia : resultado.bacias) {
+        bool cabe = primeiraDaLinha || (larguraAcumulada + bacia.largura + 1 <= largura_maxima);
+        if (!cabe) {
+            deslocamentoLinha += alturaMaximaLinha + 1;
+            larguraAcumulada = 0;
+            alturaMaximaLinha = 0;
+            primeiraDaLinha = true;
+        }
+
+        int novaColunaInicial = larguraAcumulada + (primeiraDaLinha ? 0 : 1);
+        double deltaColuna = static_cast<double>(novaColunaInicial - bacia.coluna_inicial);
+
+        for (size_t indice : nosPorBacia[bacia.indice]) {
+            resultado.nos[indice].coluna += deltaColuna;
+            resultado.nos[indice].linha += deslocamentoLinha;
+        }
+
+        bacia.coluna_inicial = novaColunaInicial;
+        larguraAcumulada = novaColunaInicial + bacia.largura;
+        alturaMaximaLinha = std::max(alturaMaximaLinha, bacia.altura);
+        numColunas = std::max(numColunas, larguraAcumulada);
+        numLinhas = std::max(numLinhas, deslocamentoLinha + bacia.altura);
+        primeiraDaLinha = false;
+    }
+
+    resultado.num_colunas = numColunas;
+    resultado.num_linhas = numLinhas;
+    return resultado;
+}
+
+// Sobe pelos jusantes validos ate a foz (com protecao contra ciclo, via marcacao de visitado) e
+// desce recursivamente por quem aponta pra cada no ja incluido, cobrindo toda a arvore de
+// contribuintes a montante alem do caminho a jusante.
+std::vector<int> cascataDaUsina(const std::vector<UsinaHidr>& usinas, int codigo) {
+    int n = static_cast<int>(usinas.size());
+    if (codigo < 1 || codigo > n) return {};
+    if (usinas[static_cast<size_t>(codigo - 1)].vazia()) return {};
+
+    std::vector<bool> incluido(static_cast<size_t>(n) + 1, false);
+    std::vector<int> resultado;
+
+    std::function<void(int)> incluirMontante = [&](int alvo) {
+        incluido[static_cast<size_t>(alvo)] = true;
+        resultado.push_back(alvo);
+        for (int outro = 1; outro <= n; ++outro) {
+            if (incluido[static_cast<size_t>(outro)]) continue;
+            if (usinas[static_cast<size_t>(outro - 1)].vazia()) continue;
+            if (alvoValido(usinas, outro, usinas[static_cast<size_t>(outro - 1)].jusante) == alvo) incluirMontante(outro);
+        }
+    };
+    incluirMontante(codigo);
+
+    int atual = codigo;
+    while (true) {
+        int alvo = alvoValido(usinas, atual, usinas[static_cast<size_t>(atual - 1)].jusante);
+        if (alvo == 0 || incluido[static_cast<size_t>(alvo)]) break;
+        incluido[static_cast<size_t>(alvo)] = true;
+        resultado.push_back(alvo);
+        atual = alvo;
+    }
+
+    return resultado;
 }

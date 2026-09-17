@@ -1,4 +1,5 @@
 #include "vista_cascata.h"
+#include <QFontMetrics>
 #include <QGraphicsLineItem>
 #include <QGraphicsPathItem>
 #include <QGraphicsPolygonItem>
@@ -8,16 +9,17 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QWheelEvent>
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include "cascata.h"
 #include "modelo_hidr.h"
 
 namespace {
-constexpr double LARGURA_NO = 150.0;
+constexpr double LARGURA_NO = 130.0;
 constexpr double ALTURA_NO = 34.0;
-constexpr double ESPACO_COLUNA = 175.0;
-constexpr double ESPACO_LINHA = 70.0;
+constexpr double ESPACO_COLUNA = 150.0;
+constexpr double ESPACO_LINHA = 60.0;
 constexpr double TAMANHO_SETA = 8.0;
 constexpr double ABERTURA_SETA = 0.4;
 
@@ -58,8 +60,11 @@ void VistaCascata::criarItemNo(const NoCascata& no, const UsinaHidr& usina) {
     item->setData(0, no.codigo);
     item->setZValue(0);
 
-    auto* texto = new QGraphicsSimpleTextItem(
-        QStringLiteral("%1  %2").arg(no.codigo).arg(QString::fromLatin1(usina.nome.c_str())), item);
+    QString texto_completo = QStringLiteral("%1  %2").arg(no.codigo).arg(QString::fromLatin1(usina.nome.c_str()));
+    QFontMetrics metricas(font());
+    QString texto_elidido = metricas.elidedText(texto_completo, Qt::ElideRight, static_cast<int>(LARGURA_NO - 16.0));
+
+    auto* texto = new QGraphicsSimpleTextItem(texto_elidido, item);
     texto->setFont(font());
     texto->setBrush(palette().text().color());
     texto->setPos(-LARGURA_NO / 2.0 + 8.0, ALTURA_NO / 2.0 - texto->boundingRect().height() / 2.0);
@@ -90,6 +95,11 @@ void VistaCascata::criarItemAresta(const ArestaCascata& aresta) {
     arestas_.push_back({linha, seta, aresta.origem, aresta.destino});
 }
 
+// Ordem de restricao: modo "so a cascata da usina selecionada" tem prioridade sobre o filtro por
+// bacia (que so se aplica com "Todas" no modo); sem nenhum dos dois, empacota as bacias lado a
+// lado ate um formato aproximadamente quadrado. O sinal baciasAtualizadas sempre carrega a lista
+// completa de bacias do deck, independente do que esta sendo exibido no momento, para o combo da
+// janela continuar oferecendo todas as opcoes.
 void VistaCascata::reconstruir() {
     int selecionado_anterior = codigo_selecionado_;
 
@@ -98,7 +108,37 @@ void VistaCascata::reconstruir() {
     arestas_.clear();
     codigo_selecionado_ = -1;
 
-    Cascata c = montarCascata(modelo_->arquivo().usinas);
+    Cascata completa = montarCascata(modelo_->arquivo().usinas);
+
+    Cascata c;
+    if (so_selecionada_ && selecionado_anterior > 0) {
+        std::vector<int> conjunto = cascataDaUsina(modelo_->arquivo().usinas, selecionado_anterior);
+        std::vector<bool> incluido(modelo_->arquivo().usinas.size() + 1, false);
+        for (int codigo : conjunto) incluido[static_cast<size_t>(codigo)] = true;
+
+        std::vector<UsinaHidr> usinas = modelo_->arquivo().usinas;
+        for (size_t i = 0; i < usinas.size(); ++i) {
+            if (!incluido[i + 1]) usinas[i].nome.clear();
+        }
+        c = montarCascata(usinas);
+    } else if (bacia_filtro_ != 0) {
+        c = completa;
+        int indiceBacia = -1;
+        for (const BaciaCascata& bacia : completa.bacias) {
+            if (bacia.codigo_foz == bacia_filtro_) {
+                indiceBacia = bacia.indice;
+                break;
+            }
+        }
+        std::vector<NoCascata> nosFiltrados;
+        for (const NoCascata& no : completa.nos)
+            if (no.bacia == indiceBacia) nosFiltrados.push_back(no);
+        c.nos = std::move(nosFiltrados);
+    } else {
+        int largura_maxima = std::max(8, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(completa.nos.size()) * 2.5))));
+        c = empacotarBacias(completa, largura_maxima);
+    }
+
     for (const NoCascata& no : c.nos) criarItemNo(no, modelo_->usina(no.codigo - 1));
     for (const ArestaCascata& aresta : c.arestas) criarItemAresta(aresta);
 
@@ -109,15 +149,26 @@ void VistaCascata::reconstruir() {
     }
     aplicarFiltro();
 
+    emit baciasAtualizadas(completa.bacias);
+
     if (ajustar_no_proximo_) {
         ajustar();
         ajustar_no_proximo_ = false;
     }
 }
 
+// Com o modo "so a cascata da usina" ligado, trocar a selecao muda o conjunto de nos exibidos,
+// entao reconstroi a cena inteira em vez de so trocar a caneta do no antigo pelo novo.
 void VistaCascata::selecionar(int linha) {
     int novo_codigo = linha < 0 ? -1 : linha + 1;
     if (novo_codigo == codigo_selecionado_) return;
+
+    if (so_selecionada_) {
+        codigo_selecionado_ = novo_codigo;
+        reconstruir();
+        ajustar();
+        return;
+    }
 
     auto it_antigo = nos_.find(codigo_selecionado_);
     if (it_antigo != nos_.end()) it_antigo->second->setPen(pena_normal_);
@@ -133,6 +184,20 @@ void VistaCascata::selecionar(int linha) {
 void VistaCascata::definirFiltro(const QString& texto) {
     filtro_ = texto;
     aplicarFiltro();
+}
+
+void VistaCascata::definirBacia(int codigo_foz) {
+    if (bacia_filtro_ == codigo_foz) return;
+    bacia_filtro_ = codigo_foz;
+    reconstruir();
+    ajustar();
+}
+
+void VistaCascata::definirSoSelecionada(bool ligado) {
+    if (so_selecionada_ == ligado) return;
+    so_selecionada_ = ligado;
+    reconstruir();
+    ajustar();
 }
 
 void VistaCascata::aplicarFiltro() {

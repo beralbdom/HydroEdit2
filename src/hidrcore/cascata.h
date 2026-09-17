@@ -15,11 +15,23 @@ struct ArestaCascata {
     bool desvio;
 };
 
+struct BaciaCascata {
+    int indice;
+    int codigo_foz;
+    int num_usinas;
+    int coluna_inicial;
+    int largura;
+    int altura;
+};
+
 struct Cascata {
     std::vector<NoCascata> nos;
     std::vector<ArestaCascata> arestas;
+    std::vector<BaciaCascata> bacias;
     int num_colunas = 0;
     int num_linhas = 0;
 };
 
 Cascata montarCascata(const std::vector<UsinaHidr>& usinas);
+Cascata empacotarBacias(const Cascata& c, int largura_maxima);
+std::vector<int> cascataDaUsina(const std::vector<UsinaHidr>& usinas, int codigo);

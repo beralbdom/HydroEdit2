@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include "cascata.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
@@ -133,12 +135,40 @@ void JanelaPrincipal::criarTabela() {
     layout_cascata->setSpacing(4);
     auto* barra_cascata = new QHBoxLayout;
     auto* botao_ajustar = new QPushButton(QStringLiteral("Ajustar"), painel_cascata);
+    bacia_cascata_ = new QComboBox(painel_cascata);
+    bacia_cascata_->addItem(QStringLiteral("Todas"), 0);
+    so_selecionada_cascata_ = new QCheckBox(QStringLiteral("Só a cascata da usina selecionada"), painel_cascata);
     barra_cascata->addWidget(botao_ajustar);
+    barra_cascata->addWidget(bacia_cascata_);
+    barra_cascata->addWidget(so_selecionada_cascata_);
     barra_cascata->addStretch(1);
     layout_cascata->addLayout(barra_cascata);
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
     layout_cascata->addWidget(vista_cascata_, 1);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
+    connect(bacia_cascata_, &QComboBox::currentIndexChanged, this,
+            [this](int indice) { vista_cascata_->definirBacia(bacia_cascata_->itemData(indice).toInt()); });
+    connect(so_selecionada_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirSoSelecionada);
+    connect(vista_cascata_, &VistaCascata::baciasAtualizadas, this, [this](const std::vector<BaciaCascata>& bacias) {
+        int foz_atual = bacia_cascata_->currentData().toInt();
+        std::vector<BaciaCascata> ordenadas = bacias;
+        std::sort(ordenadas.begin(), ordenadas.end(),
+                   [](const BaciaCascata& a, const BaciaCascata& b) { return a.num_usinas > b.num_usinas; });
+
+        bacia_cascata_->blockSignals(true);
+        bacia_cascata_->clear();
+        bacia_cascata_->addItem(QStringLiteral("Todas"), 0);
+        int indice_a_selecionar = 0;
+        for (const BaciaCascata& bacia : ordenadas) {
+            bacia_cascata_->addItem(QStringLiteral("%1 (%2)")
+                                         .arg(QString::fromLatin1(modelo_->usina(bacia.codigo_foz - 1).nome.c_str()))
+                                         .arg(bacia.num_usinas),
+                                     bacia.codigo_foz);
+            if (bacia.codigo_foz == foz_atual) indice_a_selecionar = bacia_cascata_->count() - 1;
+        }
+        bacia_cascata_->setCurrentIndex(indice_a_selecionar);
+        bacia_cascata_->blockSignals(false);
+    });
     abas_esquerda->addTab(painel_cascata, QStringLiteral("Cascata"));
 
     layout->addWidget(abas_esquerda, 1);
