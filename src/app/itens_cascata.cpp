@@ -2,14 +2,11 @@
 #include <QBrush>
 #include <QGraphicsLineItem>
 #include <QGraphicsPolygonItem>
-#include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsSimpleTextItem>
 #include <QLineF>
 #include <QPen>
 #include <QPolygonF>
-#include <QRectF>
-#include <QTransform>
 #include <cmath>
 #include <numbers>
 #include <utility>
@@ -25,9 +22,6 @@ constexpr double LARGURA_SETA = 7.0;
 constexpr double RECUO_SETA = 6.0;
 constexpr int ALPHA_BORDA_NO = 120;
 constexpr int ALPHA_ARESTA = 170;
-constexpr int ALPHA_FUNDO_FAIXA = 22;
-constexpr int ALPHA_BORDA_FAIXA = 90;
-constexpr double MARGEM_TITULO = 4.0;
 }  // namespace
 
 PontoCascata::PontoCascata(int codigo, std::function<void(int, bool)> ao_pairar)
@@ -113,41 +107,4 @@ ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& orige
     seta->setZValue(-1);
 
     return {linha, seta};
-}
-
-// A faixa cobre as colunas e linhas do grupo com meia coluna e meia linha de folga em volta, entao
-// os pontos da primeira linha ficam inteiros dentro dela. O titulo fica logo acima da borda de cima,
-// alinhado a esquerda com ela, e como ignora a transformacao da vista tanto a altura do texto quanto
-// o recuo de MARGEM_TITULO estao em pixels de tela, entao ele nunca invade a faixa. As 3 linhas de
-// folga que empacotarPorGrupo deixa entre linhas de faixas valem 84 unidades de cena, o que da pelo
-// menos 42 px na escala minima legivel da vista.
-ItensGrupoCascata criarFaixaCascata(QGraphicsScene* cena, const GrupoCascata& grupo, const QString& titulo,
-                                    const QColor& cor, const QPalette& paleta, const QFont& fonte) {
-    double x = (grupo.coluna_inicial - 0.5) * ESPACO_COLUNA_CASCATA;
-    double y = (grupo.linha_inicial - 0.5) * ESPACO_LINHA_CASCATA;
-    double largura = grupo.largura * ESPACO_COLUNA_CASCATA;
-    double altura = grupo.altura * ESPACO_LINHA_CASCATA;
-
-    QColor fundo = cor;
-    fundo.setAlpha(ALPHA_FUNDO_FAIXA);
-    QColor borda = cor;
-    borda.setAlpha(ALPHA_BORDA_FAIXA);
-    QPen pena(borda, 1.0);
-    pena.setCosmetic(true);
-
-    auto* faixa = cena->addRect(QRectF(x, y, largura, altura), pena, QBrush(fundo));
-    faixa->setZValue(-2);
-
-    QFont fonte_titulo = fonte;
-    fonte_titulo.setBold(true);
-    auto* texto = new QGraphicsSimpleTextItem(titulo);
-    texto->setFont(fonte_titulo);
-    texto->setBrush(paleta.text().color());
-    texto->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
-    texto->setPos(x, y);
-    texto->setTransform(QTransform::fromTranslate(0.0, -texto->boundingRect().height() - MARGEM_TITULO));
-    texto->setZValue(-2);
-    cena->addItem(texto);
-
-    return {faixa, texto};
 }

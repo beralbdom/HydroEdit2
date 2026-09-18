@@ -29,14 +29,8 @@ constexpr double ESCALA_LEGIVEL = 0.5;
 constexpr double ESCALA_MINIMA = ESCALA_LEGIVEL * 0.5;
 constexpr double ESCALA_MAXIMA = 20.0;
 constexpr double FATOR_ZOOM = 1.15;
-constexpr double OPACIDADE_ENTRE_GRUPOS = 0.5;
 constexpr int MARGEM_LEGENDA = 8;
-// Sobra em unidades de cena em volta do desenho. A de cima e maior porque os titulos das faixas sao
-// desenhados acima do retangulo com tamanho fixo em pixels: 70 unidades valem 35 px na escala
-// minima legivel (0,5) e 70 px na escala 1, sempre mais do que a altura de uma linha de texto com o
-// recuo de 4 px, entao o titulo da primeira linha da grade nunca fica encoberto pela barra.
 constexpr double MARGEM_CENA = 40.0;
-constexpr double MARGEM_CENA_TOPO = 70.0;
 
 QColor corDoGrupo(int indice) {
     static const std::array<QColor, 12> cores = {
@@ -50,12 +44,11 @@ QColor corDoGrupo(int indice) {
 
 QString paraTexto(const std::string& s) { return QString::fromLatin1(s.c_str()); }
 
-// Indice de cor de cada codigo de grupo pela posicao dele entre todos os codigos que o deck inteiro
-// produz, e nao entre os grupos desenhados: assim um grupo nao troca de cor quando um filtro deixa
-// so parte dos grupos na tela. O grupo 0 ("Sem grupo") so entra quando existe usina do deck fora do
-// mapa de agrupamento.
-std::map<int, int> indiceDeCorDosGrupos(const std::vector<UsinaHidr>& usinas,
-                                        const std::map<int, int>& grupo_da_usina) {
+// Indice de cor de cada REE pela posicao dele entre todos os REEs que o deck inteiro usa, e nao
+// entre os que estao desenhados: assim um REE nao troca de cor quando um filtro deixa so parte
+// deles na tela. O codigo 0 ("Sem REE") so entra quando existe usina do deck fora do confhd.dat.
+std::map<int, int> indiceDeCorDosRees(const std::vector<UsinaHidr>& usinas,
+                                      const std::map<int, int>& grupo_da_usina) {
     std::set<int> codigos;
     for (const auto& [codigo_usina, grupo] : grupo_da_usina) codigos.insert(grupo);
     for (size_t i = 0; i < usinas.size(); ++i) {
@@ -113,14 +106,7 @@ void VistaCascata::mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, st
     for (const auto& [codigo, ree] : lookup.rees) nome_do_ree[codigo] = ree.nome;
 }
 
-void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
-                            const std::vector<QColor>& cor_do_grupo) {
-    for (size_t i = 0; i < c.grupos.size() && i < cor_do_grupo.size(); ++i) {
-        const GrupoCascata& grupo = c.grupos[i];
-        QString titulo = QStringLiteral("%1 (%2 usinas)").arg(paraTexto(grupo.nome)).arg(grupo.num_usinas);
-        criarFaixaCascata(cena_, grupo, titulo, cor_do_grupo[i], palette(), font());
-    }
-
+void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no) {
     auto ao_pairar = [this](int codigo, bool entrou) {
         if (entrou) codigo_sob_mouse_ = codigo;
         else if (codigo_sob_mouse_ == codigo) codigo_sob_mouse_ = -1;
@@ -144,19 +130,18 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
         if (it_origem == nos_.end() || it_destino == nos_.end()) continue;
         ItensArestaCascata itens = criarArestaCascata(cena_, it_origem->second.ponto->pos(),
                                                       it_destino->second.ponto->pos(), aresta.desvio, palette());
-        double opacidade_base = aresta.entre_grupos ? OPACIDADE_ENTRE_GRUPOS : 1.0;
-        itens.linha->setOpacity(opacidade_base);
-        itens.seta->setOpacity(opacidade_base);
-        arestas_.push_back({itens.linha, itens.seta, aresta.origem, aresta.destino, opacidade_base});
+        arestas_.push_back({itens.linha, itens.seta, aresta.origem, aresta.destino});
     }
 }
 
-// As faixas sao sempre por REE, uma por REE presente no que esta sendo exibido. Os filtros de REE e
-// de submercado valem juntos: uma usina aparece se o REE dela esta na selecao de REEs (ou essa
-// selecao esta vazia) E o submercado dela esta na selecao de submercados (ou essa esta vazia).
-// Restringir e sempre a mesma coisa, uma copia do deck com as usinas de fora zeradas, para o layout
-// sair pelo mesmo caminho com e sem filtro. As cores sao indexadas pela lista de REEs do deck
-// inteiro, entao um REE mantem a mesma cor nos dois casos.
+// O desenho nao tem faixas: todas as bacias sao empacotadas juntas, das maiores para as menores,
+// em linhas de ate largura_maxima colunas (empacotarPorGrupo com o mapa de grupos vazio, que e o
+// caso de um grupo so). O REE aparece na cor do ponto e na legenda, nao mais em retangulos. Os
+// filtros de REE e de submercado valem juntos: uma usina aparece se o REE dela esta na selecao de
+// REEs (ou essa selecao esta vazia) E o submercado dela esta na selecao de submercados (ou essa
+// esta vazia). Restringir e sempre a mesma coisa, uma copia do deck com as usinas de fora zeradas,
+// para o layout sair pelo mesmo caminho com e sem filtro. As cores sao indexadas pela lista de REEs
+// do deck inteiro, entao um REE mantem a mesma cor com e sem filtro.
 void VistaCascata::reconstruir() {
     int selecionado_anterior = codigo_selecionado_;
 
@@ -200,29 +185,40 @@ void VistaCascata::reconstruir() {
     std::map<int, int> ree_da_usina;
     std::map<int, std::string> nome_do_ree;
     mapasDeRee(ree_da_usina, nome_do_ree);
-    Cascata c = empacotarPorGrupo(exibidas, ree_da_usina, nome_do_ree, largura_maxima);
+    Cascata c = empacotarPorGrupo(exibidas, {}, {}, largura_maxima);
 
-    std::map<int, int> indice_cor = indiceDeCorDosGrupos(usinas_deck, ree_da_usina);
-    auto corDoCodigo = [&](int codigo_ree) {
+    std::map<int, int> indice_cor = indiceDeCorDosRees(usinas_deck, ree_da_usina);
+    auto corDoRee = [&](int codigo_ree) {
         auto it = indice_cor.find(codigo_ree);
         return corDoGrupo(it == indice_cor.end() ? 0 : it->second);
     };
-
-    std::vector<QColor> cor_do_grupo;
-    std::vector<std::pair<QString, QColor>> legenda;
-    for (const GrupoCascata& grupo : c.grupos) {
-        QColor cor = corDoCodigo(grupo.codigo);
-        cor_do_grupo.push_back(cor);
-        legenda.push_back({paraTexto(grupo.nome), cor});
-    }
+    auto reeDaUsina = [&](int codigo) {
+        auto it = ree_da_usina.find(codigo);
+        return it == ree_da_usina.end() ? 0 : it->second;
+    };
 
     std::unordered_map<int, QColor> cor_do_no;
+    std::set<int> rees_desenhados;
     for (const NoCascata& no : c.nos) {
-        auto it = ree_da_usina.find(no.codigo);
-        cor_do_no[no.codigo] = corDoCodigo(it == ree_da_usina.end() ? 0 : it->second);
+        int ree = reeDaUsina(no.codigo);
+        cor_do_no[no.codigo] = corDoRee(ree);
+        rees_desenhados.insert(ree);
     }
 
-    desenhar(c, cor_do_no, cor_do_grupo);
+    // Legenda so com os REEs que aparecem no desenho, por codigo crescente e com o "Sem REE" no fim.
+    std::vector<std::pair<QString, QColor>> legenda;
+    auto adicionarNaLegenda = [&](int ree) {
+        auto it = nome_do_ree.find(ree);
+        QString nome = it == nome_do_ree.end() || it->second.empty() ? QStringLiteral("REE %1").arg(ree)
+                                                                     : paraTexto(it->second);
+        legenda.push_back({nome, corDoRee(ree)});
+    };
+    for (int ree : rees_desenhados) {
+        if (ree != 0) adicionarNaLegenda(ree);
+    }
+    if (rees_desenhados.contains(0)) adicionarNaLegenda(0);
+
+    desenhar(c, cor_do_no);
     legenda_->definirGrupos(legenda);
     posicionarLegenda();
     // O enquadramento e as barras de rolagem ainda vao se acertar no resto deste giro do laco de
@@ -230,8 +226,8 @@ void VistaCascata::reconstruir() {
     QTimer::singleShot(0, this, [this] { posicionarLegenda(); });
 
     if (!cena_->items().isEmpty()) {
-        cena_->setSceneRect(cena_->itemsBoundingRect().adjusted(-MARGEM_CENA, -MARGEM_CENA_TOPO, MARGEM_CENA,
-                                                                MARGEM_CENA));
+        cena_->setSceneRect(
+            cena_->itemsBoundingRect().adjusted(-MARGEM_CENA, -MARGEM_CENA, MARGEM_CENA, MARGEM_CENA));
     }
 
     auto it = nos_.find(selecionado_anterior);
@@ -318,7 +314,7 @@ void VistaCascata::aplicarFiltro() {
     }
     for (ItemAresta& aresta : arestas_) {
         bool ambos_visiveis = casa_filtro_[aresta.origem] && casa_filtro_[aresta.destino];
-        double opacidade = aresta.opacidade_base * (ambos_visiveis ? 1.0 : 0.25);
+        double opacidade = ambos_visiveis ? 1.0 : 0.25;
         aresta.linha->setOpacity(opacidade);
         aresta.seta->setOpacity(opacidade);
     }

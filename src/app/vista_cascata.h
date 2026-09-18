@@ -43,12 +43,10 @@ private:
         QGraphicsPolygonItem* seta;
         int origem;
         int destino;
-        double opacidade_base;
     };
 
     void mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, std::string>& nome_do_ree) const;
-    void desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
-                  const std::vector<QColor>& cor_do_grupo);
+    void desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no);
     void aplicarFiltro();
     void atualizarRotulos();
     void posicionarLegenda();

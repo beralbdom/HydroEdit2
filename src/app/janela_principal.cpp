@@ -301,10 +301,15 @@ void JanelaPrincipal::criarMenus() {
         sobre.setWindowIcon(QIcon(QStringLiteral(":/hidr.ico")));
         sobre.setIconPixmap(QPixmap(QStringLiteral(":/hidr.ico")));
         sobre.setTextFormat(Qt::RichText);
-        sobre.setText(QStringLiteral("<b>HydroEdit 2 0.1</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE<br><br>"
-                                     "Desenvolvido por Bernardo Albuquerque Domingues<br>"
-                                     "<a href=\"https://github.com/beralbdom\">github.com/beralbdom</a>")
-                          .arg(modelo_->numUsinas()));
+        const QString cor_esmaecida = palette().color(QPalette::PlaceholderText).name();
+        const int tamanho_credito = font().pointSize() + 1;
+        sobre.setText(QStringLiteral("<b>%1 %2</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE<br><br>"
+                                     "Licença: GNU GPL v3<br><br>"
+                                     "<span style=\"font-size:%3pt; color:%4;\">Desenvolvido por Bernardo Albuquerque Domingues<br>"
+                                     "<a href=\"https://github.com/beralbdom\" style=\"color:%4;\">github.com/beralbdom</a></span>")
+                          .arg(QApplication::applicationName(), QApplication::applicationVersion())
+                          .arg(tamanho_credito)
+                          .arg(cor_esmaecida));
         sobre.exec();
     });
     atualizarRecentes();

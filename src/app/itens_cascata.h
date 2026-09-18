@@ -10,7 +10,6 @@
 
 class QGraphicsLineItem;
 class QGraphicsPolygonItem;
-class QGraphicsRectItem;
 class QGraphicsScene;
 class QGraphicsSimpleTextItem;
 
@@ -40,11 +39,6 @@ struct ItensArestaCascata {
     QGraphicsPolygonItem* seta;
 };
 
-struct ItensGrupoCascata {
-    QGraphicsRectItem* faixa;
-    QGraphicsSimpleTextItem* titulo;
-};
-
 QPointF centroDoNo(double coluna, int linha);
 
 ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& rotulo,
@@ -52,6 +46,4 @@ ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, cons
                                  std::function<void(int, bool)> ao_pairar);
 ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& origem, const QPointF& destino,
                                       bool desvio, const QPalette& paleta);
-ItensGrupoCascata criarFaixaCascata(QGraphicsScene* cena, const GrupoCascata& grupo, const QString& titulo,
-                                    const QColor& cor, const QPalette& paleta, const QFont& fonte);
 void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& paleta);
