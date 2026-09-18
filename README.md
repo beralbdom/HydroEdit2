@@ -1,4 +1,4 @@
-# <img width="64" height="64" alt="hidro (1)" src="https://github.com/user-attachments/assets/8a5b3082-f316-4c6d-881c-f40605f6e0e6" /> HydroEdit2
+# <img width="32" height="32" alt="icon copy" src="https://github.com/user-attachments/assets/2d999694-35ee-4c9c-83c9-f39248c9c6cb" /> HydroEdit2
 
 Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`). Inspirado no HydroEdit clássico.
 
