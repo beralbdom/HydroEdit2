@@ -111,8 +111,10 @@ ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& orige
 }
 
 // A faixa cobre as colunas e linhas do grupo com meia coluna e meia linha de folga em volta. O
-// titulo ignora a transformacao da vista e e deslocado em pixels a partir do canto superior
-// esquerdo, entao continua legivel e ancorado na faixa em qualquer zoom.
+// titulo fica logo acima da borda de cima da faixa, alinhado a esquerda com ela: como ele ignora a
+// transformacao da vista, o recuo de MARGEM_TITULO pixels e aplicado no transform proprio do item,
+// e a altura do texto tambem esta em pixels de tela, entao o titulo nao invade a faixa em zoom
+// nenhum. As 3 linhas de folga que empacotarPorGrupo deixa entre faixas cabem esse texto.
 ItensGrupoCascata criarFaixaCascata(QGraphicsScene* cena, const GrupoCascata& grupo, const QString& titulo,
                                     const QColor& cor, const QPalette& paleta, const QFont& fonte) {
     double x = (grupo.coluna_inicial - 0.5) * ESPACO_COLUNA_CASCATA;
@@ -137,7 +139,7 @@ ItensGrupoCascata criarFaixaCascata(QGraphicsScene* cena, const GrupoCascata& gr
     texto->setBrush(paleta.text().color());
     texto->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
     texto->setPos(x, y);
-    texto->setTransform(QTransform::fromTranslate(MARGEM_TITULO, MARGEM_TITULO));
+    texto->setTransform(QTransform::fromTranslate(0.0, -texto->boundingRect().height() - MARGEM_TITULO));
     texto->setZValue(-2);
     cena->addItem(texto);
 

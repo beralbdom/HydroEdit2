@@ -2,7 +2,6 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
-#include <QComboBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -20,11 +19,13 @@
 #include <QStatusBar>
 #include <QTableView>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <array>
 #include <filesystem>
 #include <map>
+#include <set>
 #include "cascata.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
@@ -37,6 +38,14 @@
 
 namespace {
 std::filesystem::path paraPath(const QString& s) { return std::filesystem::path(s.toStdWString()); }
+
+std::set<int> codigosMarcados(QMenu* menu) {
+    std::set<int> marcados;
+    for (QAction* acao : menu->actions()) {
+        if (acao->data().isValid() && acao->isChecked()) marcados.insert(acao->data().toInt());
+    }
+    return marcados;
+}
 }
 
 JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
@@ -138,21 +147,19 @@ void JanelaPrincipal::criarTabela() {
     layout_cascata->setSpacing(4);
     auto* barra_cascata = new QHBoxLayout;
     auto* botao_ajustar = new QPushButton(QStringLiteral("Ajustar"), painel_cascata);
-    agrupamento_cascata_ = new QComboBox(painel_cascata);
-    agrupamento_cascata_->addItem(QStringLiteral("REE"), static_cast<int>(VistaCascata::Agrupamento::Ree));
-    agrupamento_cascata_->addItem(QStringLiteral("Submercado"), static_cast<int>(VistaCascata::Agrupamento::Submercado));
-    agrupamento_cascata_->addItem(QStringLiteral("Bacia"), static_cast<int>(VistaCascata::Agrupamento::Bacia));
-    ree_cascata_ = new QComboBox(painel_cascata);
-    ree_cascata_->addItem(QStringLiteral("Todos"), 0);
-    bacia_cascata_ = new QComboBox(painel_cascata);
-    bacia_cascata_->addItem(QStringLiteral("Todas"), 0);
+    menu_ree_ = new QMenu(painel_cascata);
+    menu_ree_->setToolTipsVisible(true);
+    menu_submercado_ = new QMenu(painel_cascata);
+    menu_submercado_->setToolTipsVisible(true);
+    ree_cascata_ = new QToolButton(painel_cascata);
+    ree_cascata_->setPopupMode(QToolButton::InstantPopup);
+    ree_cascata_->setMenu(menu_ree_);
+    submercado_cascata_ = new QToolButton(painel_cascata);
+    submercado_cascata_->setPopupMode(QToolButton::InstantPopup);
+    submercado_cascata_->setMenu(menu_submercado_);
     so_selecionada_cascata_ = new QCheckBox(QStringLiteral("Só a cascata da usina selecionada"), painel_cascata);
-    barra_cascata->addWidget(new QLabel(QStringLiteral("Agrupar por"), painel_cascata));
-    barra_cascata->addWidget(agrupamento_cascata_);
-    barra_cascata->addWidget(new QLabel(QStringLiteral("REE"), painel_cascata));
     barra_cascata->addWidget(ree_cascata_);
-    barra_cascata->addWidget(new QLabel(QStringLiteral("Bacia"), painel_cascata));
-    barra_cascata->addWidget(bacia_cascata_);
+    barra_cascata->addWidget(submercado_cascata_);
     barra_cascata->addWidget(so_selecionada_cascata_);
     barra_cascata->addWidget(botao_ajustar);
     barra_cascata->addStretch(1);
@@ -160,64 +167,12 @@ void JanelaPrincipal::criarTabela() {
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
     layout_cascata->addWidget(vista_cascata_, 1);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
-    connect(agrupamento_cascata_, &QComboBox::currentIndexChanged, this, [this](int indice) {
-        vista_cascata_->definirAgrupamento(
-            static_cast<VistaCascata::Agrupamento>(agrupamento_cascata_->itemData(indice).toInt()));
-    });
-    connect(ree_cascata_, &QComboBox::currentIndexChanged, this,
-            [this](int indice) { vista_cascata_->definirRee(ree_cascata_->itemData(indice).toInt()); });
-    connect(bacia_cascata_, &QComboBox::currentIndexChanged, this,
-            [this](int indice) { vista_cascata_->definirBacia(bacia_cascata_->itemData(indice).toInt()); });
     connect(so_selecionada_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirSoSelecionada);
     connect(vista_cascata_, &VistaCascata::focarCascataDe, this, [this](int linha) {
         selecionarLinha(linha);
         so_selecionada_cascata_->setChecked(true);
     });
-    // A lista de REEs vem sempre do ree.dat do deck, para nenhum REE sumir do combo por causa do
-    // agrupamento ou de um filtro ativo. A contagem entre parenteses so aparece quando os grupos
-    // desenhados sao REEs, que e o unico caso em que grupo.codigo e um codigo de REE.
-    connect(vista_cascata_, &VistaCascata::gruposAtualizados, this, [this](const std::vector<GrupoCascata>& grupos) {
-        int ree_atual = ree_cascata_->currentData().toInt();
-        bool por_ree = agrupamento_cascata_->currentData().toInt() == static_cast<int>(VistaCascata::Agrupamento::Ree);
-        std::map<int, int> usinas_do_ree;
-        if (por_ree) {
-            for (const GrupoCascata& grupo : grupos) usinas_do_ree[grupo.codigo] = grupo.num_usinas;
-        }
-
-        ree_cascata_->blockSignals(true);
-        ree_cascata_->clear();
-        ree_cascata_->addItem(QStringLiteral("Todos"), 0);
-        int indice_a_selecionar = 0;
-        for (const auto& [codigo, ree] : modelo_->lookup().rees) {
-            QString nome = QString::fromLatin1(ree.nome.c_str());
-            auto it = usinas_do_ree.find(codigo);
-            ree_cascata_->addItem(
-                it == usinas_do_ree.end() ? nome : QStringLiteral("%1 (%2)").arg(nome).arg(it->second), codigo);
-            if (codigo == ree_atual) indice_a_selecionar = ree_cascata_->count() - 1;
-        }
-        ree_cascata_->setCurrentIndex(indice_a_selecionar);
-        ree_cascata_->blockSignals(false);
-    });
-    connect(vista_cascata_, &VistaCascata::baciasAtualizadas, this, [this](const std::vector<BaciaCascata>& bacias) {
-        int foz_atual = bacia_cascata_->currentData().toInt();
-        std::vector<BaciaCascata> ordenadas = bacias;
-        std::sort(ordenadas.begin(), ordenadas.end(),
-                  [](const BaciaCascata& a, const BaciaCascata& b) { return a.num_usinas > b.num_usinas; });
-
-        bacia_cascata_->blockSignals(true);
-        bacia_cascata_->clear();
-        bacia_cascata_->addItem(QStringLiteral("Todas"), 0);
-        int indice_a_selecionar = 0;
-        for (const BaciaCascata& bacia : ordenadas) {
-            bacia_cascata_->addItem(QStringLiteral("%1 (%2)")
-                                         .arg(QString::fromLatin1(modelo_->usina(bacia.codigo_foz - 1).nome.c_str()))
-                                         .arg(bacia.num_usinas),
-                                     bacia.codigo_foz);
-            if (bacia.codigo_foz == foz_atual) indice_a_selecionar = bacia_cascata_->count() - 1;
-        }
-        bacia_cascata_->setCurrentIndex(indice_a_selecionar);
-        bacia_cascata_->blockSignals(false);
-    });
+    repovoarFiltrosCascata();
     abas_esquerda->addTab(painel_cascata, QStringLiteral("Cascata"));
 
     layout->addWidget(abas_esquerda, 1);
@@ -226,6 +181,69 @@ void JanelaPrincipal::criarTabela() {
     connect(campo_filtro_, &QLineEdit::textChanged, vista_cascata_, &VistaCascata::definirFiltro);
     connect(ocultar_vazias_, &QCheckBox::toggled, filtro_, &FiltroUsinas::definirOcultarVazias);
     splitter_->addWidget(painel);
+}
+
+// Os dois menus saem sempre do deck (ree.dat e sistema.dat), nao do que esta desenhado, para nenhum
+// REE ou submercado sumir da lista por causa de um filtro ativo. "Todos" e so o atalho que
+// desmarca o resto: selecao vazia ja significa "todos" para a vista.
+void JanelaPrincipal::repovoarFiltrosCascata() {
+    auto povoar = [this](QMenu* menu, const std::map<int, std::string>& itens) {
+        menu->clear();
+        QAction* todos = menu->addAction(QStringLiteral("Todos"));
+        todos->setCheckable(true);
+        todos->setChecked(true);
+        connect(todos, &QAction::triggered, this, [this, menu] {
+            for (QAction* acao : menu->actions()) {
+                if (!acao->data().isValid()) continue;
+                QSignalBlocker bloqueio(acao);
+                acao->setChecked(false);
+            }
+            aplicarFiltrosCascata();
+        });
+        menu->addSeparator();
+        for (const auto& [codigo, nome] : itens) {
+            QAction* acao = menu->addAction(QString::fromLatin1(nome.c_str()));
+            acao->setCheckable(true);
+            acao->setData(codigo);
+            connect(acao, &QAction::toggled, this, [this](bool) { aplicarFiltrosCascata(); });
+        }
+    };
+
+    std::map<int, std::string> nomes_rees;
+    for (const auto& [codigo, ree] : modelo_->lookup().rees) nomes_rees[codigo] = ree.nome;
+    povoar(menu_ree_, nomes_rees);
+    povoar(menu_submercado_, modelo_->lookup().subsistemas);
+    aplicarFiltrosCascata();
+}
+
+void JanelaPrincipal::aplicarFiltrosCascata() {
+    std::set<int> rees = codigosMarcados(menu_ree_);
+    std::set<int> submercados = codigosMarcados(menu_submercado_);
+
+    // A acao "Todos" apenas espelha o estado: fica marcada quando nada individual esta marcado.
+    auto sincronizarTodos = [](QMenu* menu, bool vazio) {
+        QList<QAction*> acoes = menu->actions();
+        if (acoes.isEmpty()) return;
+        QSignalBlocker bloqueio(acoes.first());
+        acoes.first()->setChecked(vazio);
+    };
+    sincronizarTodos(menu_ree_, rees.empty());
+    sincronizarTodos(menu_submercado_, submercados.empty());
+
+    int total_rees = static_cast<int>(modelo_->lookup().rees.size());
+    int total_submercados = static_cast<int>(modelo_->lookup().subsistemas.size());
+    ree_cascata_->setText(rees.empty() ? QStringLiteral("REE: todos")
+                                       : QStringLiteral("REE: %1 de %2")
+                                             .arg(static_cast<int>(rees.size()))
+                                             .arg(total_rees));
+    submercado_cascata_->setText(submercados.empty()
+                                     ? QStringLiteral("Submercado: todos")
+                                     : QStringLiteral("Submercado: %1 de %2")
+                                           .arg(static_cast<int>(submercados.size()))
+                                           .arg(total_submercados));
+
+    vista_cascata_->definirRees(rees);
+    vista_cascata_->definirSubmercados(submercados);
 }
 
 void JanelaPrincipal::criarMenus() {
@@ -314,6 +332,7 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     lookup.carregarDeck(paraPath(QFileInfo(caminho).absolutePath()));
     lookup.carregarCsvs(paraPath(QApplication::applicationDirPath()));
     modelo_->definirLookup(lookup);
+    repovoarFiltrosCascata();
     modelo_->definirArquivo(std::move(a), caminho);
     tabela_->resizeColumnsToContents();
     acao_salvar_->setEnabled(true);

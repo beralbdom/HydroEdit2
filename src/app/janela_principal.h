@@ -4,13 +4,13 @@
 
 class QCheckBox;
 class QCloseEvent;
-class QComboBox;
 class QLabel;
 class QLineEdit;
 class QMenu;
 class QSplitter;
 class QTableView;
 class QTabWidget;
+class QToolButton;
 class ModeloHidr;
 class FiltroUsinas;
 class FormularioUsina;
@@ -59,13 +59,16 @@ private slots:
 private:
     void criarMenus();
     void criarTabela();
+    void repovoarFiltrosCascata();
+    void aplicarFiltrosCascata();
     int primeiroCodigoLivre() const;
 
     QLineEdit* campo_filtro_;
     QCheckBox* ocultar_vazias_;
-    QComboBox* agrupamento_cascata_;
-    QComboBox* ree_cascata_;
-    QComboBox* bacia_cascata_;
+    QToolButton* ree_cascata_;
+    QToolButton* submercado_cascata_;
+    QMenu* menu_ree_;
+    QMenu* menu_submercado_;
     QCheckBox* so_selecionada_cascata_;
     QLabel* status_arquivo_;
     QLabel* status_usinas_;

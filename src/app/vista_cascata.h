@@ -3,6 +3,7 @@
 #include <QGraphicsView>
 #include <QString>
 #include <map>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -17,21 +18,17 @@ class QGraphicsScene;
 class VistaCascata : public QGraphicsView {
     Q_OBJECT
 public:
-    enum class Agrupamento { Ree, Submercado, Bacia };
-
     explicit VistaCascata(ModeloHidr* modelo, QWidget* parent = nullptr);
     void reconstruir();
     void selecionar(int linha);
     void definirFiltro(const QString& texto);
-    void definirBacia(int codigo_foz);
-    void definirRee(int codigo_ree);
-    void definirAgrupamento(Agrupamento agrupamento);
+    void definirRees(const std::set<int>& rees);
+    void definirSubmercados(const std::set<int>& submercados);
     void definirSoSelecionada(bool ligado);
     void ajustar();
 
 signals:
     void usinaEscolhida(int linha);
-    void baciasAtualizadas(const std::vector<BaciaCascata>& bacias);
     void gruposAtualizados(const std::vector<GrupoCascata>& grupos);
     void focarCascataDe(int linha);
 
@@ -53,7 +50,7 @@ private:
         double opacidade_base;
     };
 
-    void mapasDeGrupo(std::map<int, int>& grupo_da_usina, std::map<int, std::string>& nome_do_grupo) const;
+    void mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, std::string>& nome_do_ree) const;
     void desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
                   const std::vector<QColor>& cor_do_grupo,
                   const std::vector<std::pair<QString, QColor>>& legenda);
@@ -75,8 +72,7 @@ private:
     bool ajustar_no_proximo_ = true;
     bool usuario_mexeu_zoom_ = false;
     bool ajustando_ = false;
-    int bacia_filtro_ = 0;
-    int ree_filtro_ = 0;
-    Agrupamento agrupamento_ = Agrupamento::Ree;
+    std::set<int> rees_filtro_;
+    std::set<int> submercados_filtro_;
     bool so_selecionada_ = false;
 };

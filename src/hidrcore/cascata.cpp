@@ -228,12 +228,13 @@ FaixaEmpacotada empacotarFaixa(Cascata& parcial, int largura_maxima, int linha_b
 
 }  // namespace
 
-// Uma faixa horizontal por grupo, empilhadas na ordem crescente do codigo do grupo, com 2 linhas de
-// folga entre faixas para caber o titulo. O grupo e por usina, nao por bacia: cada faixa e montada
-// rodando montarCascata so sobre as usinas daquele grupo, entao uma usina cujo jusante esta em
-// outro grupo vira raiz dentro da sua faixa e os REEs de meio de cascata ganham faixa propria. As
-// arestas saem do grafo completo, com entre_grupos marcando as que atravessam faixas. Usina sem
-// entrada em grupo_da_usina cai no grupo 0; nome ausente ou vazio vira "Sem grupo".
+// Uma faixa horizontal por grupo, empilhadas na ordem crescente do codigo do grupo, com 3 linhas de
+// folga entre faixas: e nesse espaco que quem desenha coloca o titulo da faixa de baixo, sem
+// encostar na de cima. O grupo e por usina, nao por bacia: cada faixa e montada rodando
+// montarCascata so sobre as usinas daquele grupo, entao uma usina cujo jusante esta em outro grupo
+// vira raiz dentro da sua faixa e os grupos de meio de cascata ganham faixa propria. As arestas
+// saem do grafo completo, com entre_grupos marcando as que atravessam faixas. Usina sem entrada em
+// grupo_da_usina cai no grupo 0; nome ausente ou vazio vira "Sem grupo".
 Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<int, int>& grupo_da_usina,
                           const std::map<int, std::string>& nome_do_grupo, int largura_maxima) {
     auto grupoDe = [&](int codigo) {
@@ -279,7 +280,7 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
                                                 0, linhaBase, faixa.largura, faixa.altura,
                                                 static_cast<int>(membros.size())});
         numColunas = std::max(numColunas, faixa.largura);
-        linhaBase += faixa.altura + 2;
+        linhaBase += faixa.altura + 3;
     }
 
     for (ArestaCascata aresta : montarCascata(usinas).arestas) {
@@ -288,7 +289,7 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
     }
 
     resultado.num_colunas = numColunas;
-    resultado.num_linhas = resultado.grupos.empty() ? 0 : linhaBase - 2;
+    resultado.num_linhas = resultado.grupos.empty() ? 0 : linhaBase - 3;
     return resultado;
 }
 

@@ -243,7 +243,7 @@ private slots:
         QCOMPARE(r.grupos[1].codigo, 2);
         QCOMPARE(r.grupos[1].nome, std::string("BETA"));
         QCOMPARE(r.grupos[1].coluna_inicial, 0);
-        QCOMPARE(r.grupos[1].linha_inicial, r.grupos[0].altura + 2);
+        QCOMPARE(r.grupos[1].linha_inicial, r.grupos[0].altura + 3);
         QCOMPARE(r.grupos[1].num_usinas, 2);
         QCOMPARE(r.bacias.size(), size_t(2));
         QCOMPARE(r.bacias[0].coluna_inicial, 0);
@@ -254,9 +254,9 @@ private slots:
         QCOMPARE(n1->coluna, 0.0);
         QCOMPARE(n1->linha, 0);
         QCOMPARE(n3->coluna, 0.0);
-        QCOMPARE(n3->linha, 4);
+        QCOMPARE(n3->linha, 5);
         QCOMPARE(r.num_colunas, 1);
-        QCOMPARE(r.num_linhas, 6);
+        QCOMPARE(r.num_linhas, 7);
         QVERIFY(temAresta(r, 1, 2, false));
         QVERIFY(temAresta(r, 3, 4, false));
     }
@@ -320,7 +320,7 @@ private slots:
         QCOMPARE(n1->linha, 0);
         QCOMPARE(n2->linha, 1);
         QCOMPARE(n3->linha, r.grupos[1].linha_inicial);
-        QCOMPARE(r.grupos[1].linha_inicial, 4);
+        QCOMPARE(r.grupos[1].linha_inicial, 5);
         const ArestaCascata* a12 = arestaDe(r, 1, 2);
         const ArestaCascata* a23 = arestaDe(r, 2, 3);
         QVERIFY(a12 && a23);
