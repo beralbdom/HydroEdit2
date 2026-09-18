@@ -23,7 +23,7 @@ qt_add_executable(HydroEdit2 WIN32 main.cpp hydroedit.rc)
 qt_add_resources(HydroEdit2 "icone"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/.."
-    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../hidro.ico")
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../hidr.ico")
 target_link_libraries(HydroEdit2 PRIVATE hydroedit_ui)
 if(NOT QT6_IS_SHARED_LIBS_BUILD)
     qt_import_plugins(HydroEdit2

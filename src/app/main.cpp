@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
     QApplication::setStyle(QStringLiteral("Fusion"));
     ajustarLinhasAlternadas(app);
-    app.setWindowIcon(QIcon(QStringLiteral(":/hidro.ico")));
+    app.setWindowIcon(QIcon(QStringLiteral(":/hidr.ico")));
     QApplication::setOrganizationName(QStringLiteral("HydroEdit 2"));
     QApplication::setApplicationName(QStringLiteral("HydroEdit 2"));
     QApplication::setApplicationVersion(QStringLiteral("0.1"));
