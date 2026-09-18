@@ -32,6 +32,7 @@ protected:
     void wheelEvent(QWheelEvent* ev) override;
     void mousePressEvent(QMouseEvent* ev) override;
     void resizeEvent(QResizeEvent* ev) override;
+    bool viewportEvent(QEvent* ev) override;
 
 private slots:
     void aoResetarModelo();

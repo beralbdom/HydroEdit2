@@ -1,4 +1,5 @@
 #include "vista_cascata.h"
+#include <QEvent>
 #include <QGraphicsLineItem>
 #include <QGraphicsPolygonItem>
 #include <QGraphicsScene>
@@ -76,7 +77,10 @@ VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(
     setDragMode(QGraphicsView::ScrollHandDrag);
     setRenderHint(QPainter::Antialiasing);
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
-    legenda_ = new LegendaCascata(viewport());
+    // Filha da vista, e nao do viewport: arrastar a cena rola o viewport com QWidget::scroll(), que
+    // leva junto os filhos dele, e a legenda sairia de cena a cada movimento. Como irma do viewport
+    // ela fica parada; quem a posiciona dentro da area visivel e posicionarLegenda().
+    legenda_ = new LegendaCascata(this);
     legenda_->raise();
 
     connect(modelo_, &QAbstractItemModel::modelReset, this, &VistaCascata::aoResetarModelo);
@@ -138,13 +142,12 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
     }
 }
 
-// As faixas sao sempre por REE, uma por REE presente no que esta sendo exibido. Ordem de restricao:
-// o modo "so a cascata da usina selecionada" tem prioridade sobre os filtros de REE e submercado,
-// que valem juntos (uma usina aparece se o REE dela esta na selecao de REEs, ou a selecao esta
-// vazia, E o submercado dela esta na de submercados, ou ela esta vazia). Restringir e sempre a
-// mesma coisa: uma copia do deck com as usinas de fora zeradas, para o layout sair pelo mesmo
-// caminho em todos os casos. As cores sao indexadas pela lista de REEs do deck inteiro, entao um
-// REE mantem a mesma cor com e sem filtro.
+// As faixas sao sempre por REE, uma por REE presente no que esta sendo exibido. Os filtros de REE e
+// de submercado valem juntos: uma usina aparece se o REE dela esta na selecao de REEs (ou essa
+// selecao esta vazia) E o submercado dela esta na selecao de submercados (ou essa esta vazia).
+// Restringir e sempre a mesma coisa, uma copia do deck com as usinas de fora zeradas, para o layout
+// sair pelo mesmo caminho com e sem filtro. As cores sao indexadas pela lista de REEs do deck
+// inteiro, entao um REE mantem a mesma cor nos dois casos.
 void VistaCascata::reconstruir() {
     int selecionado_anterior = codigo_selecionado_;
 
@@ -350,11 +353,15 @@ void VistaCascata::ajustar() {
     posicionarLegenda();
 }
 
+// As coordenadas sao as da vista, nao as do viewport, porque a legenda e irma dele; o retangulo do
+// viewport e que diz onde fica a area visivel da cena, ja descontados a moldura e as barras de
+// rolagem.
 void VistaCascata::posicionarLegenda() {
     if (legenda_->isHidden()) return;
     legenda_->adjustSize();
-    legenda_->move(viewport()->width() - legenda_->width() - MARGEM_LEGENDA,
-                   viewport()->height() - legenda_->height() - MARGEM_LEGENDA);
+    QRect area = viewport()->geometry();
+    legenda_->move(area.x() + area.width() - legenda_->width() - MARGEM_LEGENDA,
+                   area.y() + area.height() - legenda_->height() - MARGEM_LEGENDA);
     legenda_->raise();
 }
 
@@ -387,6 +394,13 @@ void VistaCascata::mousePressEvent(QMouseEvent* ev) {
 // janela mantem a escala escolhida por ele.
 void VistaCascata::resizeEvent(QResizeEvent* ev) {
     QGraphicsView::resizeEvent(ev);
-    posicionarLegenda();
     if (!usuario_mexeu_zoom_) ajustar();
+}
+
+// O viewport tambem muda de tamanho sem a vista mudar, quando uma barra de rolagem aparece ou some
+// depois de um zoom; e ai que a legenda ficaria pendurada no canto antigo.
+bool VistaCascata::viewportEvent(QEvent* ev) {
+    bool resultado = QGraphicsView::viewportEvent(ev);
+    if (ev->type() == QEvent::Resize) posicionarLegenda();
+    return resultado;
 }
