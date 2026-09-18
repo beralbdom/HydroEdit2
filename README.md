@@ -1,16 +1,23 @@
-# <img width="32" height="32" alt="icon copy" src="https://github.com/user-attachments/assets/2d999694-35ee-4c9c-83c9-f39248c9c6cb" /> HydroEdit2
+# <img width="32" height="32" alt="icon copy" src="https://github.com/user-attachments/assets/2d999694-35ee-4c9c-83c9-f39248c9c6cb" /> HydroEdit 2
 
-Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`). Inspirado no HydroEdit clássico.
+Editor de dados de entrada do modelo NEWAVE. Inspirado no HydroEdit clássico.
 
-<img width="832" height="532" alt="image" src="https://github.com/user-attachments/assets/2b7cfb48-ea76-4cac-bce9-1d7559e846d5" />
+<img width="840" height="532" alt="image" src="https://github.com/user-attachments/assets/abacd15d-7ef1-403a-8c67-efe7fa1935a4" />
 
-## Requisitos
+## Como usar
+
+Abra um arquivo `hidr.dat` pelo menu Arquivo > Abrir. Se `sistema.dat` e `postos.dat` existirem no mesmo diretório do `hidr.dat`, seus nomes de usina e posto são usados para completar a tabela. Os arquivos `empresas.csv` e `turbinas.csv`, se colocados ao lado do executável, são opcionais e usados para resolver nomes adicionais; o formato de cada linha é `codigo;nome`.
+
+## Arquivos suportados
+| Modelo    | Arquivo |
+| -------- | ------- |
+| NEWAVE  | hidr    |
+
+## Compilar
 
 - Qt 6.11.2, kit MSVC 2022 x64.
 - Visual Studio 2026 Community (v18) com as ferramentas de C++.
 - CMake 3.30 e Ninja, distribuídos com o Qt.
-
-## Compilar
 
 Em um prompt com o ambiente do Visual Studio carregado (`vcvars64.bat`):
 
@@ -20,30 +27,6 @@ cmake --build --preset msvc-debug
 ctest --preset msvc-debug
 ```
 
-## Distribuição
-
 ```bat
-scripts\empacotar.bat
+scripts\compilar.bat
 ```
-
-O script compila o preset `msvc-release`, copia `HydroEdit2.exe` para `dist\` e roda o `windeployqt` para trazer as DLLs do Qt necessárias. O pacote resultante em `dist\` roda em uma máquina sem o Qt no PATH.
-
-### Executável único (Qt estático)
-
-```bat
-scripts\empacotar_estatico.bat
-```
-
-Usa o preset `msvc-static`, que linka o Qt estaticamente a partir do vcpkg (`C:\vcpkg`, triplet `x64-windows-static`, runtime `/MT`, `/OPT:REF /OPT:ICF`). Gera `dist\HydroEdit2-estatico.exe`, um único arquivo de cerca de 21 MB que depende só de DLLs do Windows. Preparação do vcpkg, feita uma vez (30 a 60 minutos):
-
-```bat
-git clone https://github.com/microsoft/vcpkg C:\vcpkg
-C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
-C:\vcpkg\vcpkg.exe install "qtbase[core,gui,widgets,freetype,harfbuzz,png]:x64-windows-static" "qtcharts[core]:x64-windows-static"
-```
-
-O Qt é LGPL: a linkagem estática exige disponibilizar os objetos ou o fonte para quem quiser relinkar com outra versão do Qt.
-
-## Como usar
-
-Abra um arquivo `hidr.dat` pelo menu Arquivo > Abrir. Se `sistema.dat` e `postos.dat` existirem no mesmo diretório do `hidr.dat`, seus nomes de usina e posto são usados para completar a tabela. Os arquivos `empresas.csv` e `turbinas.csv`, se colocados ao lado do executável, são opcionais e usados para resolver nomes adicionais; o formato de cada linha é `codigo;nome`.
