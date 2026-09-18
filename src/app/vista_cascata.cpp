@@ -124,13 +124,33 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
         nos_[no.codigo] = itens;
     }
 
+    // Um par de usinas pode ter mais de uma ligacao: no Tiete o bombeamento faz A apontar para B por
+    // desvio enquanto B aponta para A por jusante, e ANTA tem jusante e desvio na mesma usina. Duas
+    // retas iguais se sobrepoem, entao o par inteiro passa a ser desenhado em curva. A curvatura sai
+    // da ordem dentro da mesma direcao: duas ligacoes de sentidos opostos ficam ambas com +1 e, como
+    // a perpendicular e a direita de quem viaja, saem uma de cada lado; duas no mesmo sentido pegam
+    // +1 e -1 e tambem se separam.
+    std::map<std::pair<int, int>, int> ligacoes_do_par;
+    for (const ArestaCascata& aresta : c.arestas) {
+        ligacoes_do_par[{std::min(aresta.origem, aresta.destino), std::max(aresta.origem, aresta.destino)}]++;
+    }
+    std::map<std::pair<int, int>, int> desenhadas_no_sentido;
+
     for (const ArestaCascata& aresta : c.arestas) {
         auto it_origem = nos_.find(aresta.origem);
         auto it_destino = nos_.find(aresta.destino);
         if (it_origem == nos_.end() || it_destino == nos_.end()) continue;
-        ItensArestaCascata itens = criarArestaCascata(cena_, it_origem->second.ponto->pos(),
-                                                      it_destino->second.ponto->pos(), aresta.desvio, palette());
-        arestas_.push_back({itens.linha, itens.seta, aresta.origem, aresta.destino});
+
+        double curvatura = 0.0;
+        if (ligacoes_do_par[{std::min(aresta.origem, aresta.destino), std::max(aresta.origem, aresta.destino)}] > 1) {
+            int ordem = desenhadas_no_sentido[{aresta.origem, aresta.destino}]++;
+            curvatura = ordem % 2 == 0 ? 1.0 : -1.0;
+        }
+
+        ItensArestaCascata itens =
+            criarArestaCascata(cena_, it_origem->second.ponto->pos(), it_destino->second.ponto->pos(),
+                               aresta.desvio, curvatura, palette());
+        arestas_.push_back({itens.traco, itens.seta, aresta.origem, aresta.destino});
     }
 }
 
@@ -315,7 +335,7 @@ void VistaCascata::aplicarFiltro() {
     for (ItemAresta& aresta : arestas_) {
         bool ambos_visiveis = casa_filtro_[aresta.origem] && casa_filtro_[aresta.destino];
         double opacidade = ambos_visiveis ? 1.0 : 0.25;
-        aresta.linha->setOpacity(opacidade);
+        aresta.traco->setOpacity(opacidade);
         aresta.seta->setOpacity(opacidade);
     }
 }

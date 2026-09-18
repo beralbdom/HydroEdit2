@@ -39,7 +39,7 @@ private slots:
 
 private:
     struct ItemAresta {
-        QGraphicsLineItem* linha;
+        QGraphicsItem* traco;
         QGraphicsPolygonItem* seta;
         int origem;
         int destino;
