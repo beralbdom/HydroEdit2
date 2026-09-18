@@ -73,6 +73,7 @@ private:
     QMenu* menu_ree_;
     QMenu* menu_submercado_;
     QLabel* status_arquivo_;
+    QLabel* status_modelo_;
     QLabel* status_usinas_;
     QLabel* status_validacao_;
     QLabel* status_notas_;

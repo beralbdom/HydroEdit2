@@ -78,6 +78,17 @@ private slots:
         QVERIFY(a.salvar(p).ok);
         QVERIFY(lerBytes(p) == lerBytes(deck));
     }
+    void roundtripDoDeckDessemEhByteAByte() {
+        fs::path deck = fs::path(DIR_DECK_DESSEM) / "hidr.dat";
+        if (!fs::exists(deck)) QSKIP("deck nao encontrado");
+        ArquivoHidr a;
+        QVERIFY(a.carregar(deck).ok);
+        QCOMPARE(a.usinas.size(), static_cast<size_t>(320));
+        QCOMPARE(a.usinas[5].nome, std::string("FURNAS"));
+        fs::path p = tmp / "deck_dessem_regravado.dat";
+        QVERIFY(a.salvar(p).ok);
+        QVERIFY(lerBytes(p) == lerBytes(deck));
+    }
 };
 QTEST_APPLESS_MAIN(TestArquivoHidr)
 #include "test_arquivo_hidr.moc"

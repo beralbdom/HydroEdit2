@@ -95,10 +95,12 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     statusBar()->setContentsMargins(4, 0, 4, 0);
 
     status_arquivo_ = new QLabel(this);
+    status_modelo_ = new QLabel(this);
     status_usinas_ = new QLabel(this);
     status_validacao_ = new QLabel(this);
     status_notas_ = new QLabel(this);
     statusBar()->addWidget(status_arquivo_, 1);
+    statusBar()->addWidget(status_modelo_);
     statusBar()->addWidget(status_usinas_);
     statusBar()->addWidget(status_validacao_);
     statusBar()->addPermanentWidget(status_notas_);
@@ -417,11 +419,18 @@ void JanelaPrincipal::exportarCsv() {
 void JanelaPrincipal::atualizarTitulo() {
     QString nome = modelo_->caminho().isEmpty() ? QStringLiteral("sem arquivo") : QFileInfo(modelo_->caminho()).fileName();
     QString sujo = modelo_->pilhaUndo()->isClean() ? QString() : QStringLiteral("*");
-    setWindowTitle(QStringLiteral("HydroEdit 2 - %1%2").arg(nome, sujo));
+    ModeloDeck deck_modelo = modelo_->lookup().modelo;
+    QString modelo_titulo = deck_modelo == ModeloDeck::Desconhecido
+                                 ? QString()
+                                 : QStringLiteral(" (%1)").arg(QString::fromUtf8(DeckLookup::nomeModelo(deck_modelo)));
+    setWindowTitle(QStringLiteral("HydroEdit 2 - %1%2%3").arg(nome, modelo_titulo, sujo));
 }
 
 void JanelaPrincipal::atualizarStatus() {
     status_arquivo_->setText(modelo_->caminho());
+    status_modelo_->setText(modelo_->caminho().isEmpty()
+                                 ? QString()
+                                 : QString::fromUtf8(DeckLookup::nomeModelo(modelo_->lookup().modelo)));
     status_usinas_->setText(QStringLiteral("%1 / %2 usinas")
                                 .arg(modelo_->arquivo().numUsinasPreenchidas())
                                 .arg(modelo_->numUsinas()));

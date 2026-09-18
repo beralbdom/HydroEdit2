@@ -9,7 +9,10 @@ struct Ree {
     int submercado = 0;
 };
 
+enum class ModeloDeck { Desconhecido, Newave, Dessem };
+
 struct DeckLookup {
+    ModeloDeck modelo = ModeloDeck::Desconhecido;
     std::map<int, std::string> subsistemas;
     std::map<int, std::string> postos;
     std::map<int, std::string> empresas;
@@ -17,6 +20,8 @@ struct DeckLookup {
     std::map<int, int> ree_da_usina;
     std::map<int, Ree> rees;
     std::vector<std::string> notas;
+
+    static const char* nomeModelo(ModeloDeck modelo);
 
     void carregarDeck(const std::filesystem::path& dir_deck);
     void carregarCsvs(const std::filesystem::path& dir_exe);

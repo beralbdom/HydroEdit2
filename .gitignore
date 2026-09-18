@@ -1,5 +1,7 @@
 deck_*/
+DS_*/
 newave/
+!tests/fixtures/newave/
 docs/
 *.exe
 build/

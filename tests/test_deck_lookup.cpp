@@ -61,6 +61,32 @@ private slots:
         QVERIFY(d.turbinas.empty());
         QVERIFY(d.notas.empty());
     }
+    void detectaDessemPeloDessemArq() {
+        DeckLookup d;
+        d.carregarDeck(fs::path(DIR_FIXTURES) / "dessem");
+        QCOMPARE(d.modelo, ModeloDeck::Dessem);
+        QCOMPARE(d.nomeSubsistema(1), std::string("SUDESTE"));
+        QCOMPARE(d.nomeSubsistema(11), std::string("NOFICT1"));
+        QCOMPARE(d.nomeRee(6), std::string("MADEIRA"));
+        QCOMPARE(d.submercadoDoRee(2), 2);
+        QCOMPARE(d.rees.size(), static_cast<size_t>(12));
+        QCOMPARE(d.reeDaUsina(1), 10);
+        QCOMPARE(d.reeDaUsina(999), 0);
+        QVERIFY(d.postos.empty());
+        QVERIFY(d.notas.empty());
+    }
+    void detectaNewavePeloArquivosDat() {
+        DeckLookup d;
+        d.carregarDeck(fs::path(DIR_FIXTURES) / "newave");
+        QCOMPARE(d.modelo, ModeloDeck::Newave);
+        QCOMPARE(d.notas.size(), static_cast<size_t>(4));
+    }
+    void diretorioSemNadaEhDesconhecido() {
+        DeckLookup d;
+        d.carregarDeck(fs::temp_directory_path());
+        QCOMPARE(d.modelo, ModeloDeck::Desconhecido);
+        QCOMPARE(d.notas.size(), static_cast<size_t>(4));
+    }
 };
 QTEST_APPLESS_MAIN(TestDeckLookup)
 #include "test_deck_lookup.moc"

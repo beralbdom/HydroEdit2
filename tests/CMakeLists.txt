@@ -6,7 +6,8 @@ function(adicionar_teste nome)
     target_link_libraries(${nome} PRIVATE hidrcore Qt6::Test Qt6::Widgets ${ARGN})
     target_compile_definitions(${nome} PRIVATE
         DIR_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
-        DIR_DECK="${CMAKE_SOURCE_DIR}/deck_newave_2026_09_rev1")
+        DIR_DECK="${CMAKE_SOURCE_DIR}/deck_newave_2026_09_rev1"
+        DIR_DECK_DESSEM="${CMAKE_SOURCE_DIR}/DS_ONS_082026_RV3D27")
     add_test(NAME ${nome} COMMAND ${nome})
     get_filename_component(qt_bin_dir "${Qt6_DIR}/../../../bin" ABSOLUTE)
     set_tests_properties(${nome} PROPERTIES

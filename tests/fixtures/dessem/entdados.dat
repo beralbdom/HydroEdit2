@@ -1,0 +1,22 @@
+SIST    1 SE  0 SUDESTE   
+SIST    2 S   0 SUL       
+SIST    3 NE  0 NORDESTE  
+SIST    4 N   0 NORTE     
+SIST   11 FC  0 NOFICT1
+REE    1  1 SUDESTE   
+REE    6  1 MADEIRA   
+REE    7  1 TPIRES    
+REE    5  1 ITAIPU    
+REE   10  1 PARANA    
+REE   12  1 PRNPANEMA 
+REE    2  2 SUL       
+REE   11  2 IGUACU    
+REE    3  3 NORDESTE  
+REE    4  4 NORTE     
+REE    8  4 BMONTE    
+REE    9  4 MAN-AP
+UH    1  CAMARGOS       10    97.68    1 I
+UH    2  ITUTINGA       10    86.69    1 I
+UH    4  FUNIL-GRAND    10    92.88    1 I
+UH    6  FURNAS         10     63.9    1 I
+UT    1  ANGRA 1       1 2 27  0 0  F               640.0     640.0          

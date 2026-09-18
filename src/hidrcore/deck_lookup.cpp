@@ -1,4 +1,6 @@
 #include "deck_lookup.h"
+#include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <fstream>
 #include "texto.h"
@@ -15,6 +17,30 @@ std::string buscar(const std::map<int, std::string>& m, int codigo) {
 bool comecaCom(const std::string& linha, const char* prefixo) {
     size_t i = linha.find_first_not_of(' ');
     return i != std::string::npos && linha.compare(i, std::strlen(prefixo), prefixo) == 0;
+}
+
+std::string paraMinusculas(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+bool contemArquivoNoDiretorio(const fs::path& dir, const char* nome) {
+    std::error_code ec;
+    std::string alvo = paraMinusculas(nome);
+    for (const auto& entrada : fs::directory_iterator(dir, ec)) {
+        if (paraMinusculas(entrada.path().filename().string()) == alvo) return true;
+    }
+    return false;
+}
+
+// Modelo do deck pela presenca dos arquivos de topo (manual DESSEM 19.0.44, secao III.7): o
+// DESSEM referencia o cadastro hidr.dat a partir do dessem.arq; o NEWAVE/DECOMP tem arquivos.dat
+// ou dger.dat na raiz do deck.
+ModeloDeck detectarModelo(const fs::path& dir_deck) {
+    if (contemArquivoNoDiretorio(dir_deck, "dessem.arq")) return ModeloDeck::Dessem;
+    if (contemArquivoNoDiretorio(dir_deck, "arquivos.dat") || contemArquivoNoDiretorio(dir_deck, "dger.dat"))
+        return ModeloDeck::Newave;
+    return ModeloDeck::Desconhecido;
 }
 
 // Bloco "CUSTO DO DEFICIT" do sistema.dat: duas linhas de cabecalho, depois
@@ -148,6 +174,36 @@ std::map<int, Ree> lerRee(const fs::path& p, std::vector<std::string>& notas) {
     return m;
 }
 
+// entdados.dat, registros SIST/REE/UH identificados pelo prefixo e lidos por colunas fixas em
+// base 1 (manual DESSEM 19.0.44: secao III.4.2.1 SIST, III.4.2.3 REE, III.4.2.4 UH). Linhas
+// curtas demais para as colunas do registro ou com numero invalido sao ignoradas; nao ha
+// postos.dat no DESSEM.
+void lerEntdados(const fs::path& p, std::vector<std::string>& notas, std::map<int, std::string>& subsistemas,
+                  std::map<int, Ree>& rees, std::map<int, int>& ree_da_usina) {
+    std::ifstream f(p);
+    if (!f) {
+        notas.push_back("entdados.dat nao encontrado");
+        return;
+    }
+    std::string linha;
+    while (std::getline(f, linha)) {
+        try {
+            if (linha.compare(0, 4, "SIST") == 0) {
+                subsistemas[std::stoi(linha.substr(7, 2))] = apararDireita(linha.substr(16, 10));
+            } else if (linha.compare(0, 4, "REE ") == 0) {
+                Ree ree;
+                ree.submercado = std::stoi(linha.substr(9, 2));
+                ree.nome = apararDireita(linha.substr(12, 10));
+                rees[std::stoi(linha.substr(6, 2))] = ree;
+            } else if (linha.compare(0, 4, "UH  ") == 0) {
+                ree_da_usina[std::stoi(linha.substr(4, 3))] = std::stoi(linha.substr(24, 2));
+            }
+        } catch (...) {
+            continue;
+        }
+    }
+}
+
 std::map<int, std::string> lerCsvCodigoNome(const fs::path& p, std::vector<std::string>& notas) {
     std::map<int, std::string> m;
     std::ifstream f(p);
@@ -172,7 +228,20 @@ std::map<int, std::string> lerCsvCodigoNome(const fs::path& p, std::vector<std::
 
 }  // namespace
 
+const char* DeckLookup::nomeModelo(ModeloDeck m) {
+    switch (m) {
+        case ModeloDeck::Newave: return "NEWAVE";
+        case ModeloDeck::Dessem: return "DESSEM";
+        default: return "";
+    }
+}
+
 void DeckLookup::carregarDeck(const fs::path& dir_deck) {
+    modelo = detectarModelo(dir_deck);
+    if (modelo == ModeloDeck::Dessem) {
+        lerEntdados(dir_deck / "entdados.dat", notas, subsistemas, rees, ree_da_usina);
+        return;
+    }
     subsistemas = lerSistema(dir_deck / "sistema.dat", notas);
     postos = lerPostos(dir_deck / "postos.dat", notas);
     ree_da_usina = lerConfhd(dir_deck / "confhd.dat", notas);
