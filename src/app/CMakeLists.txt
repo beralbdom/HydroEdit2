@@ -23,3 +23,7 @@ qt_add_resources(HydroEdit2 "icone"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/.."
     FILES "${CMAKE_CURRENT_SOURCE_DIR}/../hidro.ico")
 target_link_libraries(HydroEdit2 PRIVATE hydroedit_ui)
+if(NOT QT6_IS_SHARED_LIBS_BUILD)
+    qt_import_plugins(HydroEdit2
+        EXCLUDE Qt6::QGifPlugin Qt6::QModernWindowsStylePlugin)
+endif()

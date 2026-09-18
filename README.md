@@ -28,6 +28,22 @@ scripts\empacotar.bat
 
 O script compila o preset `msvc-release`, copia `HydroEdit2.exe` para `dist\` e roda o `windeployqt` para trazer as DLLs do Qt necessárias. O pacote resultante em `dist\` roda em uma máquina sem o Qt no PATH.
 
+### Executável único (Qt estático)
+
+```bat
+scripts\empacotar_estatico.bat
+```
+
+Usa o preset `msvc-static`, que linka o Qt estaticamente a partir do vcpkg (`C:\vcpkg`, triplet `x64-windows-static`, runtime `/MT`, `/OPT:REF /OPT:ICF`). Gera `dist\HydroEdit2-estatico.exe`, um único arquivo de cerca de 21 MB que depende só de DLLs do Windows. Preparação do vcpkg, feita uma vez (30 a 60 minutos):
+
+```bat
+git clone https://github.com/microsoft/vcpkg C:\vcpkg
+C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+C:\vcpkg\vcpkg.exe install "qtbase[core,gui,widgets,freetype,harfbuzz,png]:x64-windows-static" "qtcharts[core]:x64-windows-static"
+```
+
+O Qt é LGPL: a linkagem estática exige disponibilizar os objetos ou o fonte para quem quiser relinkar com outra versão do Qt.
+
 ## Como usar
 
 Abra um arquivo `hidr.dat` pelo menu Arquivo > Abrir. Se `sistema.dat` e `postos.dat` existirem no mesmo diretório do `hidr.dat`, seus nomes de usina e posto são usados para completar a tabela. Os arquivos `empresas.csv` e `turbinas.csv`, se colocados ao lado do executável, são opcionais e usados para resolver nomes adicionais; o formato de cada linha é `codigo;nome`.
