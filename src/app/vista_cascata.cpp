@@ -1,6 +1,5 @@
 #include "vista_cascata.h"
 #include <QEvent>
-#include <QGraphicsLineItem>
 #include <QGraphicsPolygonItem>
 #include <QGraphicsScene>
 #include <QGraphicsSimpleTextItem>
@@ -11,10 +10,8 @@
 #include <QTimer>
 #include <QWheelEvent>
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <map>
-#include <set>
 #include <string>
 #include <utility>
 #include "legenda_cascata.h"
@@ -32,38 +29,7 @@ constexpr double FATOR_ZOOM = 1.15;
 constexpr int MARGEM_LEGENDA = 8;
 constexpr double MARGEM_CENA = 40.0;
 
-QColor corDoGrupo(int indice) {
-    static const std::array<QColor, 12> cores = {
-        QColor(0x4e, 0x79, 0xa7), QColor(0xf2, 0x8e, 0x2b), QColor(0xe1, 0x57, 0x59),
-        QColor(0x76, 0xb7, 0xb2), QColor(0x59, 0xa1, 0x4f), QColor(0xed, 0xc9, 0x48),
-        QColor(0xb0, 0x7a, 0xa1), QColor(0xff, 0x9d, 0xa7), QColor(0x9c, 0x75, 0x5f),
-        QColor(0xba, 0xb0, 0xac), QColor(0x86, 0xbc, 0xb6), QColor(0xd3, 0x72, 0x95),
-    };
-    return cores[static_cast<size_t>(((indice % 12) + 12) % 12)];
-}
-
 QString paraTexto(const std::string& s) { return QString::fromLatin1(s.c_str()); }
-
-// Indice de cor de cada REE pela posicao dele entre todos os REEs que o deck inteiro usa, e nao
-// entre os que estao desenhados: assim um REE nao troca de cor quando um filtro deixa so parte
-// deles na tela. O codigo 0 ("Sem REE") so entra quando existe usina do deck fora do confhd.dat.
-std::map<int, int> indiceDeCorDosRees(const std::vector<UsinaHidr>& usinas,
-                                      const std::map<int, int>& grupo_da_usina) {
-    std::set<int> codigos;
-    for (const auto& [codigo_usina, grupo] : grupo_da_usina) codigos.insert(grupo);
-    for (size_t i = 0; i < usinas.size(); ++i) {
-        if (usinas[i].vazia()) continue;
-        if (!grupo_da_usina.contains(static_cast<int>(i) + 1)) {
-            codigos.insert(0);
-            break;
-        }
-    }
-
-    std::map<int, int> indice;
-    int proximo = 0;
-    for (int codigo : codigos) indice[codigo] = proximo++;
-    return indice;
-}
 }  // namespace
 
 VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(parent), modelo_(modelo) {
@@ -95,9 +61,8 @@ void VistaCascata::aoResetarModelo() {
     reconstruir();
 }
 
-// Monta os dois mapas que empacotarPorGrupo espera: o REE de cada usina, direto do confhd.dat, e o
-// nome de cada REE, do ree.dat. O codigo 0 e batizado aqui porque e ele que recebe as usinas do
-// hidr.dat que o deck nao coloca em nenhum REE.
+// O REE de cada usina, direto do confhd.dat, e o nome de cada REE, do ree.dat. O codigo 0 e
+// batizado aqui porque e ele que recebe as usinas do hidr.dat que o deck nao coloca em nenhum REE.
 void VistaCascata::mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, std::string>& nome_do_ree) const {
     const DeckLookup& lookup = modelo_->lookup();
     ree_da_usina = lookup.ree_da_usina;
@@ -115,7 +80,7 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
 
     for (const NoCascata& no : c.nos) {
         auto it_cor = cor_do_no.find(no.codigo);
-        QColor cor = it_cor == cor_do_no.end() ? corDoGrupo(0) : it_cor->second;
+        QColor cor = it_cor == cor_do_no.end() ? corSemRee() : it_cor->second;
         QString texto_codigo = QString::number(no.codigo);
         QString texto_nome = paraTexto(modelo_->usina(no.codigo - 1).nome);
         ItensNoCascata itens =
@@ -157,9 +122,8 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
     }
 }
 
-// O desenho nao tem faixas: todas as bacias sao empacotadas juntas, das maiores para as menores,
-// em linhas de ate largura_maxima colunas (empacotarPorGrupo com o mapa de grupos vazio, que e o
-// caso de um grupo so). O REE aparece na cor do ponto e na legenda, nao mais em retangulos. Os
+// O desenho nao tem faixas: empacotarBacias poe todas as bacias juntas, das maiores para as
+// menores, em linhas de ate largura_maxima colunas. O REE aparece na cor do ponto e na legenda. Os
 // filtros de REE e de submercado valem juntos: uma usina aparece se o REE dela esta na selecao de
 // REEs (ou essa selecao esta vazia) E o submercado dela esta na selecao de submercados (ou essa
 // esta vazia). Restringir e sempre a mesma coisa, uma copia do deck com as usinas de fora zeradas,
@@ -168,12 +132,14 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
 void VistaCascata::reconstruir() {
     int selecionado_anterior = codigo_selecionado_;
 
-    cena_->clear();
+    // Esvaziar os mapas antes de destruir os itens: apagar a cena pode disparar um hoverLeaveEvent,
+    // e o retorno do PontoCascata mexe em codigo_sob_mouse_ e percorre nos_.
     nos_.clear();
     casa_filtro_.clear();
     arestas_.clear();
     codigo_selecionado_ = -1;
     codigo_sob_mouse_ = -1;
+    cena_->clear();
 
     const std::vector<UsinaHidr>& usinas_deck = modelo_->arquivo().usinas;
     const DeckLookup& lookup = modelo_->lookup();
@@ -214,12 +180,13 @@ void VistaCascata::reconstruir() {
     std::map<int, int> ree_da_usina;
     std::map<int, std::string> nome_do_ree;
     mapasDeRee(ree_da_usina, nome_do_ree);
-    Cascata c = empacotarPorGrupo(exibidas, {}, {}, largura_maxima);
+    Cascata c = empacotarBacias(exibidas, largura_maxima);
 
-    std::map<int, int> indice_cor = indiceDeCorDosRees(usinas_deck, ree_da_usina);
+    std::map<int, int> indice_cor = indiceDeCorDosRees(ree_da_usina);
     auto corDoRee = [&](int codigo_ree) {
+        if (codigo_ree == 0) return corSemRee();
         auto it = indice_cor.find(codigo_ree);
-        return corDoGrupo(it == indice_cor.end() ? 0 : it->second);
+        return corDoIndice(it == indice_cor.end() ? 0 : it->second);
     };
     auto reeDaUsina = [&](int codigo) {
         auto it = ree_da_usina.find(codigo);
@@ -390,17 +357,16 @@ void VistaCascata::atualizarRotulos() {
 // tudo ilegivel: fixa a escala no minimo e encosta a vista no canto superior esquerdo do sceneRect,
 // margem inclusa, de onde o usuario rola.
 void VistaCascata::ajustar() {
-    usuario_mexeu_zoom_ = false;
     if (ajustando_ || cena_->items().isEmpty()) return;
+    usuario_mexeu_zoom_ = false;
     ajustando_ = true;
 
-    QRectF alvo = cena_->sceneRect();
-    fitInView(alvo, Qt::KeepAspectRatio);
+    fitInView(cena_->sceneRect(), Qt::KeepAspectRatio);
     double escala = transform().m11();
     if (escala > 0.0 && escala < ESCALA_LEGIVEL) {
         scale(ESCALA_LEGIVEL / escala, ESCALA_LEGIVEL / escala);
-        centerOn(alvo.left() + viewport()->width() / (2.0 * ESCALA_LEGIVEL),
-                 alvo.top() + viewport()->height() / (2.0 * ESCALA_LEGIVEL));
+        horizontalScrollBar()->setValue(horizontalScrollBar()->minimum());
+        verticalScrollBar()->setValue(verticalScrollBar()->minimum());
     }
 
     ajustando_ = false;
@@ -419,9 +385,11 @@ void VistaCascata::posicionarLegenda() {
     int altura = legenda_->sizeHint().height();
     legenda_->resize(largura, altura);
 
+    // Se a legenda for mais alta ou mais larga do que a area visivel, encosta no canto superior
+    // esquerdo em vez de sair pela borda de cima ou pela esquerda.
     QRect area = viewport()->geometry();
-    legenda_->move(area.x() + area.width() - largura - MARGEM_LEGENDA,
-                   area.y() + area.height() - altura - MARGEM_LEGENDA);
+    legenda_->move(std::max(area.x(), area.x() + area.width() - largura - MARGEM_LEGENDA),
+                   std::max(area.y(), area.y() + area.height() - altura - MARGEM_LEGENDA));
     legenda_->raise();
 }
 

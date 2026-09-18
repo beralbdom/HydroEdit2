@@ -4,11 +4,11 @@
 #include <QGraphicsEllipseItem>
 #include <QPalette>
 #include <QPointF>
+#include <map>
 #include <QString>
 #include <functional>
 #include "cascata.h"
 
-class QGraphicsLineItem;
 class QGraphicsPolygonItem;
 class QGraphicsScene;
 class QGraphicsSimpleTextItem;
@@ -39,6 +39,10 @@ struct ItensArestaCascata {
     QGraphicsItem* traco;
     QGraphicsPolygonItem* seta;
 };
+
+QColor corSemRee();
+QColor corDoIndice(int indice);
+std::map<int, int> indiceDeCorDosRees(const std::map<int, int>& ree_da_usina);
 
 QPointF centroDoNo(double coluna, int linha);
 

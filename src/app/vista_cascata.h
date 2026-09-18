@@ -6,7 +6,6 @@
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 #include "cascata.h"
 #include "itens_cascata.h"
