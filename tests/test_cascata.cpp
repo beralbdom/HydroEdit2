@@ -16,6 +16,11 @@ class TestCascata : public QObject {
             if (a.origem == origem && a.destino == destino && a.desvio == desvio) return true;
         return false;
     }
+    static const ArestaCascata* arestaDe(const Cascata& c, int origem, int destino) {
+        for (const ArestaCascata& a : c.arestas)
+            if (a.origem == origem && a.destino == destino) return &a;
+        return nullptr;
+    }
 private slots:
     void cadeiaLinearUmaBacia() {
         std::vector<UsinaHidr> u(3);
@@ -219,17 +224,14 @@ private slots:
         QCOMPARE(r.num_colunas, c.num_colunas);
     }
     void empacotarPorGrupoSeparaFaixas() {
-        Cascata c;
-        c.nos = {
-            NoCascata{1, 0.0, 0, 0}, NoCascata{2, 0.0, 1, 0},
-            NoCascata{3, 2.0, 0, 1}, NoCascata{4, 2.0, 1, 1},
-        };
-        c.bacias = {BaciaCascata{0, 2, 2, 0, 1, 2}, BaciaCascata{1, 4, 2, 2, 1, 2}};
-        c.num_colunas = 3;
-        c.num_linhas = 2;
-        std::map<int, int> grupo_da_usina = {{2, 1}, {4, 2}};
+        std::vector<UsinaHidr> u(4);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 0;
+        u[2].nome = "U3"; u[2].jusante = 4;
+        u[3].nome = "U4"; u[3].jusante = 0;
+        std::map<int, int> grupo_da_usina = {{1, 1}, {2, 1}, {3, 2}, {4, 2}};
         std::map<int, std::string> nome_do_grupo = {{1, "ALFA"}, {2, "BETA"}};
-        Cascata r = empacotarPorGrupo(c, grupo_da_usina, nome_do_grupo, 10);
+        Cascata r = empacotarPorGrupo(u, grupo_da_usina, nome_do_grupo, 10);
 
         QCOMPARE(r.grupos.size(), size_t(2));
         QCOMPARE(r.grupos[0].codigo, 1);
@@ -242,6 +244,8 @@ private slots:
         QCOMPARE(r.grupos[1].nome, std::string("BETA"));
         QCOMPARE(r.grupos[1].coluna_inicial, 0);
         QCOMPARE(r.grupos[1].linha_inicial, r.grupos[0].altura + 2);
+        QCOMPARE(r.grupos[1].num_usinas, 2);
+        QCOMPARE(r.bacias.size(), size_t(2));
         QCOMPARE(r.bacias[0].coluna_inicial, 0);
         QCOMPARE(r.bacias[1].coluna_inicial, 0);
         const NoCascata* n1 = noDe(r, 1);
@@ -253,47 +257,75 @@ private slots:
         QCOMPARE(n3->linha, 4);
         QCOMPARE(r.num_colunas, 1);
         QCOMPARE(r.num_linhas, 6);
+        QVERIFY(temAresta(r, 1, 2, false));
+        QVERIFY(temAresta(r, 3, 4, false));
     }
     void empacotarPorGrupoSemGrupoVaiParaZero() {
-        Cascata c;
-        c.nos = {NoCascata{1, 0.0, 0, 0}, NoCascata{2, 0.0, 1, 0}};
-        c.bacias = {BaciaCascata{0, 2, 2, 0, 1, 2}};
-        c.num_colunas = 1;
-        c.num_linhas = 2;
-        Cascata r = empacotarPorGrupo(c, {}, {}, 10);
+        std::vector<UsinaHidr> u(2);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 0;
+        Cascata r = empacotarPorGrupo(u, {}, {}, 10);
         QCOMPARE(r.grupos.size(), size_t(1));
         QCOMPARE(r.grupos[0].codigo, 0);
         QCOMPARE(r.grupos[0].nome, std::string("Sem grupo"));
         QCOMPARE(r.grupos[0].num_usinas, 2);
         QCOMPARE(r.grupos[0].linha_inicial, 0);
+        QCOMPARE(r.bacias.size(), size_t(1));
         QCOMPARE(r.bacias[0].coluna_inicial, 0);
     }
     void empacotarPorGrupoOrdenaBaciasPorTamanho() {
-        Cascata c;
-        c.nos = {
-            NoCascata{1, 0.0, 0, 0}, NoCascata{2, 0.0, 1, 0},
-            NoCascata{3, 2.0, 0, 1}, NoCascata{4, 3.0, 0, 1}, NoCascata{5, 2.5, 1, 1},
-        };
-        c.bacias = {BaciaCascata{0, 2, 2, 0, 1, 2}, BaciaCascata{1, 5, 3, 2, 2, 2}};
-        c.num_colunas = 4;
-        c.num_linhas = 2;
-        std::map<int, int> grupo_da_usina = {{2, 1}, {5, 1}};
+        std::vector<UsinaHidr> u(5);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 0;
+        u[2].nome = "U3"; u[2].jusante = 5;
+        u[3].nome = "U4"; u[3].jusante = 5;
+        u[4].nome = "U5"; u[4].jusante = 0;
+        std::map<int, int> grupo_da_usina = {{1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}};
         std::map<int, std::string> nome_do_grupo = {{1, "ALFA"}};
-        Cascata r = empacotarPorGrupo(c, grupo_da_usina, nome_do_grupo, 10);
+        Cascata r = empacotarPorGrupo(u, grupo_da_usina, nome_do_grupo, 10);
 
         QCOMPARE(r.grupos.size(), size_t(1));
         QCOMPARE(r.grupos[0].num_usinas, 5);
         QCOMPARE(r.grupos[0].largura, 4);
-        QCOMPARE(r.bacias[1].coluna_inicial, 0);
+        QCOMPARE(r.bacias.size(), size_t(2));
+        QCOMPARE(r.bacias[0].codigo_foz, 2);
         QCOMPARE(r.bacias[0].coluna_inicial, 3);
+        QCOMPARE(r.bacias[1].codigo_foz, 5);
+        QCOMPARE(r.bacias[1].coluna_inicial, 0);
+        const NoCascata* n1 = noDe(r, 1);
         const NoCascata* n3 = noDe(r, 3);
         const NoCascata* n4 = noDe(r, 4);
-        const NoCascata* n1 = noDe(r, 1);
         QVERIFY(n1 && n3 && n4);
         QCOMPARE(n3->coluna, 0.0);
         QCOMPARE(n4->coluna, 1.0);
         QCOMPARE(n1->coluna, 3.0);
         QCOMPARE(r.num_colunas, 4);
+    }
+    void empacotarPorGrupoLigaFaixasComArestaEntreGrupos() {
+        std::vector<UsinaHidr> u(3);
+        u[0].nome = "U1"; u[0].jusante = 2;
+        u[1].nome = "U2"; u[1].jusante = 3;
+        u[2].nome = "U3"; u[2].jusante = 0;
+        std::map<int, int> grupo_da_usina = {{1, 1}, {2, 1}, {3, 2}};
+        std::map<int, std::string> nome_do_grupo = {{1, "ALFA"}, {2, "BETA"}};
+        Cascata r = empacotarPorGrupo(u, grupo_da_usina, nome_do_grupo, 10);
+
+        QCOMPARE(r.grupos.size(), size_t(2));
+        QCOMPARE(r.grupos[0].num_usinas, 2);
+        QCOMPARE(r.grupos[1].num_usinas, 1);
+        const NoCascata* n1 = noDe(r, 1);
+        const NoCascata* n2 = noDe(r, 2);
+        const NoCascata* n3 = noDe(r, 3);
+        QVERIFY(n1 && n2 && n3);
+        QCOMPARE(n1->linha, 0);
+        QCOMPARE(n2->linha, 1);
+        QCOMPARE(n3->linha, r.grupos[1].linha_inicial);
+        QCOMPARE(r.grupos[1].linha_inicial, 4);
+        const ArestaCascata* a12 = arestaDe(r, 1, 2);
+        const ArestaCascata* a23 = arestaDe(r, 2, 3);
+        QVERIFY(a12 && a23);
+        QCOMPARE(a12->entre_grupos, false);
+        QCOMPARE(a23->entre_grupos, true);
     }
     void filtrarBaciaExistenteMantemNosEArestasEDeslocaColunas() {
         std::vector<UsinaHidr> u(4);

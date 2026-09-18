@@ -2,7 +2,10 @@
 #include <QColor>
 #include <QGraphicsView>
 #include <QString>
+#include <map>
+#include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "cascata.h"
 #include "itens_cascata.h"
@@ -47,11 +50,13 @@ private:
         QGraphicsPolygonItem* seta;
         int origem;
         int destino;
+        double opacidade_base;
     };
 
-    Cascata montarLayout(const Cascata& base, std::unordered_map<int, int>& grupo_da_bacia) const;
-    void desenhar(const Cascata& c, const std::unordered_map<int, int>& grupo_da_bacia,
-                  const std::unordered_map<int, int>& indice_cor);
+    void mapasDeGrupo(std::map<int, int>& grupo_da_usina, std::map<int, std::string>& nome_do_grupo) const;
+    void desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
+                  const std::vector<QColor>& cor_do_grupo,
+                  const std::vector<std::pair<QString, QColor>>& legenda);
     void aplicarFiltro();
     void atualizarRotulos();
     void posicionarLegenda();

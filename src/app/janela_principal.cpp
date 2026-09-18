@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <map>
 #include "cascata.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
@@ -172,30 +173,27 @@ void JanelaPrincipal::criarTabela() {
         selecionarLinha(linha);
         so_selecionada_cascata_->setChecked(true);
     });
-    // A lista de REEs so vem dos grupos desenhados quando o agrupamento e por REE (assim mostra
-    // quantas usinas cada um tem); nos outros agrupamentos cai para o ree.dat do deck.
+    // A lista de REEs vem sempre do ree.dat do deck, para nenhum REE sumir do combo por causa do
+    // agrupamento ou de um filtro ativo. A contagem entre parenteses so aparece quando os grupos
+    // desenhados sao REEs, que e o unico caso em que grupo.codigo e um codigo de REE.
     connect(vista_cascata_, &VistaCascata::gruposAtualizados, this, [this](const std::vector<GrupoCascata>& grupos) {
         int ree_atual = ree_cascata_->currentData().toInt();
         bool por_ree = agrupamento_cascata_->currentData().toInt() == static_cast<int>(VistaCascata::Agrupamento::Ree);
+        std::map<int, int> usinas_do_ree;
+        if (por_ree) {
+            for (const GrupoCascata& grupo : grupos) usinas_do_ree[grupo.codigo] = grupo.num_usinas;
+        }
 
         ree_cascata_->blockSignals(true);
         ree_cascata_->clear();
         ree_cascata_->addItem(QStringLiteral("Todos"), 0);
         int indice_a_selecionar = 0;
-        if (por_ree) {
-            for (const GrupoCascata& grupo : grupos) {
-                if (grupo.codigo == 0) continue;
-                ree_cascata_->addItem(QStringLiteral("%1 (%2)")
-                                          .arg(QString::fromLatin1(grupo.nome.c_str()))
-                                          .arg(grupo.num_usinas),
-                                      grupo.codigo);
-                if (grupo.codigo == ree_atual) indice_a_selecionar = ree_cascata_->count() - 1;
-            }
-        } else {
-            for (const auto& [codigo, ree] : modelo_->lookup().rees) {
-                ree_cascata_->addItem(QString::fromLatin1(ree.nome.c_str()), codigo);
-                if (codigo == ree_atual) indice_a_selecionar = ree_cascata_->count() - 1;
-            }
+        for (const auto& [codigo, ree] : modelo_->lookup().rees) {
+            QString nome = QString::fromLatin1(ree.nome.c_str());
+            auto it = usinas_do_ree.find(codigo);
+            ree_cascata_->addItem(
+                it == usinas_do_ree.end() ? nome : QStringLiteral("%1 (%2)").arg(nome).arg(it->second), codigo);
+            if (codigo == ree_atual) indice_a_selecionar = ree_cascata_->count() - 1;
         }
         ree_cascata_->setCurrentIndex(indice_a_selecionar);
         ree_cascata_->blockSignals(false);

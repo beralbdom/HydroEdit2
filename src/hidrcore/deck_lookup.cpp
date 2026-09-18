@@ -123,20 +123,19 @@ std::map<int, Ree> lerRee(const fs::path& p, std::vector<std::string>& notas) {
         }
         if (comecaCom(linha, "999")) break;
         if (linha.size() < 16) continue;
-        int codigo = 0;
         try {
-            codigo = std::stoi(linha.substr(0, 4));
+            int codigo = std::stoi(linha.substr(0, 4));
+            Ree ree;
+            std::string nome = apararDireita(linha.substr(5, 10));
+            size_t ini = nome.find_first_not_of(' ');
+            ree.nome = ini == std::string::npos ? std::string() : nome.substr(ini);
+            std::string resto = linha.substr(15);
+            size_t digito = resto.find_first_of("0123456789");
+            if (digito != std::string::npos) ree.submercado = std::stoi(resto.substr(digito));
+            m[codigo] = ree;
         } catch (...) {
             continue;
         }
-        Ree ree;
-        std::string nome = apararDireita(linha.substr(5, 10));
-        size_t ini = nome.find_first_not_of(' ');
-        ree.nome = ini == std::string::npos ? std::string() : nome.substr(ini);
-        std::string resto = linha.substr(15);
-        size_t digito = resto.find_first_of("0123456789");
-        if (digito != std::string::npos) ree.submercado = std::stoi(resto.substr(digito));
-        m[codigo] = ree;
     }
     return m;
 }

@@ -11,9 +11,9 @@
 #include <array>
 #include <cmath>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
-#include "cascata.h"
 #include "legenda_cascata.h"
 #include "modelo_hidr.h"
 
@@ -22,6 +22,7 @@ constexpr double LIMIAR_ROTULO = 0.9;
 constexpr double ESCALA_MINIMA = 0.05;
 constexpr double ESCALA_MAXIMA = 20.0;
 constexpr double FATOR_ZOOM = 1.15;
+constexpr double OPACIDADE_ENTRE_GRUPOS = 0.5;
 constexpr int MARGEM_LEGENDA = 8;
 
 QColor corDoGrupo(int indice) {
@@ -35,6 +36,28 @@ QColor corDoGrupo(int indice) {
 }
 
 QString paraTexto(const std::string& s) { return QString::fromLatin1(s.c_str()); }
+
+// Indice de cor de cada codigo de grupo pela posicao dele entre todos os codigos que o deck inteiro
+// produz, e nao entre os grupos desenhados: assim um grupo nao troca de cor quando um filtro deixa
+// so parte dos grupos na tela. O grupo 0 ("Sem grupo") so entra quando existe usina do deck fora do
+// mapa de agrupamento.
+std::map<int, int> indiceDeCorDosGrupos(const std::vector<UsinaHidr>& usinas,
+                                        const std::map<int, int>& grupo_da_usina) {
+    std::set<int> codigos;
+    for (const auto& [codigo_usina, grupo] : grupo_da_usina) codigos.insert(grupo);
+    for (size_t i = 0; i < usinas.size(); ++i) {
+        if (usinas[i].vazia()) continue;
+        if (!grupo_da_usina.contains(static_cast<int>(i) + 1)) {
+            codigos.insert(0);
+            break;
+        }
+    }
+
+    std::map<int, int> indice;
+    int proximo = 0;
+    for (int codigo : codigos) indice[codigo] = proximo++;
+    return indice;
+}
 }  // namespace
 
 VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(parent), modelo_(modelo) {
@@ -55,61 +78,36 @@ void VistaCascata::aoResetarModelo() {
     reconstruir();
 }
 
-// Traduz o agrupamento escolhido nos dois mapas que empacotarPorGrupo espera e devolve, alem da
-// cascata empacotada, a que grupo cada bacia foi parar (chave: BaciaCascata::indice), porque a cor
-// de cada ponto vem do grupo da sua bacia. A largura maxima aproxima a faixa de um formato quadrado.
-Cascata VistaCascata::montarLayout(const Cascata& base, std::unordered_map<int, int>& grupo_da_bacia) const {
+// Traduz o agrupamento escolhido nos dois mapas que empacotarPorGrupo espera. O agrupamento por
+// bacia nao passa por aqui: bacia nao e grupo de usina, e desenhada com empacotarBacias.
+void VistaCascata::mapasDeGrupo(std::map<int, int>& grupo_da_usina,
+                                std::map<int, std::string>& nome_do_grupo) const {
     const DeckLookup& lookup = modelo_->lookup();
-    std::map<int, int> grupo_da_usina;
-    std::map<int, std::string> nome_do_grupo;
+    grupo_da_usina.clear();
+    nome_do_grupo.clear();
 
-    switch (agrupamento_) {
-        case Agrupamento::Ree:
-            grupo_da_usina = lookup.ree_da_usina;
-            for (const auto& [codigo, ree] : lookup.rees) nome_do_grupo[codigo] = ree.nome;
-            break;
-        case Agrupamento::Submercado:
-            for (const auto& [codigo, ree] : lookup.ree_da_usina) {
-                int submercado = lookup.submercadoDoRee(ree);
-                if (submercado != 0) grupo_da_usina[codigo] = submercado;
-            }
-            nome_do_grupo = lookup.subsistemas;
-            break;
-        case Agrupamento::Bacia:
-            for (const BaciaCascata& bacia : base.bacias) {
-                grupo_da_usina[bacia.codigo_foz] = bacia.codigo_foz;
-                nome_do_grupo[bacia.codigo_foz] = modelo_->usina(bacia.codigo_foz - 1).nome;
-            }
-            break;
+    if (agrupamento_ == Agrupamento::Submercado) {
+        for (const auto& [codigo, ree] : lookup.ree_da_usina) {
+            int submercado = lookup.submercadoDoRee(ree);
+            if (submercado != 0) grupo_da_usina[codigo] = submercado;
+        }
+        nome_do_grupo = lookup.subsistemas;
+        return;
     }
 
-    grupo_da_bacia.clear();
-    for (const BaciaCascata& bacia : base.bacias) {
-        auto it = grupo_da_usina.find(bacia.codigo_foz);
-        grupo_da_bacia[bacia.indice] = it == grupo_da_usina.end() ? 0 : it->second;
-    }
-
-    int largura_maxima =
-        std::max(8, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(base.nos.size()) * 2.5))));
-    return empacotarPorGrupo(base, grupo_da_usina, nome_do_grupo, largura_maxima);
+    grupo_da_usina = lookup.ree_da_usina;
+    for (const auto& [codigo, ree] : lookup.rees) nome_do_grupo[codigo] = ree.nome;
 }
 
-void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, int>& grupo_da_bacia,
-                            const std::unordered_map<int, int>& indice_cor) {
-    auto corDoCodigoDeGrupo = [&](int codigo_grupo) {
-        auto it = indice_cor.find(codigo_grupo);
-        return corDoGrupo(it == indice_cor.end() ? 0 : it->second);
-    };
-
-    std::vector<std::pair<QString, QColor>> itens_legenda;
-    for (const GrupoCascata& grupo : c.grupos) {
-        QColor cor = corDoCodigoDeGrupo(grupo.codigo);
-        QString nome = paraTexto(grupo.nome);
-        criarFaixaCascata(cena_, grupo, QStringLiteral("%1 (%2 usinas)").arg(nome).arg(grupo.num_usinas), cor,
-                          palette(), font());
-        itens_legenda.push_back({nome, cor});
+void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
+                            const std::vector<QColor>& cor_do_grupo,
+                            const std::vector<std::pair<QString, QColor>>& legenda) {
+    for (size_t i = 0; i < c.grupos.size() && i < cor_do_grupo.size(); ++i) {
+        const GrupoCascata& grupo = c.grupos[i];
+        QString titulo = QStringLiteral("%1 (%2 usinas)").arg(paraTexto(grupo.nome)).arg(grupo.num_usinas);
+        criarFaixaCascata(cena_, grupo, titulo, cor_do_grupo[i], palette(), font());
     }
-    legenda_->definirGrupos(itens_legenda);
+    legenda_->definirGrupos(legenda);
     posicionarLegenda();
 
     auto ao_pairar = [this](int codigo, bool entrou) {
@@ -119,8 +117,8 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, int>
     };
 
     for (const NoCascata& no : c.nos) {
-        auto it_grupo = grupo_da_bacia.find(no.bacia);
-        QColor cor = corDoCodigoDeGrupo(it_grupo == grupo_da_bacia.end() ? 0 : it_grupo->second);
+        auto it_cor = cor_do_no.find(no.codigo);
+        QColor cor = it_cor == cor_do_no.end() ? corDoGrupo(0) : it_cor->second;
         QString rotulo = QStringLiteral("%1  %2").arg(no.codigo).arg(paraTexto(modelo_->usina(no.codigo - 1).nome));
         ItensNoCascata itens = criarPontoCascata(cena_, no, rotulo, cor, palette(), font(), ao_pairar);
         QString descricao = descricaoDoNo(no.codigo);
@@ -135,15 +133,20 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, int>
         if (it_origem == nos_.end() || it_destino == nos_.end()) continue;
         ItensArestaCascata itens = criarArestaCascata(cena_, it_origem->second.ponto->pos(),
                                                       it_destino->second.ponto->pos(), aresta.desvio, palette());
-        arestas_.push_back({itens.linha, itens.seta, aresta.origem, aresta.destino});
+        double opacidade_base = aresta.entre_grupos ? OPACIDADE_ENTRE_GRUPOS : 1.0;
+        itens.linha->setOpacity(opacidade_base);
+        itens.seta->setOpacity(opacidade_base);
+        arestas_.push_back({itens.linha, itens.seta, aresta.origem, aresta.destino, opacidade_base});
     }
 }
 
 // Ordem de restricao: modo "so a cascata da usina selecionada", filtro por bacia, filtro por REE e,
-// sem nenhum deles, o deck inteiro. baciasAtualizadas e gruposAtualizados sempre carregam as listas
-// do deck completo, independente do que esta na tela, para os combos da janela continuarem
-// oferecendo todas as opcoes; as cores dos grupos tambem saem dessa lista completa, entao um grupo
-// mantem a mesma cor com e sem filtro.
+// sem nenhum deles, o deck inteiro. Os tres filtros viram a mesma coisa, uma copia do deck com as
+// usinas de fora zeradas, para o layout sair pelo mesmo caminho em todos os casos. baciasAtualizadas
+// carrega as bacias do deck completo, para o combo da janela continuar oferecendo todas as opcoes;
+// gruposAtualizados carrega os grupos realmente desenhados, que e de onde sai a contagem por REE.
+// As cores sao indexadas pela lista de codigos de grupo do deck inteiro, entao um grupo mantem a
+// mesma cor com e sem filtro.
 void VistaCascata::reconstruir() {
     int selecionado_anterior = codigo_selecionado_;
 
@@ -154,43 +157,93 @@ void VistaCascata::reconstruir() {
     codigo_selecionado_ = -1;
     codigo_sob_mouse_ = -1;
 
-    const std::vector<UsinaHidr>& usinas = modelo_->arquivo().usinas;
-    Cascata completa = montarCascata(usinas);
+    const std::vector<UsinaHidr>& usinas_deck = modelo_->arquivo().usinas;
+    Cascata completa = montarCascata(usinas_deck);
 
-    std::unordered_map<int, int> grupo_da_bacia;
-    Cascata layout_completo = montarLayout(completa, grupo_da_bacia);
-
-    std::unordered_map<int, int> indice_cor;
-    for (size_t i = 0; i < layout_completo.grupos.size(); ++i)
-        indice_cor[layout_completo.grupos[i].codigo] = static_cast<int>(i);
-
-    auto restringir = [&](const std::vector<bool>& manter) {
-        std::vector<UsinaHidr> copia = usinas;
-        for (size_t i = 0; i < copia.size(); ++i)
-            if (!manter[i + 1]) copia[i].nome.clear();
-        return montarCascata(copia);
-    };
-
-    Cascata c = layout_completo;
+    std::vector<bool> manter(usinas_deck.size() + 1, true);
+    bool restrito = false;
     if (so_selecionada_ && selecionado_anterior > 0) {
-        std::vector<bool> manter(usinas.size() + 1, false);
-        for (int codigo : cascataDaUsina(usinas, selecionado_anterior)) manter[static_cast<size_t>(codigo)] = true;
-        c = montarLayout(restringir(manter), grupo_da_bacia);
+        manter.assign(usinas_deck.size() + 1, false);
+        for (int codigo : cascataDaUsina(usinas_deck, selecionado_anterior)) manter[static_cast<size_t>(codigo)] = true;
+        restrito = true;
     } else if (bacia_filtro_ != 0) {
-        Cascata filtrada = filtrarBacia(completa, bacia_filtro_);
+        const BaciaCascata* bacia = nullptr;
+        for (const BaciaCascata& b : completa.bacias) {
+            if (b.codigo_foz == bacia_filtro_) {
+                bacia = &b;
+                break;
+            }
+        }
         // Bacia sumiu do deck (foz zerada ou jusante trocado): volta para "Todas" em vez de deixar
         // a cena vazia com o combo tambem tentando resincronizar sozinho.
-        if (filtrada.nos.empty()) bacia_filtro_ = 0;
-        else c = montarLayout(filtrada, grupo_da_bacia);
+        if (bacia == nullptr) {
+            bacia_filtro_ = 0;
+        } else {
+            manter.assign(usinas_deck.size() + 1, false);
+            for (const NoCascata& no : completa.nos) {
+                if (no.bacia == bacia->indice) manter[static_cast<size_t>(no.codigo)] = true;
+            }
+            restrito = true;
+        }
     } else if (ree_filtro_ != 0) {
         const DeckLookup& lookup = modelo_->lookup();
-        std::vector<bool> manter(usinas.size() + 1, false);
-        for (size_t i = 0; i < usinas.size(); ++i)
+        manter.assign(usinas_deck.size() + 1, false);
+        for (size_t i = 0; i < usinas_deck.size(); ++i)
             manter[i + 1] = lookup.reeDaUsina(static_cast<int>(i) + 1) == ree_filtro_;
-        c = montarLayout(restringir(manter), grupo_da_bacia);
+        restrito = true;
     }
 
-    desenhar(c, grupo_da_bacia, indice_cor);
+    std::vector<UsinaHidr> exibidas = usinas_deck;
+    if (restrito) {
+        for (size_t i = 0; i < exibidas.size(); ++i) {
+            if (!manter[i + 1]) exibidas[i].nome.clear();
+        }
+    }
+
+    int num_exibidas = 0;
+    for (const UsinaHidr& usina : exibidas) {
+        if (!usina.vazia()) ++num_exibidas;
+    }
+    int largura_maxima =
+        std::max(8, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(num_exibidas) * 2.5))));
+
+    Cascata c;
+    std::unordered_map<int, QColor> cor_do_no;
+    std::vector<QColor> cor_do_grupo;
+    std::vector<std::pair<QString, QColor>> legenda;
+
+    if (agrupamento_ == Agrupamento::Bacia) {
+        c = empacotarBacias(montarCascata(exibidas), largura_maxima);
+        std::unordered_map<int, QColor> cor_da_bacia;
+        for (size_t i = 0; i < c.bacias.size(); ++i) {
+            QColor cor = corDoGrupo(static_cast<int>(i));
+            cor_da_bacia[c.bacias[i].indice] = cor;
+            legenda.push_back({paraTexto(modelo_->usina(c.bacias[i].codigo_foz - 1).nome), cor});
+        }
+        for (const NoCascata& no : c.nos) cor_do_no[no.codigo] = cor_da_bacia[no.bacia];
+    } else {
+        std::map<int, int> grupo_da_usina;
+        std::map<int, std::string> nome_do_grupo;
+        mapasDeGrupo(grupo_da_usina, nome_do_grupo);
+        c = empacotarPorGrupo(exibidas, grupo_da_usina, nome_do_grupo, largura_maxima);
+
+        std::map<int, int> indice_cor = indiceDeCorDosGrupos(usinas_deck, grupo_da_usina);
+        auto corDoCodigo = [&](int codigo_grupo) {
+            auto it = indice_cor.find(codigo_grupo);
+            return corDoGrupo(it == indice_cor.end() ? 0 : it->second);
+        };
+        for (const GrupoCascata& grupo : c.grupos) {
+            QColor cor = corDoCodigo(grupo.codigo);
+            cor_do_grupo.push_back(cor);
+            legenda.push_back({paraTexto(grupo.nome), cor});
+        }
+        for (const NoCascata& no : c.nos) {
+            auto it = grupo_da_usina.find(no.codigo);
+            cor_do_no[no.codigo] = corDoCodigo(it == grupo_da_usina.end() ? 0 : it->second);
+        }
+    }
+
+    desenhar(c, cor_do_no, cor_do_grupo, legenda);
 
     auto it = nos_.find(selecionado_anterior);
     if (it != nos_.end()) {
@@ -200,7 +253,7 @@ void VistaCascata::reconstruir() {
     aplicarFiltro();
 
     emit baciasAtualizadas(completa.bacias);
-    emit gruposAtualizados(layout_completo.grupos);
+    emit gruposAtualizados(c.grupos);
 
     if (ajustar_no_proximo_) {
         ajustar();
@@ -302,7 +355,7 @@ void VistaCascata::aplicarFiltro() {
     }
     for (ItemAresta& aresta : arestas_) {
         bool ambos_visiveis = casa_filtro_[aresta.origem] && casa_filtro_[aresta.destino];
-        double opacidade = ambos_visiveis ? 1.0 : 0.25;
+        double opacidade = aresta.opacidade_base * (ambos_visiveis ? 1.0 : 0.25);
         aresta.linha->setOpacity(opacidade);
         aresta.seta->setOpacity(opacidade);
     }
