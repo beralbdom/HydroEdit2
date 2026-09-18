@@ -1,4 +1,4 @@
-# <img width="32" height="32" alt="icon copy" src="https://github.com/user-attachments/assets/2d999694-35ee-4c9c-83c9-f39248c9c6cb" /> HydroEdit 2
+# <img width="32" height="32" alt="icon 32" src="https://github.com/user-attachments/assets/1d07387a-4f5b-4e74-9625-746050b05244" /> HydroEdit 2
 
 Editor de dados de entrada do modelo NEWAVE. Inspirado no HydroEdit clássico.
 
