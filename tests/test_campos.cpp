@@ -13,6 +13,19 @@ private slots:
         u.nome = "FURNAS";
         QVERIFY(!u.vazia());
     }
+    void usinaFicticiaPeloPrefixoDoNome() {
+        UsinaHidr u;
+        u.nome = "FICT.SERRA M";
+        QVERIFY(usinaFicticia(u));
+        u.nome = "  fict.maua";
+        QVERIFY(usinaFicticia(u));
+        u.nome = "FURNAS";
+        QVERIFY(!usinaFicticia(u));
+        u.nome = "FIC";
+        QVERIFY(!usinaFicticia(u));
+        u.nome.clear();
+        QVERIFY(!usinaFicticia(u));
+    }
     void layoutCobre792BytesSemBuracoNemSobreposicao() {
         int esperado = 0;
         for (const Campo& c : campos()) {

@@ -116,11 +116,14 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
     for (const NoCascata& no : c.nos) {
         auto it_cor = cor_do_no.find(no.codigo);
         QColor cor = it_cor == cor_do_no.end() ? corDoGrupo(0) : it_cor->second;
-        QString rotulo = QStringLiteral("%1  %2").arg(no.codigo).arg(paraTexto(modelo_->usina(no.codigo - 1).nome));
-        ItensNoCascata itens = criarPontoCascata(cena_, no, rotulo, cor, palette(), font(), ao_pairar);
+        QString texto_codigo = QString::number(no.codigo);
+        QString texto_nome = paraTexto(modelo_->usina(no.codigo - 1).nome);
+        ItensNoCascata itens =
+            criarPontoCascata(cena_, no, texto_codigo, texto_nome, cor, palette(), font(), ao_pairar);
         QString descricao = descricaoDoNo(no.codigo);
         itens.ponto->setToolTip(descricao);
-        itens.rotulo->setToolTip(descricao);
+        itens.codigo->setToolTip(descricao);
+        itens.nome->setToolTip(descricao);
         nos_[no.codigo] = itens;
     }
 
@@ -184,6 +187,12 @@ void VistaCascata::reconstruir() {
             bool casa_submercado =
                 submercados_filtro_.empty() || submercados_filtro_.contains(lookup.submercadoDoRee(ree));
             manter[i + 1] = casa_ree && casa_submercado;
+        }
+        restrito = true;
+    }
+    if (!mostrar_ficticias_) {
+        for (size_t i = 0; i < usinas_deck.size(); ++i) {
+            if (usinaFicticia(usinas_deck[i])) manter[i + 1] = false;
         }
         restrito = true;
     }
@@ -302,6 +311,23 @@ void VistaCascata::selecionar(int linha) {
     atualizarRotulos();
 }
 
+// So mexe na visibilidade dos nomes; os codigos continuam seguindo a regra de sempre. Como quem
+// aplica e atualizarRotulos(), que roda no fim de cada reconstrucao, a escolha sobrevive a elas.
+void VistaCascata::definirMostrarNomes(bool mostrar) {
+    if (mostrar_nomes_ == mostrar) return;
+    mostrar_nomes_ = mostrar;
+    atualizarRotulos();
+}
+
+// Tirar as ficticias e uma restricao como as de REE e submercado: elas saem do conjunto antes do
+// layout, entao quem ficava a montante delas passa a ser raiz da propria bacia.
+void VistaCascata::definirMostrarFicticias(bool mostrar) {
+    if (mostrar_ficticias_ == mostrar) return;
+    mostrar_ficticias_ = mostrar;
+    reconstruir();
+    ajustar();
+}
+
 void VistaCascata::definirFiltro(const QString& texto) {
     filtro_ = texto;
     aplicarFiltro();
@@ -352,7 +378,8 @@ void VistaCascata::atualizarRotulos() {
             auto it = casa_filtro_.find(codigo);
             visivel = it != casa_filtro_.end() && it->second;
         }
-        par.second.rotulo->setVisible(visivel);
+        par.second.codigo->setVisible(visivel);
+        par.second.nome->setVisible(visivel && mostrar_nomes_);
     }
 }
 

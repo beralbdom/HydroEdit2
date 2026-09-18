@@ -31,7 +31,8 @@ private:
 
 struct ItensNoCascata {
     PontoCascata* ponto;
-    QGraphicsSimpleTextItem* rotulo;
+    QGraphicsSimpleTextItem* codigo;
+    QGraphicsSimpleTextItem* nome;
 };
 
 struct ItensArestaCascata {
@@ -41,9 +42,9 @@ struct ItensArestaCascata {
 
 QPointF centroDoNo(double coluna, int linha);
 
-ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& rotulo,
-                                 const QColor& cor, const QPalette& paleta, const QFont& fonte,
-                                 std::function<void(int, bool)> ao_pairar);
+ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& texto_codigo,
+                                 const QString& texto_nome, const QColor& cor, const QPalette& paleta,
+                                 const QFont& fonte, std::function<void(int, bool)> ao_pairar);
 ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& origem, const QPointF& destino,
                                       bool desvio, double curvatura, const QPalette& paleta);
 void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& paleta);

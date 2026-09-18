@@ -68,6 +68,8 @@ private:
     QCheckBox* ocultar_vazias_;
     QToolButton* ree_cascata_;
     QToolButton* submercado_cascata_;
+    QCheckBox* nomes_cascata_;
+    QCheckBox* ficticias_cascata_;
     QMenu* menu_ree_;
     QMenu* menu_submercado_;
     QLabel* status_arquivo_;

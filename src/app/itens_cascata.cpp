@@ -16,7 +16,7 @@
 namespace {
 constexpr double RAIO_NO = 5.0;
 constexpr double RAIO_SELECIONADO = 7.0;
-constexpr double DESLOCAMENTO_ROTULO_X = 8.0;
+constexpr double AFASTAMENTO_ROTULO = 8.0;
 constexpr double DESLOCAMENTO_ROTULO_Y = -7.0;
 constexpr double LARGURA_ARESTA = 2.0;
 constexpr double TAMANHO_SETA = 10.0;
@@ -46,12 +46,14 @@ QPointF centroDoNo(double coluna, int linha) {
     return QPointF(coluna * ESPACO_COLUNA_CASCATA, linha * ESPACO_LINHA_CASCATA);
 }
 
-// O ponto e o rotulo ignoram a transformacao da vista, entao o raio, a espessura da borda e o
-// deslocamento do texto ficam constantes em pixels em qualquer zoom; so a posicao do ponto na cena
-// e que escala. O rotulo nasce oculto: quem decide a visibilidade e a vista, pelo zoom atual.
-ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& rotulo,
-                                 const QColor& cor, const QPalette& paleta, const QFont& fonte,
-                                 std::function<void(int, bool)> ao_pairar) {
+// O ponto e os dois rotulos ignoram a transformacao da vista, entao o raio, a espessura da borda e
+// o deslocamento dos textos ficam constantes em pixels em qualquer zoom; so a posicao do ponto na
+// cena e que escala. O codigo fica a esquerda do ponto, alinhado a direita (termina AFASTAMENTO_
+// ROTULO pixels antes dele), e o nome comeca a mesma distancia a direita. Os dois nascem ocultos:
+// quem decide a visibilidade e a vista, pelo zoom atual.
+ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& texto_codigo,
+                                 const QString& texto_nome, const QColor& cor, const QPalette& paleta,
+                                 const QFont& fonte, std::function<void(int, bool)> ao_pairar) {
     auto* ponto = new PontoCascata(no.codigo, std::move(ao_pairar));
     ponto->setRect(-RAIO_NO, -RAIO_NO, RAIO_NO * 2.0, RAIO_NO * 2.0);
     ponto->setBrush(QBrush(cor));
@@ -62,15 +64,23 @@ ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, cons
     aplicarEstiloPonto(ponto, false, paleta);
     cena->addItem(ponto);
 
-    auto* texto = new QGraphicsSimpleTextItem(rotulo, ponto);
-    texto->setFont(fonte);
-    texto->setBrush(paleta.text().color());
-    texto->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
-    texto->setPos(DESLOCAMENTO_ROTULO_X, DESLOCAMENTO_ROTULO_Y);
-    texto->setData(0, no.codigo);
-    texto->setVisible(false);
+    auto criarTexto = [&](const QString& conteudo) {
+        auto* texto = new QGraphicsSimpleTextItem(conteudo, ponto);
+        texto->setFont(fonte);
+        texto->setBrush(paleta.text().color());
+        texto->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
+        texto->setData(0, no.codigo);
+        texto->setVisible(false);
+        return texto;
+    };
 
-    return {ponto, texto};
+    QGraphicsSimpleTextItem* codigo = criarTexto(texto_codigo);
+    codigo->setPos(-AFASTAMENTO_ROTULO - codigo->boundingRect().width(), DESLOCAMENTO_ROTULO_Y);
+
+    QGraphicsSimpleTextItem* nome = criarTexto(texto_nome);
+    nome->setPos(AFASTAMENTO_ROTULO, DESLOCAMENTO_ROTULO_Y);
+
+    return {ponto, codigo, nome};
 }
 
 void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& paleta) {

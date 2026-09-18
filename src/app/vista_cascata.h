@@ -23,6 +23,8 @@ public:
     void selecionar(int linha);
     void definirFiltro(const QString& texto);
     void definirFiltros(const std::set<int>& rees, const std::set<int>& submercados);
+    void definirMostrarNomes(bool mostrar);
+    void definirMostrarFicticias(bool mostrar);
     void ajustar();
 
 signals:
@@ -65,6 +67,8 @@ private:
     bool ajustar_no_proximo_ = true;
     bool usuario_mexeu_zoom_ = false;
     bool ajustando_ = false;
+    bool mostrar_nomes_ = true;
+    bool mostrar_ficticias_ = true;
     std::set<int> rees_filtro_;
     std::set<int> submercados_filtro_;
 };

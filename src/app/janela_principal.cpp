@@ -4,6 +4,7 @@
 #include <QCloseEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
@@ -164,14 +165,22 @@ void JanelaPrincipal::criarTabela() {
     int largura_filtro = ree_cascata_->fontMetrics().horizontalAdvance(QStringLiteral("Submercado: 99 de 99")) + 28;
     ree_cascata_->setMinimumWidth(largura_filtro);
     submercado_cascata_->setMinimumWidth(largura_filtro);
+    nomes_cascata_ = new QCheckBox(QStringLiteral("Nomes"), painel_cascata);
+    nomes_cascata_->setChecked(true);
+    ficticias_cascata_ = new QCheckBox(QStringLiteral("Fictícias"), painel_cascata);
+    ficticias_cascata_->setChecked(true);
     barra_cascata->addWidget(submercado_cascata_);
     barra_cascata->addWidget(ree_cascata_);
+    barra_cascata->addWidget(nomes_cascata_);
+    barra_cascata->addWidget(ficticias_cascata_);
     barra_cascata->addWidget(botao_ajustar);
     barra_cascata->addStretch(1);
     layout_cascata->addLayout(barra_cascata);
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
     layout_cascata->addWidget(vista_cascata_, 1);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
+    connect(nomes_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirMostrarNomes);
+    connect(ficticias_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirMostrarFicticias);
     repovoarFiltrosCascata();
     abas_esquerda->addTab(painel_cascata, QStringLiteral("Cascata"));
 
@@ -302,13 +311,13 @@ void JanelaPrincipal::criarMenus() {
         sobre.setIconPixmap(QPixmap(QStringLiteral(":/hidr.ico")));
         sobre.setTextFormat(Qt::RichText);
         const QString cor_esmaecida = palette().color(QPalette::PlaceholderText).name();
-        const int tamanho_credito = font().pointSize() + 1;
+        const double tamanho_credito = QFontInfo(sobre.font()).pointSizeF() - 1.0;
         sobre.setText(QStringLiteral("<b>%1 %2</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE<br><br>"
                                      "Licença: GNU GPL v3<br><br>"
                                      "<span style=\"font-size:%3pt; color:%4;\">Desenvolvido por Bernardo Albuquerque Domingues<br>"
                                      "<a href=\"https://github.com/beralbdom\" style=\"color:%4;\">github.com/beralbdom</a></span>")
                           .arg(QApplication::applicationName(), QApplication::applicationVersion())
-                          .arg(tamanho_credito)
+                          .arg(tamanho_credito, 0, 'f', 1)
                           .arg(cor_esmaecida));
         sobre.exec();
     });

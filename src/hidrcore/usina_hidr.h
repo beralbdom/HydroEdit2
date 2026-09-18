@@ -54,3 +54,5 @@ struct UsinaHidr {
     bool vazia() const;
     bool operator==(const UsinaHidr&) const = default;
 };
+
+bool usinaFicticia(const UsinaHidr& usina);
