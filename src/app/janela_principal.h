@@ -16,7 +16,6 @@ class FiltroUsinas;
 class FormularioUsina;
 class PainelProblemas;
 class VistaCascata;
-class LegendaCascata;
 struct ProblemaUsina;
 
 class JanelaPrincipal : public QMainWindow {
@@ -34,6 +33,7 @@ protected:
     void registrarRecente(const QString& caminho);
     void atualizarRecentes();
     void closeEvent(QCloseEvent* ev) override;
+    void showEvent(QShowEvent* ev) override;
     std::vector<ProblemaUsina> validarTudo() const;
     bool validarAntesDeSalvar();
     bool confirmarDescarte();
@@ -46,7 +46,6 @@ protected:
     FormularioUsina* formulario_;
     PainelProblemas* painel_problemas_;
     VistaCascata* vista_cascata_;
-    LegendaCascata* legenda_cascata_;
 
 private slots:
     void abrir();
@@ -71,7 +70,6 @@ private:
     QToolButton* submercado_cascata_;
     QMenu* menu_ree_;
     QMenu* menu_submercado_;
-    QCheckBox* so_selecionada_cascata_;
     QLabel* status_arquivo_;
     QLabel* status_usinas_;
     QLabel* status_validacao_;
@@ -81,4 +79,5 @@ private:
     QAction* acao_exportar_;
     QMenu* menu_usina_;
     QMenu* menu_recentes_;
+    bool dimensionado_ = false;
 };

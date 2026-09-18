@@ -12,6 +12,7 @@
 #include "itens_cascata.h"
 
 class ModeloHidr;
+class LegendaCascata;
 class QGraphicsScene;
 
 class VistaCascata : public QGraphicsView {
@@ -22,18 +23,14 @@ public:
     void selecionar(int linha);
     void definirFiltro(const QString& texto);
     void definirFiltros(const std::set<int>& rees, const std::set<int>& submercados);
-    void definirSoSelecionada(bool ligado);
     void ajustar();
 
 signals:
     void usinaEscolhida(int linha);
-    void legendaAtualizada(const std::vector<std::pair<QString, QColor>>& itens);
-    void focarCascataDe(int linha);
 
 protected:
     void wheelEvent(QWheelEvent* ev) override;
     void mousePressEvent(QMouseEvent* ev) override;
-    void mouseDoubleClickEvent(QMouseEvent* ev) override;
     void resizeEvent(QResizeEvent* ev) override;
 
 private slots:
@@ -53,11 +50,13 @@ private:
                   const std::vector<QColor>& cor_do_grupo);
     void aplicarFiltro();
     void atualizarRotulos();
+    void posicionarLegenda();
     int codigoNoPonto(const QPoint& ponto) const;
     QString descricaoDoNo(int codigo) const;
 
     ModeloHidr* modelo_;
     QGraphicsScene* cena_;
+    LegendaCascata* legenda_;
     std::unordered_map<int, ItensNoCascata> nos_;
     std::unordered_map<int, bool> casa_filtro_;
     std::vector<ItemAresta> arestas_;
@@ -69,5 +68,4 @@ private:
     bool ajustando_ = false;
     std::set<int> rees_filtro_;
     std::set<int> submercados_filtro_;
-    bool so_selecionada_ = false;
 };

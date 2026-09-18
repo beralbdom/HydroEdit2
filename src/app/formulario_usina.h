@@ -24,6 +24,7 @@ public:
     explicit FormularioUsina(ModeloHidr* modelo, QWidget* parent = nullptr);
     void definirLinha(int linha);
     int linha() const { return linha_; }
+    QTabWidget* abas() const { return abas_; }
     void focarCampo(std::string_view nome);
     void marcarProblemas(const std::vector<std::string>& campos_com_erro);
 

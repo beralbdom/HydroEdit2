@@ -123,7 +123,7 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
 
 namespace {
 
-constexpr int FOLGA_LINHAS = 2;
+constexpr int FOLGA_LINHAS = 3;
 
 struct FaixaEmpacotada {
     int largura;
@@ -293,39 +293,5 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
 
     resultado.num_colunas = numColunas;
     resultado.num_linhas = numLinhas;
-    return resultado;
-}
-
-// Sobe pelos jusantes validos ate a foz (com protecao contra ciclo, via marcacao de visitado) e
-// desce recursivamente por quem aponta pra cada no ja incluido, cobrindo toda a arvore de
-// contribuintes a montante alem do caminho a jusante.
-std::vector<int> cascataDaUsina(const std::vector<UsinaHidr>& usinas, int codigo) {
-    int n = static_cast<int>(usinas.size());
-    if (codigo < 1 || codigo > n) return {};
-    if (usinas[static_cast<size_t>(codigo - 1)].vazia()) return {};
-
-    std::vector<bool> incluido(static_cast<size_t>(n) + 1, false);
-    std::vector<int> resultado;
-
-    std::function<void(int)> incluirMontante = [&](int alvo) {
-        incluido[static_cast<size_t>(alvo)] = true;
-        resultado.push_back(alvo);
-        for (int outro = 1; outro <= n; ++outro) {
-            if (incluido[static_cast<size_t>(outro)]) continue;
-            if (usinas[static_cast<size_t>(outro - 1)].vazia()) continue;
-            if (alvoValido(usinas, outro, usinas[static_cast<size_t>(outro - 1)].jusante) == alvo) incluirMontante(outro);
-        }
-    };
-    incluirMontante(codigo);
-
-    int atual = codigo;
-    while (true) {
-        int alvo = alvoValido(usinas, atual, usinas[static_cast<size_t>(atual - 1)].jusante);
-        if (alvo == 0 || incluido[static_cast<size_t>(alvo)]) break;
-        incluido[static_cast<size_t>(alvo)] = true;
-        resultado.push_back(alvo);
-        atual = alvo;
-    }
-
     return resultado;
 }

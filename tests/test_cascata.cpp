@@ -225,16 +225,16 @@ private slots:
         QCOMPARE(r.grupos[0].coluna_inicial, 0);
         QCOMPARE(r.grupos[0].linha_inicial, 0);
         QCOMPARE(r.grupos[1].coluna_inicial, 0);
-        QCOMPARE(r.grupos[1].linha_inicial, r.grupos[0].altura + 2);
-        QCOMPARE(r.grupos[1].linha_inicial, 4);
+        QCOMPARE(r.grupos[1].linha_inicial, r.grupos[0].altura + 3);
+        QCOMPARE(r.grupos[1].linha_inicial, 5);
         const NoCascata* n1 = noDe(r, 1);
         const NoCascata* n3 = noDe(r, 3);
         QVERIFY(n1 && n3);
         QCOMPARE(n1->linha, 0);
         QCOMPARE(n3->coluna, 0.0);
-        QCOMPARE(n3->linha, 4);
+        QCOMPARE(n3->linha, 5);
         QCOMPARE(r.num_colunas, 1);
-        QCOMPARE(r.num_linhas, 6);
+        QCOMPARE(r.num_linhas, 7);
     }
     void empacotarPorGrupoQuebraLinhaDeBaciasNaFaixa() {
         std::vector<UsinaHidr> u(5);
@@ -332,32 +332,6 @@ private slots:
         QVERIFY(a12 && a23);
         QCOMPARE(a12->entre_grupos, false);
         QCOMPARE(a23->entre_grupos, true);
-    }
-    void cascataDaUsinaIncluiMontanteEJusante() {
-        std::vector<UsinaHidr> u(5);
-        u[0].nome = "U1"; u[0].jusante = 2;
-        u[1].nome = "U2"; u[1].jusante = 3;
-        u[2].nome = "U3"; u[2].jusante = 4;
-        u[3].nome = "U4"; u[3].jusante = 0;
-        u[4].nome = "U5"; u[4].jusante = 2;
-        auto comparar = [](std::vector<int> a, std::vector<int> b) {
-            std::sort(a.begin(), a.end());
-            std::sort(b.begin(), b.end());
-            return a == b;
-        };
-        QVERIFY(comparar(cascataDaUsina(u, 2), {1, 5, 2, 3, 4}));
-        QVERIFY(comparar(cascataDaUsina(u, 4), {1, 5, 2, 3, 4}));
-        QVERIFY(comparar(cascataDaUsina(u, 1), {1, 2, 3, 4}));
-    }
-    void cascataDaUsinaComCicloTermina() {
-        std::vector<UsinaHidr> u(2);
-        u[0].nome = "U1"; u[0].jusante = 2;
-        u[1].nome = "U2"; u[1].jusante = 1;
-        std::vector<int> r = cascataDaUsina(u, 1);
-        std::sort(r.begin(), r.end());
-        QCOMPARE(r, (std::vector<int>{1, 2}));
-        QVERIFY(cascataDaUsina(u, 0).empty());
-        QVERIFY(cascataDaUsina(u, 99).empty());
     }
 };
 QTEST_APPLESS_MAIN(TestCascata)

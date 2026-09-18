@@ -18,6 +18,7 @@
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTableView>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -30,13 +31,14 @@
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
 #include "formulario_usina.h"
-#include "legenda_cascata.h"
 #include "modelo_hidr.h"
 #include "painel_problemas.h"
 #include "validacao.h"
 #include "vista_cascata.h"
 
 namespace {
+constexpr int LARGURA_MINIMA_ESQUERDA = 560;
+
 std::filesystem::path paraPath(const QString& s) { return std::filesystem::path(s.toStdWString()); }
 
 std::set<int> codigosMarcados(QMenu* menu) {
@@ -162,28 +164,14 @@ void JanelaPrincipal::criarTabela() {
     int largura_filtro = ree_cascata_->fontMetrics().horizontalAdvance(QStringLiteral("Submercado: 99 de 99")) + 28;
     ree_cascata_->setMinimumWidth(largura_filtro);
     submercado_cascata_->setMinimumWidth(largura_filtro);
-    so_selecionada_cascata_ = new QCheckBox(QStringLiteral("Só a cascata da usina selecionada"), painel_cascata);
-    barra_cascata->addWidget(ree_cascata_);
     barra_cascata->addWidget(submercado_cascata_);
-    barra_cascata->addWidget(so_selecionada_cascata_);
+    barra_cascata->addWidget(ree_cascata_);
     barra_cascata->addWidget(botao_ajustar);
     barra_cascata->addStretch(1);
     layout_cascata->addLayout(barra_cascata);
-
-    auto* corpo_cascata = new QHBoxLayout;
-    corpo_cascata->setSpacing(4);
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
-    legenda_cascata_ = new LegendaCascata(painel_cascata);
-    corpo_cascata->addWidget(vista_cascata_, 1);
-    corpo_cascata->addWidget(legenda_cascata_);
-    layout_cascata->addLayout(corpo_cascata, 1);
-    connect(vista_cascata_, &VistaCascata::legendaAtualizada, legenda_cascata_, &LegendaCascata::definirGrupos);
+    layout_cascata->addWidget(vista_cascata_, 1);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
-    connect(so_selecionada_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirSoSelecionada);
-    connect(vista_cascata_, &VistaCascata::focarCascataDe, this, [this](int linha) {
-        selecionarLinha(linha);
-        so_selecionada_cascata_->setChecked(true);
-    });
     repovoarFiltrosCascata();
     abas_esquerda->addTab(painel_cascata, QStringLiteral("Cascata"));
 
@@ -255,6 +243,21 @@ void JanelaPrincipal::aplicarFiltrosCascata() {
                                            .arg(total_submercados));
 
     vista_cascata_->definirFiltros(rees, submercados);
+}
+
+// Na primeira exibicao, dimensiona a janela e o splitter pela barra de abas do formulario, para
+// nenhuma aba do painel da direita ficar escondida atras das setas de rolagem. So na primeira: depois
+// disso o tamanho e do usuario.
+void JanelaPrincipal::showEvent(QShowEvent* ev) {
+    QMainWindow::showEvent(ev);
+    if (dimensionado_) return;
+    dimensionado_ = true;
+
+    int largura_direita = formulario_->abas()->tabBar()->sizeHint().width() + 48;
+    setMinimumWidth(LARGURA_MINIMA_ESQUERDA + largura_direita);
+    resize(std::max(width(), LARGURA_MINIMA_ESQUERDA + largura_direita + splitter_->handleWidth()),
+           std::max(height(), 640));
+    splitter_->setSizes({std::max(LARGURA_MINIMA_ESQUERDA, width() - largura_direita), largura_direita});
 }
 
 void JanelaPrincipal::criarMenus() {

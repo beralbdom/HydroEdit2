@@ -19,11 +19,12 @@ constexpr double RAIO_NO = 5.0;
 constexpr double RAIO_SELECIONADO = 7.0;
 constexpr double DESLOCAMENTO_ROTULO_X = 8.0;
 constexpr double DESLOCAMENTO_ROTULO_Y = -7.0;
-constexpr double LARGURA_ARESTA = 1.5;
-constexpr double TAMANHO_SETA = 8.0;
+constexpr double LARGURA_ARESTA = 2.0;
+constexpr double TAMANHO_SETA = 10.0;
+constexpr double LARGURA_SETA = 7.0;
 constexpr double RECUO_SETA = 6.0;
-constexpr double MEIA_ABERTURA_SETA = 0.4;
 constexpr int ALPHA_BORDA_NO = 120;
+constexpr int ALPHA_ARESTA = 170;
 constexpr int ALPHA_FUNDO_FAIXA = 22;
 constexpr int ALPHA_BORDA_FAIXA = 90;
 constexpr double MARGEM_TITULO = 4.0;
@@ -88,20 +89,24 @@ void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& p
 }
 
 // A linha usa caneta cosmetica (espessura constante em pixels) para nao sumir quando a cena e
-// reduzida a poucos pixels por coluna. A ponta de seta e um item proprio, tambem imune ao zoom,
-// posicionado sobre o no de destino e girado pelo angulo da linha; o triangulo e desenhado recuado
-// em RECUO_SETA pixels no eixo local para a ponta encostar na borda do no sem cobri-lo.
+// reduzida a poucos pixels por coluna, na cor do texto com alpha para ter contraste com o fundo sem
+// competir com os pontos. A ponta de seta e um item proprio, tambem imune ao zoom, posicionado
+// sobre o no de destino e girado pelo angulo da linha; o triangulo e desenhado recuado em
+// RECUO_SETA pixels no eixo local para a ponta encostar na borda do no sem cobri-lo.
 ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& origem, const QPointF& destino,
                                       bool desvio, const QPalette& paleta) {
-    QPen pena(paleta.mid().color(), LARGURA_ARESTA, desvio ? Qt::DashLine : Qt::SolidLine);
+    QColor cor = paleta.windowText().color();
+    cor.setAlpha(ALPHA_ARESTA);
+
+    QPen pena(cor, LARGURA_ARESTA, desvio ? Qt::DashLine : Qt::SolidLine);
     pena.setCosmetic(true);
     auto* linha = cena->addLine(QLineF(origem, destino), pena);
     linha->setZValue(-1);
 
     QPolygonF triangulo({QPointF(-RECUO_SETA, 0.0),
-                         QPointF(-RECUO_SETA - TAMANHO_SETA, -TAMANHO_SETA * MEIA_ABERTURA_SETA),
-                         QPointF(-RECUO_SETA - TAMANHO_SETA, TAMANHO_SETA * MEIA_ABERTURA_SETA)});
-    auto* seta = cena->addPolygon(triangulo, QPen(Qt::NoPen), QBrush(paleta.mid().color()));
+                         QPointF(-RECUO_SETA - TAMANHO_SETA, -LARGURA_SETA / 2.0),
+                         QPointF(-RECUO_SETA - TAMANHO_SETA, LARGURA_SETA / 2.0)});
+    auto* seta = cena->addPolygon(triangulo, QPen(Qt::NoPen), QBrush(cor));
     seta->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
     seta->setPos(destino);
     seta->setRotation(std::atan2(destino.y() - origem.y(), destino.x() - origem.x()) * 180.0 / std::numbers::pi);
@@ -110,16 +115,16 @@ ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& orige
     return {linha, seta};
 }
 
-// A faixa comeca exatamente na primeira linha do grupo (e nao meia linha acima), justamente para
-// sobrar espaco entre ela e a faixa de cima: e nesse espaco que o titulo e desenhado. O titulo fica
-// logo acima da borda de cima da faixa, alinhado a esquerda com ela, e como ignora a transformacao
-// da vista tanto a altura do texto quanto o recuo de MARGEM_TITULO estao em pixels de tela, entao
-// ele nunca invade a faixa. As 2 linhas de folga que empacotarPorGrupo deixa entre linhas de faixas
-// valem 56 unidades de cena, o que da pelo menos 28 px na escala minima legivel da vista.
+// A faixa cobre as colunas e linhas do grupo com meia coluna e meia linha de folga em volta, entao
+// os pontos da primeira linha ficam inteiros dentro dela. O titulo fica logo acima da borda de cima,
+// alinhado a esquerda com ela, e como ignora a transformacao da vista tanto a altura do texto quanto
+// o recuo de MARGEM_TITULO estao em pixels de tela, entao ele nunca invade a faixa. As 3 linhas de
+// folga que empacotarPorGrupo deixa entre linhas de faixas valem 84 unidades de cena, o que da pelo
+// menos 42 px na escala minima legivel da vista.
 ItensGrupoCascata criarFaixaCascata(QGraphicsScene* cena, const GrupoCascata& grupo, const QString& titulo,
                                     const QColor& cor, const QPalette& paleta, const QFont& fonte) {
     double x = (grupo.coluna_inicial - 0.5) * ESPACO_COLUNA_CASCATA;
-    double y = grupo.linha_inicial * ESPACO_LINHA_CASCATA;
+    double y = (grupo.linha_inicial - 0.5) * ESPACO_LINHA_CASCATA;
     double largura = grupo.largura * ESPACO_COLUNA_CASCATA;
     double altura = grupo.altura * ESPACO_LINHA_CASCATA;
 

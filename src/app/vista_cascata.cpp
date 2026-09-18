@@ -14,6 +14,7 @@
 #include <set>
 #include <string>
 #include <utility>
+#include "legenda_cascata.h"
 #include "modelo_hidr.h"
 
 namespace {
@@ -26,6 +27,13 @@ constexpr double ESCALA_MINIMA = ESCALA_LEGIVEL * 0.5;
 constexpr double ESCALA_MAXIMA = 20.0;
 constexpr double FATOR_ZOOM = 1.15;
 constexpr double OPACIDADE_ENTRE_GRUPOS = 0.5;
+constexpr int MARGEM_LEGENDA = 8;
+// Sobra em unidades de cena em volta do desenho. A de cima e maior porque os titulos das faixas sao
+// desenhados acima do retangulo com tamanho fixo em pixels: 70 unidades valem 35 px na escala
+// minima legivel (0,5) e 70 px na escala 1, sempre mais do que a altura de uma linha de texto com o
+// recuo de 4 px, entao o titulo da primeira linha da grade nunca fica encoberto pela barra.
+constexpr double MARGEM_CENA = 40.0;
+constexpr double MARGEM_CENA_TOPO = 70.0;
 
 QColor corDoGrupo(int indice) {
     static const std::array<QColor, 12> cores = {
@@ -68,6 +76,8 @@ VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(
     setDragMode(QGraphicsView::ScrollHandDrag);
     setRenderHint(QPainter::Antialiasing);
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
+    legenda_ = new LegendaCascata(viewport());
+    legenda_->raise();
 
     connect(modelo_, &QAbstractItemModel::modelReset, this, &VistaCascata::aoResetarModelo);
 }
@@ -150,11 +160,7 @@ void VistaCascata::reconstruir() {
 
     std::vector<bool> manter(usinas_deck.size() + 1, true);
     bool restrito = false;
-    if (so_selecionada_ && selecionado_anterior > 0) {
-        manter.assign(usinas_deck.size() + 1, false);
-        for (int codigo : cascataDaUsina(usinas_deck, selecionado_anterior)) manter[static_cast<size_t>(codigo)] = true;
-        restrito = true;
-    } else if (!rees_filtro_.empty() || !submercados_filtro_.empty()) {
+    if (!rees_filtro_.empty() || !submercados_filtro_.empty()) {
         for (size_t i = 0; i < usinas_deck.size(); ++i) {
             int ree = lookup.reeDaUsina(static_cast<int>(i) + 1);
             bool casa_ree = rees_filtro_.empty() || rees_filtro_.contains(ree);
@@ -205,7 +211,13 @@ void VistaCascata::reconstruir() {
     }
 
     desenhar(c, cor_do_no, cor_do_grupo);
-    emit legendaAtualizada(legenda);
+    legenda_->definirGrupos(legenda);
+    posicionarLegenda();
+
+    if (!cena_->items().isEmpty()) {
+        cena_->setSceneRect(cena_->itemsBoundingRect().adjusted(-MARGEM_CENA, -MARGEM_CENA_TOPO, MARGEM_CENA,
+                                                                MARGEM_CENA));
+    }
 
     auto it = nos_.find(selecionado_anterior);
     if (it != nos_.end()) {
@@ -243,18 +255,9 @@ QString VistaCascata::descricaoDoNo(int codigo) const {
         .arg(jusante);
 }
 
-// Com o modo "so a cascata da usina" ligado, trocar a selecao muda o conjunto de nos exibidos,
-// entao reconstroi a cena inteira em vez de so trocar o estilo do ponto antigo pelo novo.
 void VistaCascata::selecionar(int linha) {
     int novo_codigo = linha < 0 ? -1 : linha + 1;
     if (novo_codigo == codigo_selecionado_) return;
-
-    if (so_selecionada_) {
-        codigo_selecionado_ = novo_codigo;
-        reconstruir();
-        ajustar();
-        return;
-    }
 
     auto it_antigo = nos_.find(codigo_selecionado_);
     if (it_antigo != nos_.end()) aplicarEstiloPonto(it_antigo->second.ponto, false, palette());
@@ -280,13 +283,6 @@ void VistaCascata::definirFiltros(const std::set<int>& rees, const std::set<int>
     if (rees_filtro_ == rees && submercados_filtro_ == submercados) return;
     rees_filtro_ = rees;
     submercados_filtro_ = submercados;
-    reconstruir();
-    ajustar();
-}
-
-void VistaCascata::definirSoSelecionada(bool ligado) {
-    if (so_selecionada_ == ligado) return;
-    so_selecionada_ = ligado;
     reconstruir();
     ajustar();
 }
@@ -329,16 +325,18 @@ void VistaCascata::atualizarRotulos() {
     }
 }
 
-// fitInView pode fazer as barras de rolagem aparecerem ou sumirem, o que redimensiona o viewport e
-// volta aqui pelo resizeEvent; a trava corta essa recursao no primeiro nivel. Quando a cena inteira
-// so caberia abaixo de ESCALA_LEGIVEL, prefere-se cortar a mostrar tudo ilegivel: fixa a escala no
-// minimo e encosta a vista no canto superior esquerdo da cena, de onde o usuario rola.
+// Enquadra o sceneRect, e nao so os itens: e ele que carrega a margem de cima em que os titulos das
+// faixas sao desenhados. fitInView pode fazer as barras de rolagem aparecerem ou sumirem, o que
+// redimensiona o viewport e volta aqui pelo resizeEvent; a trava corta essa recursao no primeiro
+// nivel. Quando a cena inteira so caberia abaixo de ESCALA_LEGIVEL, prefere-se cortar a mostrar
+// tudo ilegivel: fixa a escala no minimo e encosta a vista no canto superior esquerdo do sceneRect,
+// margem inclusa, de onde o usuario rola.
 void VistaCascata::ajustar() {
     usuario_mexeu_zoom_ = false;
     if (ajustando_ || cena_->items().isEmpty()) return;
     ajustando_ = true;
 
-    QRectF alvo = cena_->itemsBoundingRect().adjusted(-30, -30, 30, 30);
+    QRectF alvo = cena_->sceneRect();
     fitInView(alvo, Qt::KeepAspectRatio);
     double escala = transform().m11();
     if (escala > 0.0 && escala < ESCALA_LEGIVEL) {
@@ -349,6 +347,15 @@ void VistaCascata::ajustar() {
 
     ajustando_ = false;
     atualizarRotulos();
+    posicionarLegenda();
+}
+
+void VistaCascata::posicionarLegenda() {
+    if (legenda_->isHidden()) return;
+    legenda_->adjustSize();
+    legenda_->move(viewport()->width() - legenda_->width() - MARGEM_LEGENDA,
+                   viewport()->height() - legenda_->height() - MARGEM_LEGENDA);
+    legenda_->raise();
 }
 
 void VistaCascata::wheelEvent(QWheelEvent* ev) {
@@ -376,15 +383,10 @@ void VistaCascata::mousePressEvent(QMouseEvent* ev) {
     if (codigo > 0) emit usinaEscolhida(codigo - 1);
 }
 
-void VistaCascata::mouseDoubleClickEvent(QMouseEvent* ev) {
-    QGraphicsView::mouseDoubleClickEvent(ev);
-    int codigo = codigoNoPonto(ev->position().toPoint());
-    if (codigo > 0) emit focarCascataDe(codigo - 1);
-}
-
 // So reenquadra sozinho enquanto o usuario nao tiver dado zoom: depois disso, redimensionar a
 // janela mantem a escala escolhida por ele.
 void VistaCascata::resizeEvent(QResizeEvent* ev) {
     QGraphicsView::resizeEvent(ev);
+    posicionarLegenda();
     if (!usuario_mexeu_zoom_) ajustar();
 }
