@@ -1,8 +1,8 @@
-# HydroEdit2
+# <img width="32" height="32" alt="icon copy" src="https://github.com/user-attachments/assets/2d999694-35ee-4c9c-83c9-f39248c9c6cb" /> HydroEdit2
 
 Editor do cadastro de usinas hidráulicas do NEWAVE (`hidr.dat`). Inspirado no HydroEdit clássico.
 
-<img width="861" height="520" alt="image" src="https://github.com/user-attachments/assets/419d7e77-e07e-437a-9698-9b8a6c9ff919" />
+<img width="832" height="532" alt="image" src="https://github.com/user-attachments/assets/2b7cfb48-ea76-4cac-bce9-1d7559e846d5" />
 
 ## Requisitos
 
