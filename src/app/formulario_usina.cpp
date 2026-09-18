@@ -113,8 +113,7 @@ QLineEdit* FormularioUsina::ligarEdit(QFormLayout* f, int pagina, const QString&
         e->setMaxLength(c->tamanho_elemento);
     }
     if (c->tipo == TipoCampo::Texto) {
-        if (std::string_view(nome) == "observacao") e->setMinimumWidth(320);
-        else e->setFixedWidth(160);
+        e->setFixedWidth(180);
     } else {
         e->setFixedWidth(110);
     }

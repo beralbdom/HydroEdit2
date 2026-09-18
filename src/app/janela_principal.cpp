@@ -218,12 +218,11 @@ void JanelaPrincipal::criarMenus() {
     QMenu* ajuda = menuBar()->addMenu(QStringLiteral("A&juda"));
     ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
         QMessageBox sobre(this);
-        sobre.setWindowTitle(QStringLiteral("Sobre o HydroEdit2"));
+        sobre.setWindowTitle(QStringLiteral("Sobre"));
         sobre.setWindowIcon(QIcon(QStringLiteral(":/hidro.ico")));
         sobre.setIconPixmap(QPixmap(QStringLiteral(":/hidro.ico")));
         sobre.setTextFormat(Qt::RichText);
-        sobre.setText(QStringLiteral("<b>HydroEdit2 0.1</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
-                                     "Layout do registro: 792 bytes, %1 usinas por arquivo.<br><br>"
+        sobre.setText(QStringLiteral("<b>HydroEdit 2 0.1</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE<br><br>"
                                      "Desenvolvido por Bernardo Albuquerque Domingues<br>"
                                      "<a href=\"https://github.com/beralbdom\">github.com/beralbdom</a>")
                           .arg(modelo_->numUsinas()));
@@ -324,7 +323,7 @@ void JanelaPrincipal::exportarCsv() {
 void JanelaPrincipal::atualizarTitulo() {
     QString nome = modelo_->caminho().isEmpty() ? QStringLiteral("sem arquivo") : QFileInfo(modelo_->caminho()).fileName();
     QString sujo = modelo_->pilhaUndo()->isClean() ? QString() : QStringLiteral("*");
-    setWindowTitle(QStringLiteral("HydroEdit2 - %1%2").arg(nome, sujo));
+    setWindowTitle(QStringLiteral("HydroEdit 2 - %1%2").arg(nome, sujo));
 }
 
 void JanelaPrincipal::atualizarStatus() {
