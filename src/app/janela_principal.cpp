@@ -265,10 +265,15 @@ void JanelaPrincipal::showEvent(QShowEvent* ev) {
     dimensionado_ = true;
 
     int largura_direita = formulario_->abas()->tabBar()->sizeHint().width() + 48;
-    setMinimumWidth(LARGURA_MINIMA_ESQUERDA + largura_direita);
     resize(std::max(width(), LARGURA_MINIMA_ESQUERDA + largura_direita + splitter_->handleWidth()),
            std::max(height(), 640));
-    splitter_->setSizes({std::max(LARGURA_MINIMA_ESQUERDA, width() - largura_direita), largura_direita});
+
+    // O resize ja atualizou o retangulo da janela, mas os filhos so acompanham quando o layout roda;
+    // ativa-lo aqui faz splitter_->width() valer o tamanho novo, e nao o anterior, que deixaria a
+    // soma das duas partes errada e o Qt redistribuindo por conta propria.
+    if (QLayout* layout_principal = layout()) layout_principal->activate();
+    splitter_->setSizes(
+        {std::max(LARGURA_MINIMA_ESQUERDA, splitter_->width() - largura_direita), largura_direita});
 }
 
 void JanelaPrincipal::criarMenus() {

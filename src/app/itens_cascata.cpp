@@ -44,20 +44,18 @@ void PontoCascata::hoverLeaveEvent(QGraphicsSceneHoverEvent* ev) {
     if (ao_pairar_) ao_pairar_(codigo_, false);
 }
 
-// O cinza #bab0ac saiu do ciclo e virou a cor fixa do "Sem REE": com 12 REEs no deck mais o codigo
-// 0, um ciclo de 12 cores daria a mesma cor ao PRNPANEMA e ao "Sem REE". Sobram 11 cores para os
-// REEs de verdade; a colisao volta a ser possivel so entre dois REEs, nunca entre um REE e o
-// "sem REE".
+// O cinza #bab0ac ficou reservado para o "Sem REE" e saiu do ciclo, que tem 12 cores proprias: com
+// os 12 REEs do deck, nenhum REE repete a cor de outro nem a do "sem REE".
 QColor corSemRee() { return QColor(0xba, 0xb0, 0xac); }
 
 QColor corDoIndice(int indice) {
-    static const std::array<QColor, 11> cores = {
+    static const std::array<QColor, 12> cores = {
         QColor(0x4e, 0x79, 0xa7), QColor(0xf2, 0x8e, 0x2b), QColor(0xe1, 0x57, 0x59),
         QColor(0x76, 0xb7, 0xb2), QColor(0x59, 0xa1, 0x4f), QColor(0xed, 0xc9, 0x48),
         QColor(0xb0, 0x7a, 0xa1), QColor(0xff, 0x9d, 0xa7), QColor(0x9c, 0x75, 0x5f),
-        QColor(0x86, 0xbc, 0xb6), QColor(0xd3, 0x72, 0x95),
+        QColor(0x86, 0xbc, 0xb6), QColor(0xd3, 0x72, 0x95), QColor(0xa0, 0xcb, 0xe8),
     };
-    return cores[static_cast<size_t>(((indice % 11) + 11) % 11)];
+    return cores[static_cast<size_t>(((indice % 12) + 12) % 12)];
 }
 
 // Indice de cor de cada REE pela posicao dele entre todos os REEs que o deck inteiro usa, e nao
