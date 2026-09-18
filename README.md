@@ -30,3 +30,7 @@ ctest --preset msvc-debug
 ```bat
 scripts\compilar.bat
 ```
+
+### Visual Studio
+
+Abra a pasta do repositório (Arquivo > Abrir > Pasta). O Visual Studio lê o `CMakePresets.json` e mostra os presets na barra de ferramentas (`msvc-debug`, `msvc-release`, `msvc-static`). Escolha `HydroEdit2.exe` como item de inicialização; a configuração de depuração em `.vs/launch.vs.json` já passa o deck de exemplo como argumento e coloca o Qt no PATH. Os testes aparecem no Gerenciador de Testes via CTest.
