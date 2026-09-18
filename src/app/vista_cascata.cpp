@@ -7,6 +7,8 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
+#include <QScrollBar>
+#include <QTimer>
 #include <QWheelEvent>
 #include <algorithm>
 #include <array>
@@ -82,6 +84,13 @@ VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(
     // ela fica parada; quem a posiciona dentro da area visivel e posicionarLegenda().
     legenda_ = new LegendaCascata(this);
     legenda_->raise();
+
+    // Tres gatilhos para a legenda nunca ficar ancorada por um tamanho ou por uma area visivel que
+    // ja mudaram: o proprio quadro quando muda de tamanho, e as barras de rolagem quando aparecem ou
+    // somem, que encolhem o viewport sem a vista receber resizeEvent.
+    connect(legenda_, &LegendaCascata::tamanhoAlterado, this, &VistaCascata::posicionarLegenda);
+    connect(horizontalScrollBar(), &QAbstractSlider::rangeChanged, this, &VistaCascata::posicionarLegenda);
+    connect(verticalScrollBar(), &QAbstractSlider::rangeChanged, this, &VistaCascata::posicionarLegenda);
 
     connect(modelo_, &QAbstractItemModel::modelReset, this, &VistaCascata::aoResetarModelo);
 }
@@ -216,6 +225,9 @@ void VistaCascata::reconstruir() {
     desenhar(c, cor_do_no, cor_do_grupo);
     legenda_->definirGrupos(legenda);
     posicionarLegenda();
+    // O enquadramento e as barras de rolagem ainda vao se acertar no resto deste giro do laco de
+    // eventos; a segunda passada recalcula a posicao ja com a area visivel final.
+    QTimer::singleShot(0, this, [this] { posicionarLegenda(); });
 
     if (!cena_->items().isEmpty()) {
         cena_->setSceneRect(cena_->itemsBoundingRect().adjusted(-MARGEM_CENA, -MARGEM_CENA_TOPO, MARGEM_CENA,
@@ -358,10 +370,15 @@ void VistaCascata::ajustar() {
 // rolagem.
 void VistaCascata::posicionarLegenda() {
     if (legenda_->isHidden()) return;
-    legenda_->adjustSize();
+    // Usa o sizeHint, e nao o tamanho atual, porque o quadro pode ainda nao ter sido redimensionado
+    // pelo layout depois de trocar as linhas; o resize deixa os dois iguais antes de ancorar.
+    int largura = legenda_->sizeHint().width();
+    int altura = legenda_->sizeHint().height();
+    legenda_->resize(largura, altura);
+
     QRect area = viewport()->geometry();
-    legenda_->move(area.x() + area.width() - legenda_->width() - MARGEM_LEGENDA,
-                   area.y() + area.height() - legenda_->height() - MARGEM_LEGENDA);
+    legenda_->move(area.x() + area.width() - largura - MARGEM_LEGENDA,
+                   area.y() + area.height() - altura - MARGEM_LEGENDA);
     legenda_->raise();
 }
 

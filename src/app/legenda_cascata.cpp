@@ -35,6 +35,14 @@ void LegendaCascata::paintEvent(QPaintEvent* ev) {
     QFrame::paintEvent(ev);
 }
 
+// Quem ancora a legenda num canto precisa da largura e da altura dela, entao qualquer mudanca de
+// tamanho tem de ser reanunciada: o layout pode redimensionar o quadro depois de a vista ja ter
+// calculado a posicao pelo tamanho antigo.
+void LegendaCascata::resizeEvent(QResizeEvent* ev) {
+    QFrame::resizeEvent(ev);
+    emit tamanhoAlterado();
+}
+
 // Uma linha por grupo, limitada a MAXIMO_LINHAS para a legenda nao cobrir a vista; o excedente vira
 // uma linha "+N outros". So fica escondida quando nao ha nenhum grupo; com pelo menos uma linha ela
 // se redimensiona, aparece e sobe para cima dos demais filhos do viewport. Quem a posiciona no canto
@@ -73,7 +81,10 @@ void LegendaCascata::definirGrupos(const std::vector<std::pair<QString, QColor>>
             new QLabel(QStringLiteral("+%1 outros").arg(static_cast<int>(grupos.size() - mostradas)), this));
     }
 
-    adjustSize();
+    // activate() em vez de adjustSize(): com SetFixedSize e ele que aplica o tamanho novo do quadro
+    // na hora, em vez de deixar o redimensionamento para um LayoutRequest posterior, que chegaria
+    // depois de quem ja tivesse posicionado a legenda pelo tamanho antigo.
+    layout_->activate();
     show();
     raise();
 }

@@ -13,8 +13,12 @@ public:
     explicit LegendaCascata(QWidget* parent = nullptr);
     void definirGrupos(const std::vector<std::pair<QString, QColor>>& grupos);
 
+signals:
+    void tamanhoAlterado();
+
 protected:
     void paintEvent(QPaintEvent* ev) override;
+    void resizeEvent(QResizeEvent* ev) override;
 
 private:
     QVBoxLayout* layout_;
