@@ -8,10 +8,12 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPixmap>
 #include <QPushButton>
 #include <QSettings>
 #include <QSplitter>
@@ -49,7 +51,7 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     splitter_->addWidget(formulario_);
     splitter_->setStretchFactor(0, 1);
     splitter_->setStretchFactor(1, 1);
-    splitter_->setSizes({760, 740});
+    splitter_->setSizes({360, 480});
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { formulario_->definirLinha(linhaSelecionada()); });
 
@@ -217,9 +219,10 @@ void JanelaPrincipal::criarMenus() {
     ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
         QMessageBox sobre(this);
         sobre.setWindowTitle(QStringLiteral("Sobre o HydroEdit2"));
-        sobre.setIcon(QMessageBox::NoIcon);
+        sobre.setWindowIcon(QIcon(QStringLiteral(":/hidro.ico")));
+        sobre.setIconPixmap(QPixmap(QStringLiteral(":/hidro.ico")));
         sobre.setTextFormat(Qt::RichText);
-        sobre.setText(QStringLiteral("<b>HydroEdit2 1.0.0</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
+        sobre.setText(QStringLiteral("<b>HydroEdit2 0.1</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE (hidr.dat).<br><br>"
                                      "Layout do registro: 792 bytes, %1 usinas por arquivo.<br><br>"
                                      "Desenvolvido por Bernardo Albuquerque Domingues<br>"
                                      "<a href=\"https://github.com/beralbdom\">github.com/beralbdom</a>")

@@ -18,9 +18,9 @@ int main(int argc, char* argv[]) {
     app.setWindowIcon(QIcon(QStringLiteral(":/hidro.ico")));
     QApplication::setOrganizationName(QStringLiteral("HydroEdit2"));
     QApplication::setApplicationName(QStringLiteral("HydroEdit2"));
-    QApplication::setApplicationVersion(QStringLiteral("1.0.0"));
+    QApplication::setApplicationVersion(QStringLiteral("0.1"));
     JanelaPrincipal janela;
-    janela.resize(1280, 800);
+    janela.resize(838, 500);
     janela.show();
     if (argc > 1) janela.abrirCaminho(QString::fromLocal8Bit(argv[1]));
     return app.exec();
