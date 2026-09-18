@@ -26,11 +26,11 @@
 #include <filesystem>
 #include <map>
 #include <set>
-#include "cascata.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
 #include "formulario_usina.h"
+#include "legenda_cascata.h"
 #include "modelo_hidr.h"
 #include "painel_problemas.h"
 #include "validacao.h"
@@ -169,8 +169,15 @@ void JanelaPrincipal::criarTabela() {
     barra_cascata->addWidget(botao_ajustar);
     barra_cascata->addStretch(1);
     layout_cascata->addLayout(barra_cascata);
+
+    auto* corpo_cascata = new QHBoxLayout;
+    corpo_cascata->setSpacing(4);
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
-    layout_cascata->addWidget(vista_cascata_, 1);
+    legenda_cascata_ = new LegendaCascata(painel_cascata);
+    corpo_cascata->addWidget(vista_cascata_, 1);
+    corpo_cascata->addWidget(legenda_cascata_);
+    layout_cascata->addLayout(corpo_cascata, 1);
+    connect(vista_cascata_, &VistaCascata::legendaAtualizada, legenda_cascata_, &LegendaCascata::definirGrupos);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
     connect(so_selecionada_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirSoSelecionada);
     connect(vista_cascata_, &VistaCascata::focarCascataDe, this, [this](int linha) {
@@ -247,8 +254,7 @@ void JanelaPrincipal::aplicarFiltrosCascata() {
                                            .arg(static_cast<int>(submercados.size()))
                                            .arg(total_submercados));
 
-    vista_cascata_->definirRees(rees);
-    vista_cascata_->definirSubmercados(submercados);
+    vista_cascata_->definirFiltros(rees, submercados);
 }
 
 void JanelaPrincipal::criarMenus() {
@@ -289,8 +295,8 @@ void JanelaPrincipal::criarMenus() {
     ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
         QMessageBox sobre(this);
         sobre.setWindowTitle(QStringLiteral("Sobre"));
-        sobre.setWindowIcon(QIcon(QStringLiteral(":/hidro.ico")));
-        sobre.setIconPixmap(QPixmap(QStringLiteral(":/hidro.ico")));
+        sobre.setWindowIcon(QIcon(QStringLiteral(":/hidr.ico")));
+        sobre.setIconPixmap(QPixmap(QStringLiteral(":/hidr.ico")));
         sobre.setTextFormat(Qt::RichText);
         sobre.setText(QStringLiteral("<b>HydroEdit 2 0.1</b><br>Editor do cadastro de usinas hidráulicas do NEWAVE<br><br>"
                                      "Desenvolvido por Bernardo Albuquerque Domingues<br>"

@@ -110,15 +110,16 @@ ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& orige
     return {linha, seta};
 }
 
-// A faixa cobre as colunas e linhas do grupo com meia coluna e meia linha de folga em volta. O
-// titulo fica logo acima da borda de cima da faixa, alinhado a esquerda com ela: como ele ignora a
-// transformacao da vista, o recuo de MARGEM_TITULO pixels e aplicado no transform proprio do item,
-// e a altura do texto tambem esta em pixels de tela, entao o titulo nao invade a faixa em zoom
-// nenhum. As 3 linhas de folga que empacotarPorGrupo deixa entre faixas cabem esse texto.
+// A faixa comeca exatamente na primeira linha do grupo (e nao meia linha acima), justamente para
+// sobrar espaco entre ela e a faixa de cima: e nesse espaco que o titulo e desenhado. O titulo fica
+// logo acima da borda de cima da faixa, alinhado a esquerda com ela, e como ignora a transformacao
+// da vista tanto a altura do texto quanto o recuo de MARGEM_TITULO estao em pixels de tela, entao
+// ele nunca invade a faixa. As 2 linhas de folga que empacotarPorGrupo deixa entre linhas de faixas
+// valem 56 unidades de cena, o que da pelo menos 28 px na escala minima legivel da vista.
 ItensGrupoCascata criarFaixaCascata(QGraphicsScene* cena, const GrupoCascata& grupo, const QString& titulo,
                                     const QColor& cor, const QPalette& paleta, const QFont& fonte) {
     double x = (grupo.coluna_inicial - 0.5) * ESPACO_COLUNA_CASCATA;
-    double y = (grupo.linha_inicial - 0.5) * ESPACO_LINHA_CASCATA;
+    double y = grupo.linha_inicial * ESPACO_LINHA_CASCATA;
     double largura = grupo.largura * ESPACO_COLUNA_CASCATA;
     double altura = grupo.altura * ESPACO_LINHA_CASCATA;
 

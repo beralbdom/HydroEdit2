@@ -16,6 +16,7 @@ class FiltroUsinas;
 class FormularioUsina;
 class PainelProblemas;
 class VistaCascata;
+class LegendaCascata;
 struct ProblemaUsina;
 
 class JanelaPrincipal : public QMainWindow {
@@ -45,6 +46,7 @@ protected:
     FormularioUsina* formulario_;
     PainelProblemas* painel_problemas_;
     VistaCascata* vista_cascata_;
+    LegendaCascata* legenda_cascata_;
 
 private slots:
     void abrir();

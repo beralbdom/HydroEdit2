@@ -131,7 +131,15 @@ std::map<int, Ree> lerRee(const fs::path& p, std::vector<std::string>& notas) {
             ree.nome = ini == std::string::npos ? std::string() : nome.substr(ini);
             std::string resto = linha.substr(15);
             size_t digito = resto.find_first_of("0123456789");
-            if (digito != std::string::npos) ree.submercado = std::stoi(resto.substr(digito));
+            // Submercado ilegivel nao invalida o REE: o nome ja serve para rotular a faixa, entao o
+            // registro entra com submercado 0.
+            if (digito != std::string::npos) {
+                try {
+                    ree.submercado = std::stoi(resto.substr(digito));
+                } catch (...) {
+                    ree.submercado = 0;
+                }
+            }
             m[codigo] = ree;
         } catch (...) {
             continue;

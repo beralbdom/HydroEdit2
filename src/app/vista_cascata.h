@@ -12,7 +12,6 @@
 #include "itens_cascata.h"
 
 class ModeloHidr;
-class LegendaCascata;
 class QGraphicsScene;
 
 class VistaCascata : public QGraphicsView {
@@ -22,13 +21,13 @@ public:
     void reconstruir();
     void selecionar(int linha);
     void definirFiltro(const QString& texto);
-    void definirRees(const std::set<int>& rees);
-    void definirSubmercados(const std::set<int>& submercados);
+    void definirFiltros(const std::set<int>& rees, const std::set<int>& submercados);
     void definirSoSelecionada(bool ligado);
     void ajustar();
 
 signals:
     void usinaEscolhida(int linha);
+    void legendaAtualizada(const std::vector<std::pair<QString, QColor>>& itens);
     void focarCascataDe(int linha);
 
 protected:
@@ -51,17 +50,14 @@ private:
 
     void mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, std::string>& nome_do_ree) const;
     void desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
-                  const std::vector<QColor>& cor_do_grupo,
-                  const std::vector<std::pair<QString, QColor>>& legenda);
+                  const std::vector<QColor>& cor_do_grupo);
     void aplicarFiltro();
     void atualizarRotulos();
-    void posicionarLegenda();
     int codigoNoPonto(const QPoint& ponto) const;
     QString descricaoDoNo(int codigo) const;
 
     ModeloHidr* modelo_;
     QGraphicsScene* cena_;
-    LegendaCascata* legenda_;
     std::unordered_map<int, ItensNoCascata> nos_;
     std::unordered_map<int, bool> casa_filtro_;
     std::vector<ItemAresta> arestas_;

@@ -123,16 +123,27 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
 
 namespace {
 
+constexpr int FOLGA_LINHAS = 2;
+
 struct FaixaEmpacotada {
     int largura;
     int altura;
 };
 
-// Empacota as bacias de uma cascata em linhas dentro de uma faixa que comeca na linha linha_base,
-// com as maiores a esquerda, e devolve a largura e a altura ocupadas. A primeira bacia de cada
-// linha sempre entra, mesmo que sozinha ja estoure largura_maxima, para nao travar em bacia muito
-// larga; as demais so entram se sobrar espaco (mais 1 coluna de folga entre bacias).
-FaixaEmpacotada empacotarFaixa(Cascata& parcial, int largura_maxima, int linha_base) {
+struct BlocoGrupo {
+    int codigo;
+    std::string nome;
+    int num_usinas;
+    Cascata parcial;
+    FaixaEmpacotada faixa;
+};
+
+// Empacota as bacias de uma cascata em linhas, com as maiores a esquerda, e devolve a largura e a
+// altura ocupadas. A primeira bacia de cada linha sempre entra, mesmo que sozinha ja estoure
+// largura_maxima, para nao travar em bacia muito larga; as demais so entram se sobrar espaco (mais
+// 1 coluna de folga entre bacias). O bloco resultante comeca sempre na coluna 0 e na linha 0: quem
+// chama e que o reposiciona.
+FaixaEmpacotada empacotarFaixa(Cascata& parcial, int largura_maxima) {
     std::vector<size_t> ordem(parcial.bacias.size());
     std::iota(ordem.begin(), ordem.end(), size_t(0));
     std::stable_sort(ordem.begin(), ordem.end(), [&](size_t a, size_t b) {
@@ -161,11 +172,10 @@ FaixaEmpacotada empacotarFaixa(Cascata& parcial, int largura_maxima, int linha_b
 
         int novaColunaInicial = larguraAcumulada + (primeiraDaLinha ? 0 : 1);
         double deltaColuna = static_cast<double>(novaColunaInicial - bacia.coluna_inicial);
-        int deltaLinha = linha_base + deslocamentoLinha;
 
         for (size_t indice : nosPorBacia[bacia.indice]) {
             parcial.nos[indice].coluna += deltaColuna;
-            parcial.nos[indice].linha += deltaLinha;
+            parcial.nos[indice].linha += deslocamentoLinha;
         }
 
         bacia.coluna_inicial = novaColunaInicial;
@@ -181,13 +191,15 @@ FaixaEmpacotada empacotarFaixa(Cascata& parcial, int largura_maxima, int linha_b
 
 }  // namespace
 
-// Uma faixa horizontal por grupo, empilhadas na ordem crescente do codigo do grupo, com 3 linhas de
-// folga entre faixas: e nesse espaco que quem desenha coloca o titulo da faixa de baixo, sem
-// encostar na de cima. O grupo e por usina, nao por bacia: cada faixa e montada rodando
-// montarCascata so sobre as usinas daquele grupo, entao uma usina cujo jusante esta em outro grupo
-// vira raiz dentro da sua faixa e os grupos de meio de cascata ganham faixa propria. As arestas
-// saem do grafo completo, com entre_grupos marcando as que atravessam faixas. Usina sem entrada em
-// grupo_da_usina cai no grupo 0; nome ausente ou vazio vira "Sem grupo".
+// Uma faixa por grupo, em duas etapas. Primeiro cada grupo vira um bloco independente: montarCascata
+// roda so sobre as usinas daquele grupo, entao uma usina cujo jusante esta em outro grupo vira raiz
+// dentro do proprio bloco e os grupos de meio de cascata ganham faixa propria. Depois os blocos sao
+// empacotados em grade, na ordem crescente do codigo do grupo e com o grupo 0 por ultimo, com a
+// mesma regra gulosa das bacias
+// (o primeiro bloco da linha sempre entra, os demais so se couberem em largura_maxima), 1 coluna de
+// folga entre blocos vizinhos, FOLGA_LINHAS linhas entre linhas de blocos e alinhamento pelo topo.
+// As arestas saem do grafo completo, com entre_grupos marcando as que atravessam faixas. Usina sem
+// entrada em grupo_da_usina cai no grupo 0; nome ausente ou vazio vira "Sem grupo".
 Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<int, int>& grupo_da_usina,
                           const std::map<int, std::string>& nome_do_grupo, int largura_maxima) {
     auto grupoDe = [&](int codigo) {
@@ -202,11 +214,16 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
         usinasDoGrupo[grupoDe(codigo)].push_back(codigo);
     }
 
-    Cascata resultado;
-    int linhaBase = 0;
-    int numColunas = 0;
-
+    // O grupo 0 e o "sem grupo": sai por ultimo para as faixas nomeadas virem primeiro na grade.
+    std::vector<int> ordemDosGrupos;
     for (const auto& [codigo_grupo, membros] : usinasDoGrupo) {
+        if (codigo_grupo != 0) ordemDosGrupos.push_back(codigo_grupo);
+    }
+    if (usinasDoGrupo.contains(0)) ordemDosGrupos.push_back(0);
+
+    std::vector<BlocoGrupo> blocos;
+    for (int codigo_grupo : ordemDosGrupos) {
+        const std::vector<int>& membros = usinasDoGrupo[codigo_grupo];
         std::vector<bool> manter(usinas.size() + 1, false);
         for (int codigo : membros) manter[static_cast<size_t>(codigo)] = true;
         std::vector<UsinaHidr> soDoGrupo = usinas;
@@ -214,26 +231,59 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
             if (!manter[i + 1]) soDoGrupo[i].nome.clear();
         }
 
-        Cascata parcial = montarCascata(soDoGrupo);
-        FaixaEmpacotada faixa = empacotarFaixa(parcial, largura_maxima, linhaBase);
+        auto it_nome = nome_do_grupo.find(codigo_grupo);
+        bool tem_nome = it_nome != nome_do_grupo.end() && !it_nome->second.empty();
 
+        BlocoGrupo bloco;
+        bloco.codigo = codigo_grupo;
+        bloco.nome = tem_nome ? it_nome->second : std::string("Sem grupo");
+        bloco.num_usinas = static_cast<int>(membros.size());
+        bloco.parcial = montarCascata(soDoGrupo);
+        bloco.faixa = empacotarFaixa(bloco.parcial, largura_maxima);
+        blocos.push_back(std::move(bloco));
+    }
+
+    Cascata resultado;
+    int larguraAcumulada = 0;
+    int deslocamentoLinha = 0;
+    int alturaMaximaLinha = 0;
+    bool primeiroDaLinha = true;
+    int numColunas = 0;
+    int numLinhas = 0;
+
+    for (BlocoGrupo& bloco : blocos) {
+        bool cabe = primeiroDaLinha || largura_maxima <= 0 ||
+                    (larguraAcumulada + bloco.faixa.largura + 1 <= largura_maxima);
+        if (!cabe) {
+            deslocamentoLinha += alturaMaximaLinha + FOLGA_LINHAS;
+            larguraAcumulada = 0;
+            alturaMaximaLinha = 0;
+            primeiroDaLinha = true;
+        }
+
+        int colunaInicial = larguraAcumulada + (primeiroDaLinha ? 0 : 1);
         int deslocamentoIndice = static_cast<int>(resultado.bacias.size());
-        for (NoCascata& no : parcial.nos) {
+
+        for (NoCascata& no : bloco.parcial.nos) {
+            no.coluna += static_cast<double>(colunaInicial);
+            no.linha += deslocamentoLinha;
             no.bacia += deslocamentoIndice;
             resultado.nos.push_back(no);
         }
-        for (BaciaCascata& bacia : parcial.bacias) {
+        for (BaciaCascata& bacia : bloco.parcial.bacias) {
             bacia.indice += deslocamentoIndice;
+            bacia.coluna_inicial += colunaInicial;
             resultado.bacias.push_back(bacia);
         }
 
-        auto it_nome = nome_do_grupo.find(codigo_grupo);
-        bool tem_nome = it_nome != nome_do_grupo.end() && !it_nome->second.empty();
-        resultado.grupos.push_back(GrupoCascata{codigo_grupo, tem_nome ? it_nome->second : std::string("Sem grupo"),
-                                                0, linhaBase, faixa.largura, faixa.altura,
-                                                static_cast<int>(membros.size())});
-        numColunas = std::max(numColunas, faixa.largura);
-        linhaBase += faixa.altura + 3;
+        resultado.grupos.push_back(GrupoCascata{bloco.codigo, bloco.nome, colunaInicial, deslocamentoLinha,
+                                                bloco.faixa.largura, bloco.faixa.altura, bloco.num_usinas});
+
+        larguraAcumulada = colunaInicial + bloco.faixa.largura;
+        alturaMaximaLinha = std::max(alturaMaximaLinha, bloco.faixa.altura);
+        numColunas = std::max(numColunas, larguraAcumulada);
+        numLinhas = std::max(numLinhas, deslocamentoLinha + bloco.faixa.altura);
+        primeiroDaLinha = false;
     }
 
     for (ArestaCascata aresta : montarCascata(usinas).arestas) {
@@ -242,7 +292,7 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
     }
 
     resultado.num_colunas = numColunas;
-    resultado.num_linhas = resultado.grupos.empty() ? 0 : linhaBase - 3;
+    resultado.num_linhas = numLinhas;
     return resultado;
 }
 

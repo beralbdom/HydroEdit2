@@ -14,16 +14,18 @@
 #include <set>
 #include <string>
 #include <utility>
-#include "legenda_cascata.h"
 #include "modelo_hidr.h"
 
 namespace {
 constexpr double LIMIAR_ROTULO = 0.9;
-constexpr double ESCALA_MINIMA = 0.05;
+// Abaixo dessa escala o espacamento de 40 unidades por coluna cai para menos de 20 px e os pontos,
+// as setas e os titulos (que tem tamanho fixo em pixels) comecam a se cobrir. O ajuste automatico
+// nunca desce dela; a roda do mouse ainda deixa o usuario afastar um pouco mais.
+constexpr double ESCALA_LEGIVEL = 0.5;
+constexpr double ESCALA_MINIMA = ESCALA_LEGIVEL * 0.5;
 constexpr double ESCALA_MAXIMA = 20.0;
 constexpr double FATOR_ZOOM = 1.15;
 constexpr double OPACIDADE_ENTRE_GRUPOS = 0.5;
-constexpr int MARGEM_LEGENDA = 8;
 
 QColor corDoGrupo(int indice) {
     static const std::array<QColor, 12> cores = {
@@ -66,7 +68,6 @@ VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(
     setDragMode(QGraphicsView::ScrollHandDrag);
     setRenderHint(QPainter::Antialiasing);
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
-    legenda_ = new LegendaCascata(viewport());
 
     connect(modelo_, &QAbstractItemModel::modelReset, this, &VistaCascata::aoResetarModelo);
 }
@@ -90,15 +91,12 @@ void VistaCascata::mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, st
 }
 
 void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no,
-                            const std::vector<QColor>& cor_do_grupo,
-                            const std::vector<std::pair<QString, QColor>>& legenda) {
+                            const std::vector<QColor>& cor_do_grupo) {
     for (size_t i = 0; i < c.grupos.size() && i < cor_do_grupo.size(); ++i) {
         const GrupoCascata& grupo = c.grupos[i];
         QString titulo = QStringLiteral("%1 (%2 usinas)").arg(paraTexto(grupo.nome)).arg(grupo.num_usinas);
         criarFaixaCascata(cena_, grupo, titulo, cor_do_grupo[i], palette(), font());
     }
-    legenda_->definirGrupos(legenda);
-    posicionarLegenda();
 
     auto ao_pairar = [this](int codigo, bool entrou) {
         if (entrou) codigo_sob_mouse_ = codigo;
@@ -206,7 +204,8 @@ void VistaCascata::reconstruir() {
         cor_do_no[no.codigo] = corDoCodigo(it == ree_da_usina.end() ? 0 : it->second);
     }
 
-    desenhar(c, cor_do_no, cor_do_grupo, legenda);
+    desenhar(c, cor_do_no, cor_do_grupo);
+    emit legendaAtualizada(legenda);
 
     auto it = nos_.find(selecionado_anterior);
     if (it != nos_.end()) {
@@ -226,6 +225,10 @@ QString VistaCascata::descricaoDoNo(int codigo) const {
     const UsinaHidr& usina = modelo_->usina(codigo - 1);
     const DeckLookup& lookup = modelo_->lookup();
     int ree = lookup.reeDaUsina(codigo);
+    // Mesmo submercado que o filtro usa. So quando a usina nao esta em nenhum REE e que sobra o
+    // campo subsistema do proprio hidr.dat.
+    std::string submercado = ree == 0 ? lookup.nomeSubsistema(usina.subsistema)
+                                      : lookup.nomeSubsistema(lookup.submercadoDoRee(ree));
 
     QString jusante = QStringLiteral("-");
     if (usina.jusante >= 1 && usina.jusante <= modelo_->numUsinas()) {
@@ -235,7 +238,7 @@ QString VistaCascata::descricaoDoNo(int codigo) const {
     return QStringLiteral("%1  %2\nSubmercado: %3\nREE: %4\nJusante: %5")
         .arg(codigo)
         .arg(paraTexto(usina.nome))
-        .arg(paraTexto(lookup.nomeSubsistema(usina.subsistema)))
+        .arg(paraTexto(submercado))
         .arg(paraTexto(lookup.nomeRee(ree)))
         .arg(jusante);
 }
@@ -271,15 +274,11 @@ void VistaCascata::definirFiltro(const QString& texto) {
     atualizarRotulos();
 }
 
-void VistaCascata::definirRees(const std::set<int>& rees) {
-    if (rees_filtro_ == rees) return;
+// Os dois conjuntos entram juntos para uma troca de filtro reconstruir a cena uma vez so, e nao
+// duas (uma por conjunto).
+void VistaCascata::definirFiltros(const std::set<int>& rees, const std::set<int>& submercados) {
+    if (rees_filtro_ == rees && submercados_filtro_ == submercados) return;
     rees_filtro_ = rees;
-    reconstruir();
-    ajustar();
-}
-
-void VistaCascata::definirSubmercados(const std::set<int>& submercados) {
-    if (submercados_filtro_ == submercados) return;
     submercados_filtro_ = submercados;
     reconstruir();
     ajustar();
@@ -330,18 +329,24 @@ void VistaCascata::atualizarRotulos() {
     }
 }
 
-void VistaCascata::posicionarLegenda() {
-    if (legenda_->isHidden()) return;
-    legenda_->move(viewport()->width() - legenda_->width() - MARGEM_LEGENDA, MARGEM_LEGENDA);
-}
-
 // fitInView pode fazer as barras de rolagem aparecerem ou sumirem, o que redimensiona o viewport e
-// volta aqui pelo resizeEvent; a trava corta essa recursao no primeiro nivel.
+// volta aqui pelo resizeEvent; a trava corta essa recursao no primeiro nivel. Quando a cena inteira
+// so caberia abaixo de ESCALA_LEGIVEL, prefere-se cortar a mostrar tudo ilegivel: fixa a escala no
+// minimo e encosta a vista no canto superior esquerdo da cena, de onde o usuario rola.
 void VistaCascata::ajustar() {
     usuario_mexeu_zoom_ = false;
     if (ajustando_ || cena_->items().isEmpty()) return;
     ajustando_ = true;
-    fitInView(cena_->itemsBoundingRect().adjusted(-30, -30, 30, 30), Qt::KeepAspectRatio);
+
+    QRectF alvo = cena_->itemsBoundingRect().adjusted(-30, -30, 30, 30);
+    fitInView(alvo, Qt::KeepAspectRatio);
+    double escala = transform().m11();
+    if (escala > 0.0 && escala < ESCALA_LEGIVEL) {
+        scale(ESCALA_LEGIVEL / escala, ESCALA_LEGIVEL / escala);
+        centerOn(alvo.left() + viewport()->width() / (2.0 * ESCALA_LEGIVEL),
+                 alvo.top() + viewport()->height() / (2.0 * ESCALA_LEGIVEL));
+    }
+
     ajustando_ = false;
     atualizarRotulos();
 }
@@ -381,6 +386,5 @@ void VistaCascata::mouseDoubleClickEvent(QMouseEvent* ev) {
 // janela mantem a escala escolhida por ele.
 void VistaCascata::resizeEvent(QResizeEvent* ev) {
     QGraphicsView::resizeEvent(ev);
-    posicionarLegenda();
     if (!usuario_mexeu_zoom_) ajustar();
 }
