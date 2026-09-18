@@ -121,54 +121,6 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
     return cascata;
 }
 
-// Reposiciona as bacias em linhas, na ordem em que ja aparecem em c.bacias. A primeira bacia de
-// cada linha sempre entra, mesmo que sozinha ja estoure largura_maxima, para nao travar em bacia
-// muito larga; as demais so entram se sobrar espaco (mais 1 coluna de folga entre bacias).
-Cascata empacotarBacias(const Cascata& c, int largura_maxima) {
-    if (largura_maxima <= 0) return c;
-
-    Cascata resultado = c;
-
-    std::unordered_map<int, std::vector<size_t>> nosPorBacia;
-    for (size_t i = 0; i < resultado.nos.size(); ++i) nosPorBacia[resultado.nos[i].bacia].push_back(i);
-
-    int larguraAcumulada = 0;
-    int deslocamentoLinha = 0;
-    int alturaMaximaLinha = 0;
-    bool primeiraDaLinha = true;
-    int numColunas = 0;
-    int numLinhas = 0;
-
-    for (BaciaCascata& bacia : resultado.bacias) {
-        bool cabe = primeiraDaLinha || (larguraAcumulada + bacia.largura + 1 <= largura_maxima);
-        if (!cabe) {
-            deslocamentoLinha += alturaMaximaLinha + 1;
-            larguraAcumulada = 0;
-            alturaMaximaLinha = 0;
-            primeiraDaLinha = true;
-        }
-
-        int novaColunaInicial = larguraAcumulada + (primeiraDaLinha ? 0 : 1);
-        double deltaColuna = static_cast<double>(novaColunaInicial - bacia.coluna_inicial);
-
-        for (size_t indice : nosPorBacia[bacia.indice]) {
-            resultado.nos[indice].coluna += deltaColuna;
-            resultado.nos[indice].linha += deslocamentoLinha;
-        }
-
-        bacia.coluna_inicial = novaColunaInicial;
-        larguraAcumulada = novaColunaInicial + bacia.largura;
-        alturaMaximaLinha = std::max(alturaMaximaLinha, bacia.altura);
-        numColunas = std::max(numColunas, larguraAcumulada);
-        numLinhas = std::max(numLinhas, deslocamentoLinha + bacia.altura);
-        primeiraDaLinha = false;
-    }
-
-    resultado.num_colunas = numColunas;
-    resultado.num_linhas = numLinhas;
-    return resultado;
-}
-
 namespace {
 
 struct FaixaEmpacotada {
@@ -177,8 +129,9 @@ struct FaixaEmpacotada {
 };
 
 // Empacota as bacias de uma cascata em linhas dentro de uma faixa que comeca na linha linha_base,
-// com as maiores a esquerda, e devolve a largura e a altura ocupadas. Mesma regra de quebra de
-// empacotarBacias: a primeira bacia da linha sempre entra, as demais so se sobrar espaco.
+// com as maiores a esquerda, e devolve a largura e a altura ocupadas. A primeira bacia de cada
+// linha sempre entra, mesmo que sozinha ja estoure largura_maxima, para nao travar em bacia muito
+// larga; as demais so entram se sobrar espaco (mais 1 coluna de folga entre bacias).
 FaixaEmpacotada empacotarFaixa(Cascata& parcial, int largura_maxima, int linha_base) {
     std::vector<size_t> ordem(parcial.bacias.size());
     std::iota(ordem.begin(), ordem.end(), size_t(0));
@@ -290,40 +243,6 @@ Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<i
 
     resultado.num_colunas = numColunas;
     resultado.num_linhas = resultado.grupos.empty() ? 0 : linhaBase - 3;
-    return resultado;
-}
-
-// Extrai os nos e arestas internas da bacia cuja foz e codigo_foz, deslocando as colunas para a
-// bacia comecar em zero (coluna_inicial passa a 0). Cascata retornada com nos.empty() se
-// nenhuma bacia tiver essa foz (por exemplo, apos a foz deixar de existir no deck).
-Cascata filtrarBacia(const Cascata& c, int codigo_foz) {
-    Cascata resultado;
-
-    const BaciaCascata* bacia = nullptr;
-    for (const BaciaCascata& b : c.bacias) {
-        if (b.codigo_foz == codigo_foz) {
-            bacia = &b;
-            break;
-        }
-    }
-    if (bacia == nullptr) return resultado;
-
-    std::unordered_map<int, bool> membro;
-    for (const NoCascata& no : c.nos) {
-        if (no.bacia != bacia->indice) continue;
-        NoCascata copia = no;
-        copia.coluna -= bacia->coluna_inicial;
-        resultado.nos.push_back(copia);
-        membro[no.codigo] = true;
-    }
-    for (const ArestaCascata& aresta : c.arestas) {
-        if (membro.count(aresta.origem) && membro.count(aresta.destino)) resultado.arestas.push_back(aresta);
-    }
-
-    resultado.bacias = {*bacia};
-    resultado.bacias[0].coluna_inicial = 0;
-    resultado.num_colunas = bacia->largura;
-    resultado.num_linhas = bacia->altura;
     return resultado;
 }
 

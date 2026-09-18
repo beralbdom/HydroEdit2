@@ -29,7 +29,6 @@ public:
 
 signals:
     void usinaEscolhida(int linha);
-    void gruposAtualizados(const std::vector<GrupoCascata>& grupos);
     void focarCascataDe(int linha);
 
 protected:

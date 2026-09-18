@@ -157,6 +157,11 @@ void JanelaPrincipal::criarTabela() {
     submercado_cascata_ = new QToolButton(painel_cascata);
     submercado_cascata_->setPopupMode(QToolButton::InstantPopup);
     submercado_cascata_->setMenu(menu_submercado_);
+    // Largura fixa pelo rotulo mais longo possivel, para a barra nao se mexer quando o texto do
+    // botao alterna entre "todos" e a contagem.
+    int largura_filtro = ree_cascata_->fontMetrics().horizontalAdvance(QStringLiteral("Submercado: 99 de 99")) + 28;
+    ree_cascata_->setMinimumWidth(largura_filtro);
+    submercado_cascata_->setMinimumWidth(largura_filtro);
     so_selecionada_cascata_ = new QCheckBox(QStringLiteral("Só a cascata da usina selecionada"), painel_cascata);
     barra_cascata->addWidget(ree_cascata_);
     barra_cascata->addWidget(submercado_cascata_);

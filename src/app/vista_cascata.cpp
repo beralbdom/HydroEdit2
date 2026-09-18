@@ -215,8 +215,6 @@ void VistaCascata::reconstruir() {
     }
     aplicarFiltro();
 
-    emit gruposAtualizados(c.grupos);
-
     if (ajustar_no_proximo_) {
         ajustar();
         ajustar_no_proximo_ = false;

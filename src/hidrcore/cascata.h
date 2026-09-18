@@ -47,8 +47,6 @@ struct Cascata {
 };
 
 Cascata montarCascata(const std::vector<UsinaHidr>& usinas);
-Cascata empacotarBacias(const Cascata& c, int largura_maxima);
 Cascata empacotarPorGrupo(const std::vector<UsinaHidr>& usinas, const std::map<int, int>& grupo_da_usina,
                           const std::map<int, std::string>& nome_do_grupo, int largura_maxima);
-Cascata filtrarBacia(const Cascata& c, int codigo_foz);
 std::vector<int> cascataDaUsina(const std::vector<UsinaHidr>& usinas, int codigo);
