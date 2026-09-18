@@ -12,6 +12,8 @@ qt_add_library(hydroedit_ui STATIC
     paginas_usina.cpp
     painel_problemas.cpp painel_problemas.h
     vista_cascata.cpp vista_cascata.h
+    itens_cascata.cpp itens_cascata.h
+    legenda_cascata.cpp legenda_cascata.h
     grafico_polinomio.cpp grafico_polinomio.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

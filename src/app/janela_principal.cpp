@@ -137,20 +137,69 @@ void JanelaPrincipal::criarTabela() {
     layout_cascata->setSpacing(4);
     auto* barra_cascata = new QHBoxLayout;
     auto* botao_ajustar = new QPushButton(QStringLiteral("Ajustar"), painel_cascata);
+    agrupamento_cascata_ = new QComboBox(painel_cascata);
+    agrupamento_cascata_->addItem(QStringLiteral("REE"), static_cast<int>(VistaCascata::Agrupamento::Ree));
+    agrupamento_cascata_->addItem(QStringLiteral("Submercado"), static_cast<int>(VistaCascata::Agrupamento::Submercado));
+    agrupamento_cascata_->addItem(QStringLiteral("Bacia"), static_cast<int>(VistaCascata::Agrupamento::Bacia));
+    ree_cascata_ = new QComboBox(painel_cascata);
+    ree_cascata_->addItem(QStringLiteral("Todos"), 0);
     bacia_cascata_ = new QComboBox(painel_cascata);
     bacia_cascata_->addItem(QStringLiteral("Todas"), 0);
     so_selecionada_cascata_ = new QCheckBox(QStringLiteral("Só a cascata da usina selecionada"), painel_cascata);
-    barra_cascata->addWidget(botao_ajustar);
+    barra_cascata->addWidget(new QLabel(QStringLiteral("Agrupar por"), painel_cascata));
+    barra_cascata->addWidget(agrupamento_cascata_);
+    barra_cascata->addWidget(new QLabel(QStringLiteral("REE"), painel_cascata));
+    barra_cascata->addWidget(ree_cascata_);
+    barra_cascata->addWidget(new QLabel(QStringLiteral("Bacia"), painel_cascata));
     barra_cascata->addWidget(bacia_cascata_);
     barra_cascata->addWidget(so_selecionada_cascata_);
+    barra_cascata->addWidget(botao_ajustar);
     barra_cascata->addStretch(1);
     layout_cascata->addLayout(barra_cascata);
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
     layout_cascata->addWidget(vista_cascata_, 1);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
+    connect(agrupamento_cascata_, &QComboBox::currentIndexChanged, this, [this](int indice) {
+        vista_cascata_->definirAgrupamento(
+            static_cast<VistaCascata::Agrupamento>(agrupamento_cascata_->itemData(indice).toInt()));
+    });
+    connect(ree_cascata_, &QComboBox::currentIndexChanged, this,
+            [this](int indice) { vista_cascata_->definirRee(ree_cascata_->itemData(indice).toInt()); });
     connect(bacia_cascata_, &QComboBox::currentIndexChanged, this,
             [this](int indice) { vista_cascata_->definirBacia(bacia_cascata_->itemData(indice).toInt()); });
     connect(so_selecionada_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirSoSelecionada);
+    connect(vista_cascata_, &VistaCascata::focarCascataDe, this, [this](int linha) {
+        selecionarLinha(linha);
+        so_selecionada_cascata_->setChecked(true);
+    });
+    // A lista de REEs so vem dos grupos desenhados quando o agrupamento e por REE (assim mostra
+    // quantas usinas cada um tem); nos outros agrupamentos cai para o ree.dat do deck.
+    connect(vista_cascata_, &VistaCascata::gruposAtualizados, this, [this](const std::vector<GrupoCascata>& grupos) {
+        int ree_atual = ree_cascata_->currentData().toInt();
+        bool por_ree = agrupamento_cascata_->currentData().toInt() == static_cast<int>(VistaCascata::Agrupamento::Ree);
+
+        ree_cascata_->blockSignals(true);
+        ree_cascata_->clear();
+        ree_cascata_->addItem(QStringLiteral("Todos"), 0);
+        int indice_a_selecionar = 0;
+        if (por_ree) {
+            for (const GrupoCascata& grupo : grupos) {
+                if (grupo.codigo == 0) continue;
+                ree_cascata_->addItem(QStringLiteral("%1 (%2)")
+                                          .arg(QString::fromLatin1(grupo.nome.c_str()))
+                                          .arg(grupo.num_usinas),
+                                      grupo.codigo);
+                if (grupo.codigo == ree_atual) indice_a_selecionar = ree_cascata_->count() - 1;
+            }
+        } else {
+            for (const auto& [codigo, ree] : modelo_->lookup().rees) {
+                ree_cascata_->addItem(QString::fromLatin1(ree.nome.c_str()), codigo);
+                if (codigo == ree_atual) indice_a_selecionar = ree_cascata_->count() - 1;
+            }
+        }
+        ree_cascata_->setCurrentIndex(indice_a_selecionar);
+        ree_cascata_->blockSignals(false);
+    });
     connect(vista_cascata_, &VistaCascata::baciasAtualizadas, this, [this](const std::vector<BaciaCascata>& bacias) {
         int foz_atual = bacia_cascata_->currentData().toInt();
         std::vector<BaciaCascata> ordenadas = bacias;

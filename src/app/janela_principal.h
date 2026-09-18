@@ -63,6 +63,8 @@ private:
 
     QLineEdit* campo_filtro_;
     QCheckBox* ocultar_vazias_;
+    QComboBox* agrupamento_cascata_;
+    QComboBox* ree_cascata_;
     QComboBox* bacia_cascata_;
     QCheckBox* so_selecionada_cascata_;
     QLabel* status_arquivo_;

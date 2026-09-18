@@ -1,0 +1,74 @@
+#include "legenda_cascata.h"
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPainter>
+#include <QPixmap>
+#include <QVBoxLayout>
+#include <algorithm>
+
+namespace {
+constexpr int LADO_AMOSTRA = 10;
+constexpr int ALPHA_FUNDO = 200;
+constexpr size_t MAXIMO_LINHAS = 15;
+}  // namespace
+
+LegendaCascata::LegendaCascata(QWidget* parent) : QFrame(parent) {
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+    setAutoFillBackground(false);
+    layout_ = new QVBoxLayout(this);
+    layout_->setContentsMargins(6, 4, 6, 4);
+    layout_->setSpacing(2);
+    hide();
+}
+
+// Redesenha o fundo a mao em vez de folha de estilo: cor da janela com alpha para a cena aparecer
+// por baixo, mais uma borda de 1 px. O ultimo QFrame pintado por cima dos itens da cena precisa
+// disso porque o viewport nao pinta nada atras de um filho sem autoFillBackground.
+void LegendaCascata::paintEvent(QPaintEvent* ev) {
+    QPainter pintor(this);
+    QColor fundo = palette().window().color();
+    fundo.setAlpha(ALPHA_FUNDO);
+    pintor.fillRect(rect(), fundo);
+    pintor.setPen(palette().mid().color());
+    pintor.drawRect(rect().adjusted(0, 0, -1, -1));
+    QFrame::paintEvent(ev);
+}
+
+// Uma linha por grupo, limitada a MAXIMO_LINHAS para a legenda nao cobrir a vista quando o
+// agrupamento e por bacia (dezenas de grupos); o excedente vira uma linha "+N outros".
+void LegendaCascata::definirGrupos(const std::vector<std::pair<QString, QColor>>& grupos) {
+    while (QLayoutItem* item = layout_->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+
+    if (grupos.empty()) {
+        hide();
+        return;
+    }
+
+    size_t mostradas = std::min(grupos.size(), MAXIMO_LINHAS);
+    for (size_t i = 0; i < mostradas; ++i) {
+        auto* linha = new QWidget(this);
+        auto* layout_linha = new QHBoxLayout(linha);
+        layout_linha->setContentsMargins(0, 0, 0, 0);
+        layout_linha->setSpacing(6);
+
+        QPixmap amostra(LADO_AMOSTRA, LADO_AMOSTRA);
+        amostra.fill(grupos[i].second);
+        auto* quadrado = new QLabel(linha);
+        quadrado->setPixmap(amostra);
+        quadrado->setFixedSize(LADO_AMOSTRA, LADO_AMOSTRA);
+
+        layout_linha->addWidget(quadrado);
+        layout_linha->addWidget(new QLabel(grupos[i].first, linha));
+        layout_linha->addStretch(1);
+        layout_->addWidget(linha);
+    }
+    if (grupos.size() > mostradas) {
+        layout_->addWidget(new QLabel(QStringLiteral("+%1 outros").arg(static_cast<int>(grupos.size() - mostradas)), this));
+    }
+
+    adjustSize();
+    show();
+}

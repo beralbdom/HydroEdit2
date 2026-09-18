@@ -168,6 +168,83 @@ Cascata empacotarBacias(const Cascata& c, int largura_maxima) {
     return resultado;
 }
 
+// Uma faixa horizontal por grupo, empilhadas na ordem crescente do codigo do grupo, com 2 linhas
+// de folga entre faixas para caber o titulo. Cada faixa comeca na coluna 0 e usa a mesma regra de
+// quebra de empacotarBacias, com as bacias em ordem decrescente de tamanho para as maiores ficarem
+// a esquerda. O grupo de uma bacia vem do codigo da sua foz; foz sem grupo cai no grupo 0. Assume,
+// como empacotarBacias, que c saiu de montarCascata (cada bacia comecando na linha 0).
+Cascata empacotarPorGrupo(const Cascata& c, const std::map<int, int>& grupo_da_usina,
+                          const std::map<int, std::string>& nome_do_grupo, int largura_maxima) {
+    Cascata resultado = c;
+    resultado.grupos.clear();
+
+    std::unordered_map<int, std::vector<size_t>> nosPorBacia;
+    for (size_t i = 0; i < resultado.nos.size(); ++i) nosPorBacia[resultado.nos[i].bacia].push_back(i);
+
+    std::map<int, std::vector<size_t>> baciasDoGrupo;
+    for (size_t i = 0; i < resultado.bacias.size(); ++i) {
+        auto it = grupo_da_usina.find(resultado.bacias[i].codigo_foz);
+        baciasDoGrupo[it == grupo_da_usina.end() ? 0 : it->second].push_back(i);
+    }
+
+    int linhaBase = 0;
+    int numColunas = 0;
+
+    for (auto& [codigo, indices] : baciasDoGrupo) {
+        std::stable_sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
+            return resultado.bacias[a].num_usinas > resultado.bacias[b].num_usinas;
+        });
+
+        int larguraAcumulada = 0;
+        int deslocamentoLinha = 0;
+        int alturaMaximaLinha = 0;
+        bool primeiraDaLinha = true;
+        int larguraGrupo = 0;
+        int alturaGrupo = 0;
+        int usinasGrupo = 0;
+
+        for (size_t i : indices) {
+            BaciaCascata& bacia = resultado.bacias[i];
+            bool cabe = primeiraDaLinha || largura_maxima <= 0 ||
+                        (larguraAcumulada + bacia.largura + 1 <= largura_maxima);
+            if (!cabe) {
+                deslocamentoLinha += alturaMaximaLinha + 1;
+                larguraAcumulada = 0;
+                alturaMaximaLinha = 0;
+                primeiraDaLinha = true;
+            }
+
+            int novaColunaInicial = larguraAcumulada + (primeiraDaLinha ? 0 : 1);
+            double deltaColuna = static_cast<double>(novaColunaInicial - bacia.coluna_inicial);
+            int deltaLinha = linhaBase + deslocamentoLinha;
+
+            for (size_t indice : nosPorBacia[bacia.indice]) {
+                resultado.nos[indice].coluna += deltaColuna;
+                resultado.nos[indice].linha += deltaLinha;
+            }
+
+            bacia.coluna_inicial = novaColunaInicial;
+            larguraAcumulada = novaColunaInicial + bacia.largura;
+            alturaMaximaLinha = std::max(alturaMaximaLinha, bacia.altura);
+            larguraGrupo = std::max(larguraGrupo, larguraAcumulada);
+            alturaGrupo = std::max(alturaGrupo, deslocamentoLinha + bacia.altura);
+            usinasGrupo += bacia.num_usinas;
+            primeiraDaLinha = false;
+        }
+
+        auto it_nome = nome_do_grupo.find(codigo);
+        bool tem_nome = it_nome != nome_do_grupo.end() && !it_nome->second.empty();
+        resultado.grupos.push_back(GrupoCascata{codigo, tem_nome ? it_nome->second : std::string("Sem grupo"), 0,
+                                                linhaBase, larguraGrupo, alturaGrupo, usinasGrupo});
+        numColunas = std::max(numColunas, larguraGrupo);
+        linhaBase += alturaGrupo + 2;
+    }
+
+    resultado.num_colunas = numColunas;
+    resultado.num_linhas = resultado.grupos.empty() ? 0 : linhaBase - 2;
+    return resultado;
+}
+
 // Extrai os nos e arestas internas da bacia cuja foz e codigo_foz, deslocando as colunas para a
 // bacia comecar em zero (coluna_inicial passa a 0). Cascata retornada com nos.empty() se
 // nenhuma bacia tiver essa foz (por exemplo, apos a foz deixar de existir no deck).

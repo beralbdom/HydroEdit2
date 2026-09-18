@@ -72,6 +72,75 @@ std::map<int, std::string> lerPostos(const fs::path& p, std::vector<std::string>
     return m;
 }
 
+// confhd.dat: duas linhas de cabecalho, depois uma usina por linha (manual NEWAVE 30.0.2, secao
+// 3.9: campo 1 nas colunas 2-5 = codigo da usina, campo 5 nas colunas 31-34 = numero do REE,
+// em base 1). Linhas curtas ou sem numero nessas colunas sao ignoradas.
+std::map<int, int> lerConfhd(const fs::path& p, std::vector<std::string>& notas) {
+    std::map<int, int> m;
+    std::ifstream f(p);
+    if (!f) {
+        notas.push_back("confhd.dat nao encontrado");
+        return m;
+    }
+    std::string linha;
+    int cabecalhos = 0;
+    while (std::getline(f, linha)) {
+        if (cabecalhos < 2) {
+            ++cabecalhos;
+            continue;
+        }
+        if (linha.size() < 34) continue;
+        try {
+            m[std::stoi(linha.substr(1, 4))] = std::stoi(linha.substr(30, 4));
+        } catch (...) {
+            continue;
+        }
+    }
+    return m;
+}
+
+// ree.dat, bloco "REES X SUBMERCADOS": cabecalho "NUM|NOME REES.|...", uma linha de mascara
+// "XXX|...", depois um REE por linha ate a sentinela 999. Codigo nas colunas 1-4, nome nas
+// colunas 6-15 e o submercado e o primeiro inteiro depois da coluna 15 (manual NEWAVE 30.0.2).
+std::map<int, Ree> lerRee(const fs::path& p, std::vector<std::string>& notas) {
+    std::map<int, Ree> m;
+    std::ifstream f(p);
+    if (!f) {
+        notas.push_back("ree.dat nao encontrado");
+        return m;
+    }
+    std::string linha;
+    bool no_bloco = false;
+    bool mascara_pulada = false;
+    while (std::getline(f, linha)) {
+        if (!no_bloco) {
+            if (comecaCom(linha, "NUM|NOME")) no_bloco = true;
+            continue;
+        }
+        if (!mascara_pulada) {
+            mascara_pulada = true;
+            continue;
+        }
+        if (comecaCom(linha, "999")) break;
+        if (linha.size() < 16) continue;
+        int codigo = 0;
+        try {
+            codigo = std::stoi(linha.substr(0, 4));
+        } catch (...) {
+            continue;
+        }
+        Ree ree;
+        std::string nome = apararDireita(linha.substr(5, 10));
+        size_t ini = nome.find_first_not_of(' ');
+        ree.nome = ini == std::string::npos ? std::string() : nome.substr(ini);
+        std::string resto = linha.substr(15);
+        size_t digito = resto.find_first_of("0123456789");
+        if (digito != std::string::npos) ree.submercado = std::stoi(resto.substr(digito));
+        m[codigo] = ree;
+    }
+    return m;
+}
+
 std::map<int, std::string> lerCsvCodigoNome(const fs::path& p, std::vector<std::string>& notas) {
     std::map<int, std::string> m;
     std::ifstream f(p);
@@ -99,6 +168,8 @@ std::map<int, std::string> lerCsvCodigoNome(const fs::path& p, std::vector<std::
 void DeckLookup::carregarDeck(const fs::path& dir_deck) {
     subsistemas = lerSistema(dir_deck / "sistema.dat", notas);
     postos = lerPostos(dir_deck / "postos.dat", notas);
+    ree_da_usina = lerConfhd(dir_deck / "confhd.dat", notas);
+    rees = lerRee(dir_deck / "ree.dat", notas);
 }
 
 void DeckLookup::carregarCsvs(const fs::path& dir_exe) {
@@ -110,3 +181,18 @@ std::string DeckLookup::nomeSubsistema(int codigo) const { return buscar(subsist
 std::string DeckLookup::nomePosto(int codigo) const { return buscar(postos, codigo); }
 std::string DeckLookup::nomeEmpresa(int codigo) const { return buscar(empresas, codigo); }
 std::string DeckLookup::nomeTurbina(int codigo) const { return buscar(turbinas, codigo); }
+
+int DeckLookup::reeDaUsina(int codigo) const {
+    auto it = ree_da_usina.find(codigo);
+    return it == ree_da_usina.end() ? 0 : it->second;
+}
+
+std::string DeckLookup::nomeRee(int ree) const {
+    auto it = rees.find(ree);
+    return it == rees.end() ? std::string() : it->second.nome;
+}
+
+int DeckLookup::submercadoDoRee(int ree) const {
+    auto it = rees.find(ree);
+    return it == rees.end() ? 0 : it->second.submercado;
+}

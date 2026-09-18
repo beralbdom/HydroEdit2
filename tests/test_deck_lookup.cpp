@@ -24,12 +24,34 @@ private slots:
         QCOMPARE(d.nomePosto(3), std::string("ITUMBIARA"));
         QVERIFY(d.notas.empty());
     }
+    void leReeDasUsinasDoConfhd() {
+        DeckLookup d;
+        d.carregarDeck(fs::path(DIR_FIXTURES));
+        QCOMPARE(d.reeDaUsina(4), 10);
+        QCOMPARE(d.reeDaUsina(20), 10);
+        QCOMPARE(d.reeDaUsina(21), 10);
+        QCOMPARE(d.reeDaUsina(999), 0);
+        QCOMPARE(d.ree_da_usina.size(), static_cast<size_t>(3));
+    }
+    void leReesDoReeDat() {
+        DeckLookup d;
+        d.carregarDeck(fs::path(DIR_FIXTURES));
+        QCOMPARE(d.nomeRee(6), std::string("MADEIRA"));
+        QCOMPARE(d.nomeRee(12), std::string("PRNPANEMA"));
+        QCOMPARE(d.nomeRee(99), std::string(""));
+        QCOMPARE(d.submercadoDoRee(11), 2);
+        QCOMPARE(d.submercadoDoRee(1), 1);
+        QCOMPARE(d.submercadoDoRee(99), 0);
+        QCOMPARE(d.rees.size(), static_cast<size_t>(12));
+    }
     void diretorioSemArquivosGeraNotasENaoFalha() {
         DeckLookup d;
         d.carregarDeck(fs::temp_directory_path());
         QVERIFY(d.subsistemas.empty());
         QVERIFY(d.postos.empty());
-        QCOMPARE(d.notas.size(), static_cast<size_t>(2));
+        QVERIFY(d.ree_da_usina.empty());
+        QVERIFY(d.rees.empty());
+        QCOMPARE(d.notas.size(), static_cast<size_t>(4));
     }
     void leCsvsOpcionais() {
         DeckLookup d;
