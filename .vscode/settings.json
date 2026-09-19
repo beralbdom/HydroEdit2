@@ -1,0 +1,14 @@
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.debugConfig": {
+        "args": [
+            "${workspaceFolder}/deck_newave_2026_09_rev1/hidr.dat"
+        ],
+        "environment": [
+            {
+                "name": "PATH",
+                "value": "C:\\Qt\\6.11.2\\msvc2022_64\\bin;$penv{PATH}"
+            }
+        ]
+    }
+}

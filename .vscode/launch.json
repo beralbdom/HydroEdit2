@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "HydroEdit2 com o deck NEWAVE",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [
+                "${workspaceFolder}/deck_newave_2026_09_rev1/hidr.dat"
+            ],
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "PATH",
+                    "value": "C:\\Qt\\6.11.2\\msvc2022_64\\bin;${env:PATH}"
+                }
+            ],
+            "console": "internalConsole",
+            "preLaunchTask": "CMake: build"
+        }
+    ]
+}
