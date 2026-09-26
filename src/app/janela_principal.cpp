@@ -73,6 +73,10 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     formulario_->adicionarAoCabecalho(campo_filtro_);
     connect(campo_filtro_, &QLineEdit::textChanged, filtro_, &FiltroUsinas::definirTexto);
     connect(campo_filtro_, &QLineEdit::textChanged, vista_cascata_, &VistaCascata::definirFiltro);
+    botao_salvar_ = new QPushButton(QStringLiteral("Salvar"), formulario_);
+    botao_salvar_->setEnabled(false);
+    formulario_->abas()->setCornerWidget(botao_salvar_, Qt::TopRightCorner);
+    connect(botao_salvar_, &QPushButton::clicked, this, &JanelaPrincipal::salvar);
     splitter_->setStretchFactor(0, 1);
     splitter_->setStretchFactor(1, 1);
     splitter_->setSizes({360, 480});
@@ -250,8 +254,8 @@ void JanelaPrincipal::aplicarFiltrosCascata() {
 // exatamente na borda direita do painel das abas, sem aba escondida atras das setas de rolagem nem
 // sobra depois dela. A primeira estimativa e a largura da barra de abas mais as margens do layout do
 // formulario; como o estilo ainda desloca a barra e reserva alguns pixels, a janela aplica a
-// estimativa, mede onde a barra terminaria (x da barra mais a largura que ela pede) contra a largura
-// do QTabWidget e corrige a diferenca, para mais ou para menos. O layout principal e ativado depois
+// estimativa, mede onde a barra terminaria (x da barra mais a largura que ela pede, mais o botao
+// Salvar no canto) contra a largura do QTabWidget e corrige a diferenca, para mais ou para menos. O layout principal e ativado depois
 // de cada resize para splitter_->width() ja valer o tamanho novo. So na primeira exibicao: depois
 // disso o tamanho e do usuario.
 void JanelaPrincipal::showEvent(QShowEvent* ev) {
@@ -271,9 +275,10 @@ void JanelaPrincipal::showEvent(QShowEvent* ev) {
     };
 
     const QMargins margens = formulario_->layout()->contentsMargins();
-    int largura_direita = barra->sizeHint().width() + margens.left() + margens.right();
+    const int canto = botao_salvar_->sizeHint().width();
+    int largura_direita = barra->sizeHint().width() + canto + margens.left() + margens.right();
     aplicar(largura_direita);
-    int diferenca = barra->x() + barra->sizeHint().width() - abas->width();
+    int diferenca = barra->x() + barra->sizeHint().width() + canto - abas->width();
     if (diferenca != 0) aplicar(largura_direita + diferenca);
 }
 
@@ -561,6 +566,7 @@ void JanelaPrincipal::atualizarTitulo() {
                                  ? QString()
                                  : QStringLiteral(" (%1)").arg(QString::fromUtf8(DeckLookup::nomeModelo(deck_modelo)));
     setWindowTitle(QStringLiteral("HydroEdit 2 - %1%2%3").arg(nome, modelo_titulo, sujo));
+    botao_salvar_->setEnabled(!modelo_->caminho().isEmpty() && !modelo_->pilhaUndo()->isClean());
 }
 
 void JanelaPrincipal::atualizarStatus() {

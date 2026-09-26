@@ -1,5 +1,6 @@
 #include "editor_termicas.h"
 #include <QHeaderView>
+#include <QLineEdit>
 #include <QSortFilterProxyModel>
 #include <QTableView>
 #include <QTabWidget>
@@ -8,14 +9,40 @@
 #include "formulario_termica.h"
 #include "modelo_secao_fixa.h"
 
+namespace {
+// Filtro da tabela de usinas, com a regra do filtro das hidroeletricas: numero da usina que comeca pelo
+// texto ou nome que o contem, sem diferenciar maiusculas.
+class FiltroTermicas : public QSortFilterProxyModel {
+public:
+    using QSortFilterProxyModel::QSortFilterProxyModel;
+
+    void definirTexto(const QString& texto) {
+        beginFilterChange();
+        texto_ = texto.trimmed();
+        endFilterChange(Direction::Rows);
+    }
+
+protected:
+    bool filterAcceptsRow(int linha, const QModelIndex& pai) const override {
+        if (texto_.isEmpty()) return true;
+        if (sourceModel()->index(linha, 0, pai).data().toString().startsWith(texto_)) return true;
+        return sourceModel()->index(linha, 1, pai).data().toString().contains(texto_, Qt::CaseInsensitive);
+    }
+
+private:
+    QString texto_;
+};
+}  // namespace
+
 // Editor das usinas termoeletricas no desenho do editor das hidroeletricas: a tabela do term.dat a
-// esquerda, dentro de uma aba Tabela e com as mesmas margens, ordenavel e editavel, e o formulario
-// da usina selecionada a direita. A usina escolhida
-// na tabela e a do campo 1 (numero da usina) da linha selecionada.
+// esquerda, dentro de uma aba Tabela e com as mesmas margens, ordenavel, editavel e filtrada pelo
+// campo de busca no cabecalho do formulario, e o formulario da usina selecionada a direita. A usina
+// escolhida na tabela e a do campo 1 (numero da usina) da linha selecionada.
 EditorTermicas::EditorTermicas(DadosDeck* dados, QWidget* parent) : QSplitter(Qt::Horizontal, parent) {
     setHandleWidth(4);
     auto* modelo = new ModeloSecaoFixa(dados, QStringLiteral("term.dat"), 0, this);
-    ordenacao_ = new QSortFilterProxyModel(this);
+    auto* filtro = new FiltroTermicas(this);
+    ordenacao_ = filtro;
     ordenacao_->setSourceModel(modelo);
     ordenacao_->setSortRole(Qt::UserRole);
 
@@ -37,6 +64,13 @@ EditorTermicas::EditorTermicas(DadosDeck* dados, QWidget* parent) : QSplitter(Qt
     tabela_->horizontalHeader()->setFixedHeight(22);
 
     formulario_ = new FormularioTermica(dados, this);
+    auto* busca = new QLineEdit(formulario_);
+    busca->setPlaceholderText(QStringLiteral("Filtrar por código ou nome"));
+    busca->setClearButtonEnabled(true);
+    busca->setMinimumWidth(160);
+    busca->setMaximumWidth(260);
+    formulario_->adicionarAoCabecalho(busca);
+    connect(busca, &QLineEdit::textChanged, this, [filtro](const QString& texto) { filtro->definirTexto(texto); });
     abas->addTab(tabela_, QStringLiteral("Tabela"));
     layout->addWidget(abas, 1);
     addWidget(painel);

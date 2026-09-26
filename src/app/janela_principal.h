@@ -5,6 +5,7 @@
 class QCloseEvent;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QMenu;
 class QSplitter;
 class QTableView;
@@ -67,6 +68,7 @@ private:
     int primeiroCodigoLivre() const;
 
     QLineEdit* campo_filtro_;
+    QPushButton* botao_salvar_;
     QAction* ocultar_vazias_;
     QToolButton* ree_cascata_;
     QToolButton* submercado_cascata_;

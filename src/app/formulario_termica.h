@@ -4,6 +4,7 @@
 
 class QComboBox;
 class QFormLayout;
+class QHBoxLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -19,6 +20,7 @@ public:
     explicit FormularioTermica(DadosDeck* dados, QWidget* parent = nullptr);
     void definirUsina(const QString& codigo);
     QTabWidget* abas() const { return abas_; }
+    void adicionarAoCabecalho(QWidget* widget);
 
 private:
     struct Campo {
@@ -45,6 +47,7 @@ private:
     QLabel* aviso_;
     QPushButton* botao_salvar_;
     QTabWidget* abas_;
+    QHBoxLayout* cabecalho_;
     std::vector<Campo> campos_;
     QTableWidget* gtmin_ = nullptr;
     QLabel* sem_configuracao_ = nullptr;
