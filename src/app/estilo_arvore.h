@@ -3,9 +3,10 @@
 #include <QPalette>
 #include <QString>
 
-class QTreeWidget;
-class QTreeWidgetItem;
+class QStandardItem;
+class QStandardItemModel;
+class QTreeView;
 
 QColor corPainelAbas(const QPalette& paleta);
-void estilizarArvore(QTreeWidget* arvore);
-QTreeWidgetItem* novoGrupoArvore(QTreeWidget* arvore, const QString& titulo);
+void estilizarArvore(QTreeView* arvore);
+QStandardItem* novoGrupoArvore(QStandardItemModel* modelo, const QString& titulo);

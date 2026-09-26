@@ -2,7 +2,8 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QTableWidget>
-#include <QTreeWidget>
+#include <QStandardItemModel>
+#include <QTreeView>
 #include <QVBoxLayout>
 #include <map>
 #include <set>
@@ -36,9 +37,11 @@ QString descricaoDa(const QString& chave) {
 PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck, QWidget* parent)
     : QSplitter(Qt::Horizontal, parent), modelo_(modelo), deck_(deck) {
     setHandleWidth(4);
-    arvore_ = new QTreeWidget(this);
-    arvore_->setColumnCount(2);
-    arvore_->setHeaderLabels({QStringLiteral("Tipo"), QStringLiteral("Registros")});
+    arvore_ = new QTreeView(this);
+    itens_ = new QStandardItemModel(0, 2, arvore_);
+    itens_->setHorizontalHeaderLabels({QStringLiteral("Tipo"), QStringLiteral("Registros")});
+    arvore_->setModel(itens_);
+    arvore_->header()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     arvore_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     arvore_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     arvore_->header()->setStretchLastSection(false);
@@ -76,8 +79,8 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck
     setStretchFactor(1, 1);
     setSizes({240, 640});
 
-    connect(arvore_, &QTreeWidget::itemSelectionChanged, this, [this] {
-        const QList<QTreeWidgetItem*> selecionados = arvore_->selectedItems();
+    connect(arvore_->selectionModel(), &QItemSelectionModel::selectionChanged, this, [this] {
+        const QModelIndexList selecionados = arvore_->selectionModel()->selectedRows();
         if (!selecionados.isEmpty()) mostrar(selecionados.first());
     });
     connect(deck_, &DadosDeck::recarregado, this, &PaginaModificacoes::recarregar);
@@ -100,45 +103,54 @@ void PaginaModificacoes::recarregar() {
 // Categorias na ordem da tabela de palavras-chave; palavras-chave que o manual nao lista entram em
 // "Outras". A raiz "Todas as modificacoes" fica selecionada ao carregar.
 void PaginaModificacoes::montarArvore() {
-    arvore_->clear();
+    itens_->removeRows(0, itens_->rowCount());
     std::map<QString, int> contagem;
     for (const BlocoModif& bloco : dados_.blocos)
         for (const RegistroModif& registro : bloco.registros) ++contagem[QString::fromStdString(registro.palavra_chave)];
 
     int total = 0;
     for (const auto& [chave, n] : contagem) total += n;
-    auto* raiz = new QTreeWidgetItem(arvore_, {QStringLiteral("Todas as modificações"), QString::number(total)});
+    struct Linha {
+        QStandardItem* item;
+        QStandardItem* registros;
+    };
+    auto novaLinha = [](QStandardItem* pai, const QString& texto, int n) {
+        Linha linha{new QStandardItem(texto), new QStandardItem(QString::number(n))};
+        pai->appendRow({linha.item, linha.registros});
+        return linha;
+    };
+    const Linha raiz = novaLinha(itens_->invisibleRootItem(), QStringLiteral("Todas as modificações"), total);
 
-    std::map<QString, QTreeWidgetItem*> categorias;
+    std::map<QString, Linha> categorias;
     auto categoria = [&](const QString& nome) {
         auto it = categorias.find(nome);
         if (it != categorias.end()) return it->second;
-        auto* item = new QTreeWidgetItem(raiz, {nome, QStringLiteral("0")});
-        item->setData(0, PAPEL_CATEGORIA, nome);
-        return categorias[nome] = item;
+        Linha linha = novaLinha(raiz.item, nome, 0);
+        linha.item->setData(nome, PAPEL_CATEGORIA);
+        return categorias[nome] = linha;
     };
     auto adicionarChave = [&](const QString& chave, const QString& descricao, const QString& nome_categoria) {
-        QTreeWidgetItem* pai = categoria(nome_categoria);
+        const Linha pai = categoria(nome_categoria);
         int n = contagem.count(chave) ? contagem[chave] : 0;
-        auto* item = new QTreeWidgetItem(pai, {chave, QString::number(n)});
-        item->setData(0, PAPEL_CHAVE, chave);
-        item->setToolTip(0, descricao);
-        item->setDisabled(n == 0);
-        pai->setText(1, QString::number(pai->text(1).toInt() + n));
+        const Linha linha = novaLinha(pai.item, chave, n);
+        linha.item->setData(chave, PAPEL_CHAVE);
+        linha.item->setToolTip(descricao);
+        linha.item->setEnabled(n > 0);
+        linha.registros->setEnabled(n > 0);
+        pai.registros->setText(QString::number(pai.registros->text().toInt() + n));
     };
     for (const PalavraChaveModif& p : palavrasChaveModif()) adicionarChave(p.chave, p.descricao, p.categoria);
     for (const auto& [chave, n] : contagem)
         if (categoriaDa(chave) == outras()) adicionarChave(chave, descricaoDa(chave), outras());
 
-    for (int i = 0; i < 2; ++i) arvore_->headerItem()->setTextAlignment(i, Qt::AlignLeft);
     arvore_->expandAll();
-    arvore_->setCurrentItem(raiz);
+    arvore_->setCurrentIndex(raiz.item->index());
 }
 
-void PaginaModificacoes::mostrar(QTreeWidgetItem* item) {
-    if (!item) return;
-    const QString chave = item->data(0, PAPEL_CHAVE).toString();
-    const QString categoria = item->data(0, PAPEL_CATEGORIA).toString();
+void PaginaModificacoes::mostrar(const QModelIndex& item) {
+    if (!item.isValid()) return;
+    const QString chave = item.data(PAPEL_CHAVE).toString();
+    const QString categoria = item.data(PAPEL_CATEGORIA).toString();
     if (!chave.isEmpty()) cabecalho_->setText(QStringLiteral("%1: %2").arg(chave, descricaoDa(chave)));
     else if (!categoria.isEmpty()) cabecalho_->setText(categoria);
     else cabecalho_->setText(QStringLiteral("Todas as modificações"));

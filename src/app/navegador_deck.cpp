@@ -2,7 +2,8 @@
 #include <QDir>
 #include <QSplitter>
 #include <QStackedWidget>
-#include <QTreeWidget>
+#include <QStandardItemModel>
+#include <QTreeView>
 #include <algorithm>
 #include <filesystem>
 #include "catalogo_newave.h"
@@ -47,10 +48,11 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
         }
         auto* divisor = new QSplitter(Qt::Horizontal, this);
         divisor->setHandleWidth(4);
-        auto* lista = new QTreeWidget(divisor);
+        auto* lista = new QTreeView(divisor);
+        auto* itens = new QStandardItemModel(lista);
+        lista->setModel(itens);
         lista->setHeaderHidden(true);
         estilizarArvore(lista);
-        listas_.push_back(lista);
         auto* paginas = new QStackedWidget(divisor);
 
         std::vector<QString> grupos;
@@ -59,10 +61,10 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 grupos.push_back(grupoNewave(arquivo.nome_padrao));
 
         int largura = 0;
-        QTreeWidgetItem* primeiro = nullptr;
+        QStandardItem* primeiro = nullptr;
         for (const QString& grupo : grupos) {
-            QTreeWidgetItem* cabecalho = grupo.isEmpty() ? nullptr : novoGrupoArvore(lista, grupo);
-            const int recuo = (cabecalho ? 2 : 1) * lista->indentation();
+            QStandardItem* cabecalho = grupo.isEmpty() ? itens->invisibleRootItem() : novoGrupoArvore(itens, grupo);
+            const int recuo = (grupo.isEmpty() ? 1 : 2) * lista->indentation();
             for (const ArquivoNewave& arquivo : catalogoNewave()) {
                 if (arquivo.secao != secao || grupoNewave(arquivo.nome_padrao) != grupo) continue;
                 const LayoutArquivoFixo* layout = layoutNewave(arquivo.nome_padrao.toStdString());
@@ -81,41 +83,45 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                     indice_texto = paginas->addWidget(editor);
                 }
                 if (indice < 0) indice = indice_texto;
-                auto* item = cabecalho ? new QTreeWidgetItem(cabecalho, {arquivo.titulo}) : new QTreeWidgetItem(lista, {arquivo.titulo});
-                item->setToolTip(0, arquivo.nome_padrao);
-                item->setData(0, PAPEL_PAGINA, indice);
-                item->setData(0, PAPEL_SECAO, 0);
-                item->setData(0, PAPEL_TEXTO, indice_texto);
-                itens_.push_back({item, arquivo.titulo, arquivo.nome_padrao});
+                auto* item = new QStandardItem(arquivo.titulo);
+                cabecalho->appendRow(item);
+                item->setToolTip(arquivo.nome_padrao);
+                item->setData(indice, PAPEL_PAGINA);
+                item->setData(0, PAPEL_SECAO);
+                item->setData(indice_texto, PAPEL_TEXTO);
+                itens_.push_back({lista, item, arquivo.titulo, arquivo.nome_padrao});
                 if (!primeiro) primeiro = item;
                 largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
                 if (layout && !termicas && !layout->parametros && layout->secoes.size() > 1) {
                     for (size_t s = 0; s < layout->secoes.size(); ++s) {
                         const QString titulo = QString::fromStdString(layout->secoes[s].titulo);
-                        auto* filho = new QTreeWidgetItem(item, {titulo});
-                        filho->setData(0, PAPEL_PAGINA, indice);
-                        filho->setData(0, PAPEL_SECAO, static_cast<int>(s));
-                        filho->setData(0, PAPEL_TEXTO, indice_texto);
+                        auto* filho = new QStandardItem(titulo);
+                        item->appendRow(filho);
+                        filho->setData(indice, PAPEL_PAGINA);
+                        filho->setData(static_cast<int>(s), PAPEL_SECAO);
+                        filho->setData(indice_texto, PAPEL_TEXTO);
                         largura = std::max(largura, recuo + lista->indentation() + lista->fontMetrics().horizontalAdvance(titulo));
                     }
                 }
             }
         }
         lista->expandAll();
-        connect(lista, &QTreeWidget::itemSelectionChanged, paginas, [this, lista, paginas] {
-            const QList<QTreeWidgetItem*> selecionados = lista->selectedItems();
-            if (selecionados.isEmpty() || !(selecionados.first()->flags() & Qt::ItemIsSelectable)) return;
-            const QTreeWidgetItem* item = selecionados.first();
-            const int indice_texto = item->data(0, PAPEL_TEXTO).toInt();
+        auto mostrar = [this, lista, paginas] {
+            const QModelIndexList selecionados = lista->selectionModel()->selectedIndexes();
+            if (selecionados.isEmpty() || !(selecionados.first().flags() & Qt::ItemIsSelectable)) return;
+            const QModelIndex item = selecionados.first();
+            const int indice_texto = item.data(PAPEL_TEXTO).toInt();
             if (modo_texto_ && indice_texto >= 0) {
                 paginas->setCurrentIndex(indice_texto);
                 return;
             }
-            paginas->setCurrentIndex(item->data(0, PAPEL_PAGINA).toInt());
+            paginas->setCurrentIndex(item.data(PAPEL_PAGINA).toInt());
             if (auto* pagina_fixa = qobject_cast<PaginaArquivoFixo*>(paginas->currentWidget()))
-                pagina_fixa->mostrarSecao(item->data(0, PAPEL_SECAO).toInt());
-        });
-        lista->setCurrentItem(primeiro);
+                pagina_fixa->mostrarSecao(item.data(PAPEL_SECAO).toInt());
+        };
+        mostrar_selecionados_.push_back(mostrar);
+        connect(lista->selectionModel(), &QItemSelectionModel::selectionChanged, paginas, mostrar);
+        lista->setCurrentIndex(primeiro->index());
         divisor->addWidget(lista);
         divisor->addWidget(paginas);
         divisor->setStretchFactor(1, 1);
@@ -139,7 +145,7 @@ void NavegadorDeck::carregarDeck(const QString& dir_deck) {
 void NavegadorDeck::definirModoTexto(bool ativo) {
     aplicarEdicoesPendentes();
     modo_texto_ = ativo;
-    for (QTreeWidget* lista : listas_) emit lista->itemSelectionChanged();
+    for (const auto& mostrar : mostrar_selecionados_) mostrar();
     pilha_modificacoes_->setCurrentIndex(ativo ? 1 : 0);
 }
 
@@ -160,7 +166,7 @@ void NavegadorDeck::aplicarEdicoesPendentes() {
 void NavegadorDeck::atualizarItens() {
     const QStringList alterados = dados_->modificados();
     for (const ItemArquivo& i : itens_) {
-        QTreeWidget* arvore = i.item->treeWidget();
+        QTreeView* arvore = i.arvore;
         bool ausente = false;
         if (dados_->carregado() && i.nome_padrao != QStringLiteral("hidr.dat"))
             ausente = !dados_->lido(i.nome_padrao);
@@ -168,10 +174,10 @@ void NavegadorDeck::atualizarItens() {
         const QColor cor = ausente ? paleta.color(QPalette::Disabled, QPalette::Text) : paleta.color(QPalette::Text);
         QFont fonte = arvore->font();
         fonte.setItalic(ausente);
-        i.item->setFont(0, fonte);
-        i.item->setForeground(0, cor);
-        for (int f = 0; f < i.item->childCount(); ++f) i.item->child(f)->setForeground(0, cor);
-        i.item->setText(0, alterados.contains(i.nome_padrao) ? i.titulo + QStringLiteral("  •") : i.titulo);
+        i.item->setFont(fonte);
+        i.item->setForeground(cor);
+        for (int f = 0; f < i.item->rowCount(); ++f) i.item->child(f)->setForeground(cor);
+        i.item->setText(alterados.contains(i.nome_padrao) ? i.titulo + QStringLiteral("  •") : i.titulo);
     }
 }
 

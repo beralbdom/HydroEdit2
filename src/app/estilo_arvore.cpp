@@ -4,7 +4,8 @@
 #include <QProxyStyle>
 #include <QStyleFactory>
 #include <QStyleOption>
-#include <QTreeWidget>
+#include <QStandardItemModel>
+#include <QTreeView>
 #include <algorithm>
 
 namespace {
@@ -68,19 +69,23 @@ QColor corPainelAbas(const QPalette& paleta) {
 }
 
 // Visual comum das arvores: fundo no cinza do painel das abas, linhas pontilhadas de hierarquia com
-// a seta de expandir tambem no primeiro nivel e selecao na linha inteira.
-void estilizarArvore(QTreeWidget* arvore) {
+// a seta de expandir tambem no primeiro nivel e selecao na linha inteira. Os itens nao se editam.
+// As arvores sao QTreeView com QStandardItemModel porque o Qt estatico da distribuicao e compilado
+// sem o QTreeWidget.
+void estilizarArvore(QTreeView* arvore) {
     QPalette paleta = arvore->palette();
     paleta.setColor(QPalette::Base, corPainelAbas(paleta));
     arvore->setPalette(paleta);
     arvore->setStyle(estiloArvore());
     arvore->setRootIsDecorated(true);
     arvore->setAllColumnsShowFocus(true);
+    arvore->setEditTriggers(QAbstractItemView::NoEditTriggers);
 }
 
 // Cabecalho de grupo: item comum, que expande e recolhe, mas nao pode ser selecionado.
-QTreeWidgetItem* novoGrupoArvore(QTreeWidget* arvore, const QString& titulo) {
-    auto* grupo = new QTreeWidgetItem(arvore, {titulo});
+QStandardItem* novoGrupoArvore(QStandardItemModel* modelo, const QString& titulo) {
+    auto* grupo = new QStandardItem(titulo);
     grupo->setFlags(Qt::ItemIsEnabled);
+    modelo->invisibleRootItem()->appendRow(grupo);
     return grupo;
 }

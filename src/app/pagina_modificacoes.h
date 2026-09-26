@@ -3,9 +3,10 @@
 #include "deck_newave.h"
 
 class QLabel;
+class QModelIndex;
 class QTableWidget;
-class QTreeWidget;
-class QTreeWidgetItem;
+class QStandardItemModel;
+class QTreeView;
 class DadosDeck;
 class ModeloHidr;
 
@@ -17,11 +18,12 @@ public:
 private:
     void recarregar();
     void montarArvore();
-    void mostrar(QTreeWidgetItem* item);
+    void mostrar(const QModelIndex& item);
 
     const ModeloHidr* modelo_;
     DadosDeck* deck_;
-    QTreeWidget* arvore_;
+    QTreeView* arvore_;
+    QStandardItemModel* itens_;
     QLabel* cabecalho_;
     QLabel* detalhes_;
     QTableWidget* tabela_;

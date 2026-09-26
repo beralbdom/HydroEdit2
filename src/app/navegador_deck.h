@@ -1,10 +1,11 @@
 #pragma once
 #include <QTabWidget>
+#include <functional>
 #include <vector>
 
 class QStackedWidget;
-class QTreeWidget;
-class QTreeWidgetItem;
+class QStandardItem;
+class QTreeView;
 class DadosDeck;
 class EditorTextoArquivo;
 class ModeloHidr;
@@ -25,7 +26,8 @@ public:
 
 private:
     struct ItemArquivo {
-        QTreeWidgetItem* item;
+        QTreeView* arvore;
+        QStandardItem* item;
         QString titulo;
         QString nome_padrao;
     };
@@ -34,7 +36,7 @@ private:
 
     DadosDeck* dados_;
     bool modo_texto_ = false;
-    std::vector<QTreeWidget*> listas_;
+    std::vector<std::function<void()>> mostrar_selecionados_;
     std::vector<EditorTextoArquivo*> editores_texto_;
     PaginaModificacoes* modificacoes_;
     PaginaPostos* postos_ = nullptr;
