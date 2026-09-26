@@ -78,22 +78,27 @@ bool ModeloSecaoFixa::setData(const QModelIndex& ix, const QVariant& valor, int 
     return true;
 }
 
-// O cabecalho mostra o nome da coluna; a dica, as colunas do arquivo e o formato, como no manual.
+// O cabecalho mostra o nome da coluna; a dica, as colunas do arquivo e o formato, como no manual, ou
+// de onde vem o valor das colunas somente leitura.
 QVariant ModeloSecaoFixa::headerData(int secao, Qt::Orientation o, int role) const {
     const SecaoLida* s = secaoLida();
     if (!s || o != Qt::Horizontal) return {};
     const ColunaFixa& c = s->definicao.colunas[static_cast<size_t>(secao)];
     if (role == Qt::DisplayRole) return QString::fromStdString(c.nome);
     if (role == Qt::ToolTipRole) {
+        if (c.tipo == TipoColunaFixa::Ordinal) return QStringLiteral("Posição do registro no bloco; somente leitura");
         const int largura = c.fim - c.inicio + 1;
         QString formato = c.tipo == TipoColunaFixa::Texto     ? QStringLiteral("A%1").arg(largura)
                           : c.tipo == TipoColunaFixa::Inteiro ? QStringLiteral("I%1").arg(largura)
                                                               : QStringLiteral("F%1.%2").arg(largura).arg(c.decimais);
-        return QStringLiteral("Colunas %1 a %2, formato %3").arg(c.inicio).arg(c.fim).arg(formato);
+        const QString dica = QStringLiteral("Colunas %1 a %2, formato %3").arg(c.inicio).arg(c.fim).arg(formato);
+        return c.contexto < 0 ? dica : dica + QStringLiteral(", da linha que abre o bloco; somente leitura");
     }
     return {};
 }
 
 Qt::ItemFlags ModeloSecaoFixa::flags(const QModelIndex& ix) const {
-    return QAbstractTableModel::flags(ix) | (ix.isValid() ? Qt::ItemIsEditable : Qt::NoItemFlags);
+    const SecaoLida* s = secaoLida();
+    const bool editavel = s && ix.isValid() && ArquivoFixo::editavel(s->definicao.colunas[static_cast<size_t>(ix.column())]);
+    return QAbstractTableModel::flags(ix) | (editavel ? Qt::ItemIsEditable : Qt::NoItemFlags);
 }

@@ -120,6 +120,67 @@ private slots:
         QVERIFY(a.secoes().empty());
         QCOMPARE(a.conteudo(), texto);
     }
+    void filtroContextoOrdinalEMesmaRegiao() {
+        using T = TipoColunaFixa;
+        const FiltroLinha mae{1, 4, TesteFiltro::Preenchido, {}};
+        LayoutArquivoFixo layout{"0.0",
+                                 {{.titulo = "Valores",
+                                   .linhas_cabecalho = 1,
+                                   .terminador = "999",
+                                   .colunas = {{"Codigo", 2, 4, T::Inteiro, 0, 0},
+                                               {"Ano", 7, 10, T::Inteiro, 0, 1},
+                                               {"Patamar", 0, 0, T::Ordinal, 0, 1},
+                                               {"Valor", 12, 16, T::Real, 0}},
+                                   .passo_repeticao = 6,
+                                   .filtro = {{1, 4, TesteFiltro::Vazio, {}}},
+                                   .contextos = {{{mae}}, {{{7, 10, TesteFiltro::Preenchido, {}}}}}},
+                                  {.titulo = "Nomes", .colunas = {{"Nome", 6, 12, T::Texto, 0}}, .filtro = {mae}, .mesma_regiao = true},
+                                  {.titulo = "A", .colunas = {{"Valor", 14, 14, T::Inteiro, 0}}, .filtro = {{1, 7, TesteFiltro::Igual, {"PARAM A"}}}},
+                                  {.titulo = "B",
+                                   .colunas = {{"Valor", 14, 14, T::Inteiro, 0}},
+                                   .filtro = {{1, 7, TesteFiltro::Igual, {"PARAM B"}}},
+                                   .mesma_regiao = true}}};
+        const std::string conteudo = " CAB\n"
+                                     "   1 SUDESTE\n"
+                                     "      2026   10.   20.\n"
+                                     "             11.   21.\n"
+                                     "   2 SUL\n"
+                                     "      2026   30.   40.\n"
+                                     " 999\n"
+                                     "PARAM A      5\n"
+                                     "PARAM B      7\n";
+        ArquivoFixo a;
+        QVERIFY(a.interpretar(conteudo, layout).ok);
+        QCOMPARE(a.secoes()[0].linhas.size(), static_cast<size_t>(3));
+        QCOMPARE(a.secoes()[0].definicao.colunas.size(), static_cast<size_t>(5));
+        QCOMPARE(a.valor(0, 1, 0), std::string("1"));
+        QCOMPARE(a.valor(0, 2, 0), std::string("2"));
+        QCOMPARE(a.valor(0, 1, 1), std::string("2026"));
+        QCOMPARE(a.valor(0, 0, 2), std::string("1"));
+        QCOMPARE(a.valor(0, 1, 2), std::string("2"));
+        QCOMPARE(a.valor(0, 2, 2), std::string("1"));
+        QCOMPARE(a.valor(0, 1, 4), std::string("21."));
+        QVERIFY(!a.definir(0, 0, 0, "5").ok);
+        QVERIFY(!a.definir(0, 0, 2, "5").ok);
+        QVERIFY(a.definir(0, 1, 3, "12").ok);
+        QCOMPARE(a.valor(0, 1, 3), std::string("12."));
+        QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(2));
+        QCOMPARE(a.valor(1, 1, 0), std::string("SUL"));
+        QCOMPARE(a.secoes()[2].linhas.size(), static_cast<size_t>(1));
+        QCOMPARE(a.valor(2, 0, 0), std::string("5"));
+        QCOMPARE(a.valor(3, 0, 0), std::string("7"));
+    }
+    void maxRegistrosEncerraASecao() {
+        const ColunaFixa codigo{"Codigo", 2, 2, TipoColunaFixa::Inteiro, 0};
+        LayoutArquivoFixo layout{"0.0",
+                                 {{.titulo = "Um", .linhas_cabecalho = 1, .colunas = {codigo}, .max_registros = 1},
+                                  {.titulo = "Resto", .colunas = {codigo}}}};
+        ArquivoFixo a;
+        QVERIFY(a.interpretar(" CAB\n 1\n\n 2\n 3\n", layout).ok);
+        QCOMPARE(a.secoes()[0].linhas.size(), static_cast<size_t>(1));
+        QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(2));
+        QCOMPARE(a.valor(1, 0, 0), std::string("2"));
+    }
     void salvaEReabre() {
         QTemporaryDir dir;
         fs::path p = fs::path(dir.path().toStdWString()) / "teste.dat";

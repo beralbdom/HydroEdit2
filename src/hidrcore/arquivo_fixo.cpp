@@ -28,11 +28,34 @@ size_t comprimentoUtil(const std::string& linha) {
 }
 }  // namespace
 
+// Todos os testes do filtro valem para a linha (filtro vazio aceita qualquer uma). O texto testado e
+// o das colunas inicio a fim, aparado.
+bool ArquivoFixo::passa(const std::vector<FiltroLinha>& filtro, int linha) const {
+    const std::string& texto = linhas_[static_cast<size_t>(linha)];
+    for (const FiltroLinha& f : filtro) {
+        std::string campo = static_cast<int>(texto.size()) < f.inicio
+                                ? std::string()
+                                : aparar(texto.substr(static_cast<size_t>(f.inicio - 1), static_cast<size_t>(f.fim - f.inicio + 1)));
+        const bool listado = std::find(f.valores.begin(), f.valores.end(), campo) != f.valores.end();
+        switch (f.teste) {
+        case TesteFiltro::Vazio: if (!campo.empty()) return false; break;
+        case TesteFiltro::Preenchido: if (campo.empty()) return false; break;
+        case TesteFiltro::Igual: if (!listado) return false; break;
+        case TesteFiltro::Diferente: if (listado) return false; break;
+        }
+    }
+    return true;
+}
+
 // Separa o conteudo em linhas, guardando o tipo de quebra (CRLF ou LF) e se o arquivo termina com
 // quebra, para salvar byte a byte igual. As secoes sao lidas em ordem: cada uma pula as suas linhas
-// de cabecalho e toma como registro toda linha nao vazia ate a linha cujo primeiro campo e o
-// terminador (consumida, sem virar registro) ou ate o fim do arquivo. Uma secao que o arquivo nao
-// chega a ter fica sem registros. Com passo_repeticao, a ultima coluna da secao se repete a cada
+// de cabecalho e sua regiao vai ate a linha cujo primeiro campo e o terminador (consumida), ate o
+// fim do arquivo ou, com max_registros, ate o ultimo registro permitido. Registro e toda linha nao
+// vazia da regiao que passa no filtro. Secao com mesma_regiao le de novo a regiao da anterior, sem
+// cabecalho e sem avancar, para mostrar outro tipo de registro das mesmas linhas. Para cada contexto
+// da secao, cada registro guarda a linha de contexto: a mais proxima, no proprio registro ou antes
+// dele dentro da regiao, que passa no filtro do contexto (-1 se nenhuma). Uma secao que o arquivo
+// nao chega a ter fica sem registros. Com passo_repeticao, a ultima coluna da secao se repete a cada
 // passo enquanto alguma linha tiver texto naquela posicao, e as copias sao numeradas a partir de 1.
 Resultado ArquivoFixo::interpretar(const std::string& conteudo, const LayoutArquivoFixo& layout) {
     linhas_.clear();
@@ -47,15 +70,38 @@ Resultado ArquivoFixo::interpretar(const std::string& conteudo, const LayoutArqu
     }
 
     size_t pos = 0;
+    size_t regiao_inicio = 0;
+    size_t regiao_fim = 0;
     for (const SecaoFixa& definicao : layout.secoes) {
-        SecaoLida secao{definicao, {}};
-        pos = std::min(linhas_.size(), pos + static_cast<size_t>(definicao.linhas_cabecalho));
-        for (; pos < linhas_.size(); ++pos) {
-            if (!definicao.terminador.empty() && primeiroToken(linhas_[pos]) == definicao.terminador) {
-                ++pos;
+        SecaoLida secao{definicao, {}, {}};
+        const bool repetir = definicao.mesma_regiao && !secoes_.empty();
+        if (!repetir) {
+            regiao_inicio = std::min(linhas_.size(), pos + static_cast<size_t>(definicao.linhas_cabecalho));
+            regiao_fim = linhas_.size();
+            pos = linhas_.size();
+        }
+        const size_t limite = repetir ? regiao_fim : linhas_.size();
+        for (size_t p = regiao_inicio; p < limite; ++p) {
+            if (!repetir && !definicao.terminador.empty() && primeiroToken(linhas_[p]) == definicao.terminador) {
+                regiao_fim = p;
+                pos = p + 1;
                 break;
             }
-            if (!emBranco(linhas_[pos])) secao.linhas.push_back(static_cast<int>(pos));
+            if (definicao.max_registros > 0 && static_cast<int>(secao.linhas.size()) == definicao.max_registros) {
+                if (!repetir) regiao_fim = pos = p;
+                break;
+            }
+            if (!emBranco(linhas_[p]) && passa(definicao.filtro, static_cast<int>(p))) secao.linhas.push_back(static_cast<int>(p));
+        }
+        for (int linha : secao.linhas) {
+            std::vector<int> contexto;
+            for (const ContextoFixo& c : definicao.contextos) {
+                int achada = -1;
+                for (int q = linha; q >= static_cast<int>(regiao_inicio) && achada < 0; --q)
+                    if (!emBranco(linhas_[static_cast<size_t>(q)]) && passa(c.filtro, q)) achada = q;
+                contexto.push_back(achada);
+            }
+            secao.linhas_contexto.push_back(std::move(contexto));
         }
         if (definicao.passo_repeticao > 0 && !secao.definicao.colunas.empty()) {
             size_t maior = 0;
@@ -141,10 +187,23 @@ Resultado ArquivoFixo::salvar(const fs::path& caminho) {
     return Resultado::sucesso();
 }
 
+// Coluna de contexto le da linha de contexto do registro; coluna Ordinal da a posicao do registro
+// entre os da secao desde a sua linha de contexto, a partir de 1.
 std::string ArquivoFixo::valor(int secao, int registro, int coluna) const {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
     const ColunaFixa& c = s.definicao.colunas[static_cast<size_t>(coluna)];
-    const std::string& linha = linhas_[static_cast<size_t>(s.linhas[static_cast<size_t>(registro)])];
+    const size_t r = static_cast<size_t>(registro);
+    int indice = s.linhas[r];
+    if (c.contexto >= 0) {
+        indice = s.linhas_contexto[r][static_cast<size_t>(c.contexto)];
+        if (indice < 0) return {};
+    }
+    if (c.tipo == TipoColunaFixa::Ordinal) {
+        int posicao = 0;
+        for (int q = registro; q >= 0 && s.linhas[static_cast<size_t>(q)] >= indice; --q) ++posicao;
+        return std::to_string(posicao);
+    }
+    const std::string& linha = linhas_[static_cast<size_t>(indice)];
     if (static_cast<int>(linha.size()) < c.inicio) return {};
     return aparar(linha.substr(static_cast<size_t>(c.inicio - 1), static_cast<size_t>(c.fim - c.inicio + 1)));
 }
@@ -153,10 +212,11 @@ std::string ArquivoFixo::valor(int secao, int registro, int coluna) const {
 // mais curta; o resto da linha fica intacto. Vazio apaga o campo. Inteiro e real ficam alinhados a
 // direita e texto a esquerda, como nos arquivos do deck; real sai com as casas do formato Fw.d e, no
 // formato Fw.0, com o ponto no fim, como o Fortran escreve. Numero invalido ou que nao cabe na
-// largura e erro, e a linha nao muda.
+// largura e erro, e a linha nao muda; colunas de contexto e ordinais nao se editam.
 Resultado ArquivoFixo::definir(int secao, int registro, int coluna, const std::string& texto) {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
     const ColunaFixa& c = s.definicao.colunas[static_cast<size_t>(coluna)];
+    if (!editavel(c)) return Resultado::erro(c.nome + " e somente leitura");
     const size_t largura = static_cast<size_t>(c.fim - c.inicio + 1);
     std::string entrada = aparar(texto);
     std::string campo;
