@@ -1,7 +1,7 @@
 #pragma once
 #include <QColor>
 #include <QFont>
-#include <QGraphicsEllipseItem>
+#include <QGraphicsPathItem>
 #include <QPalette>
 #include <QPointF>
 #include <map>
@@ -16,9 +16,10 @@ class QGraphicsSimpleTextItem;
 constexpr double ESPACO_COLUNA_CASCATA = 40.0;
 constexpr double ESPACO_LINHA_CASCATA = 28.0;
 
-class PontoCascata : public QGraphicsEllipseItem {
+class PontoCascata : public QGraphicsPathItem {
 public:
-    PontoCascata(int codigo, std::function<void(int, bool)> ao_pairar);
+    PontoCascata(int codigo, bool reservatorio, std::function<void(int, bool)> ao_pairar);
+    bool reservatorio() const { return reservatorio_; }
 
 protected:
     void hoverEnterEvent(QGraphicsSceneHoverEvent* ev) override;
@@ -26,6 +27,7 @@ protected:
 
 private:
     int codigo_;
+    bool reservatorio_;
     std::function<void(int, bool)> ao_pairar_;
 };
 
@@ -47,7 +49,7 @@ std::map<int, int> indiceDeCorDosRees(const std::map<int, int>& ree_da_usina);
 QPointF centroDoNo(double coluna, int linha);
 
 ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& texto_codigo,
-                                 const QString& texto_nome, const QColor& cor, const QPalette& paleta,
+                                 const QString& texto_nome, const QColor& cor, bool reservatorio, const QPalette& paleta,
                                  const QFont& fonte, std::function<void(int, bool)> ao_pairar);
 ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& origem, const QPointF& destino,
                                       bool desvio, double curvatura, const QPalette& paleta);

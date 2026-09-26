@@ -26,6 +26,17 @@ private slots:
         u.nome.clear();
         QVERIFY(!usinaFicticia(u));
     }
+    void usinaComReservatorioPelaRegulacao() {
+        UsinaHidr u;
+        u.regulacao = "M";
+        QVERIFY(usinaComReservatorio(u));
+        u.regulacao = "S";
+        QVERIFY(usinaComReservatorio(u));
+        u.regulacao = "D";
+        QVERIFY(!usinaComReservatorio(u));
+        u.regulacao.clear();
+        QVERIFY(!usinaComReservatorio(u));
+    }
     void layoutCobre792BytesSemBuracoNemSobreposicao() {
         int esperado = 0;
         for (const Campo& c : campos()) {

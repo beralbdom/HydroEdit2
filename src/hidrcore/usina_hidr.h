@@ -56,3 +56,4 @@ struct UsinaHidr {
 };
 
 bool usinaFicticia(const UsinaHidr& usina);
+bool usinaComReservatorio(const UsinaHidr& usina);

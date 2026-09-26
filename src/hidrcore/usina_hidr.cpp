@@ -23,3 +23,11 @@ bool usinaFicticia(const UsinaHidr& usina) {
     }
     return true;
 }
+
+// Manual do DESSEM v19.0.44 (CEPEL, abr/2023): o campo 42 do cadastro (secao III.7) e o tipo de
+// regularizacao da usina, mensal, semanal ou diaria, e a secao sobre os ajustes dos valores da agua
+// trata a usina "de regularizacao diaria (portanto, fio d'agua no DECOMP)". Com reservatorio sao
+// entao as de regularizacao mensal ou semanal; diaria ou campo vazio contam como fio d'agua.
+bool usinaComReservatorio(const UsinaHidr& usina) {
+    return usina.regulacao == "M" || usina.regulacao == "S";
+}

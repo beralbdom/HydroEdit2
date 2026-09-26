@@ -84,7 +84,8 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
         QString texto_codigo = QString::number(no.codigo);
         QString texto_nome = paraTexto(modelo_->usina(no.codigo - 1).nome);
         ItensNoCascata itens =
-            criarPontoCascata(cena_, no, texto_codigo, texto_nome, cor, palette(), font(), ao_pairar);
+            criarPontoCascata(cena_, no, texto_codigo, texto_nome, cor,
+                              usinaComReservatorio(modelo_->usina(no.codigo - 1)), palette(), font(), ao_pairar);
         QString descricao = descricaoDoNo(no.codigo);
         itens.ponto->setToolTip(descricao);
         itens.codigo->setToolTip(descricao);

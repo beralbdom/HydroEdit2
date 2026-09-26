@@ -18,6 +18,7 @@
 namespace {
 constexpr double RAIO_NO = 5.0;
 constexpr double RAIO_SELECIONADO = 7.0;
+constexpr double FATOR_TRIANGULO = 1.1;
 constexpr double AFASTAMENTO_ROTULO = 8.0;
 constexpr double DESLOCAMENTO_ROTULO_Y = -7.0;
 constexpr double LARGURA_ARESTA = 2.0;
@@ -27,20 +28,38 @@ constexpr double RECUO_SETA = 8.0;
 constexpr double DESVIO_CURVA = 14.0;
 constexpr int ALPHA_BORDA_NO = 120;
 constexpr int ALPHA_ARESTA = 170;
+
+// Usina a fio d'agua e um circulo de raio `raio`; usina com reservatorio e um triangulo equilatero
+// com a ponta para baixo, meia altura FATOR_TRIANGULO vezes o raio para ter peso visual parecido com
+// o do circulo. O triangulo e centrado pela caixa envolvente e nao pelo baricentro, para a ponta de
+// seta e os rotulos ficarem na mesma distancia do centro que no circulo.
+QPainterPath formaDoPonto(double raio, bool reservatorio) {
+    QPainterPath forma;
+    if (!reservatorio) {
+        forma.addEllipse(QPointF(0.0, 0.0), raio, raio);
+        return forma;
+    }
+    double meia_altura = raio * FATOR_TRIANGULO;
+    double meia_largura = meia_altura * 2.0 / std::sqrt(3.0);
+    forma.addPolygon(QPolygonF({QPointF(-meia_largura, -meia_altura), QPointF(meia_largura, -meia_altura),
+                                QPointF(0.0, meia_altura)}));
+    forma.closeSubpath();
+    return forma;
+}
 }  // namespace
 
-PontoCascata::PontoCascata(int codigo, std::function<void(int, bool)> ao_pairar)
-    : codigo_(codigo), ao_pairar_(std::move(ao_pairar)) {
+PontoCascata::PontoCascata(int codigo, bool reservatorio, std::function<void(int, bool)> ao_pairar)
+    : codigo_(codigo), reservatorio_(reservatorio), ao_pairar_(std::move(ao_pairar)) {
     setAcceptHoverEvents(true);
 }
 
 void PontoCascata::hoverEnterEvent(QGraphicsSceneHoverEvent* ev) {
-    QGraphicsEllipseItem::hoverEnterEvent(ev);
+    QGraphicsPathItem::hoverEnterEvent(ev);
     if (ao_pairar_) ao_pairar_(codigo_, true);
 }
 
 void PontoCascata::hoverLeaveEvent(QGraphicsSceneHoverEvent* ev) {
-    QGraphicsEllipseItem::hoverLeaveEvent(ev);
+    QGraphicsPathItem::hoverLeaveEvent(ev);
     if (ao_pairar_) ao_pairar_(codigo_, false);
 }
 
@@ -83,10 +102,9 @@ QPointF centroDoNo(double coluna, int linha) {
 // ROTULO pixels antes dele), e o nome comeca a mesma distancia a direita. Os dois nascem ocultos:
 // quem decide a visibilidade e a vista, pelo zoom atual.
 ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& texto_codigo,
-                                 const QString& texto_nome, const QColor& cor, const QPalette& paleta,
+                                 const QString& texto_nome, const QColor& cor, bool reservatorio, const QPalette& paleta,
                                  const QFont& fonte, std::function<void(int, bool)> ao_pairar) {
-    auto* ponto = new PontoCascata(no.codigo, std::move(ao_pairar));
-    ponto->setRect(-RAIO_NO, -RAIO_NO, RAIO_NO * 2.0, RAIO_NO * 2.0);
+    auto* ponto = new PontoCascata(no.codigo, reservatorio, std::move(ao_pairar));
     ponto->setBrush(QBrush(cor));
     ponto->setFlag(QGraphicsItem::ItemIgnoresTransformations, true);
     ponto->setPos(centroDoNo(no.coluna, no.linha));
@@ -116,7 +134,7 @@ ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, cons
 
 void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& paleta) {
     double raio = selecionado ? RAIO_SELECIONADO : RAIO_NO;
-    ponto->setRect(-raio, -raio, raio * 2.0, raio * 2.0);
+    ponto->setPath(formaDoPonto(raio, ponto->reservatorio()));
     if (selecionado) {
         ponto->setPen(QPen(paleta.highlight().color(), 2.0));
     } else {
