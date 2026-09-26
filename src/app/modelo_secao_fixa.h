@@ -2,11 +2,14 @@
 #include <QAbstractTableModel>
 #include "arquivo_fixo.h"
 
+class DadosDeck;
+
 class ModeloSecaoFixa : public QAbstractTableModel {
     Q_OBJECT
 public:
-    explicit ModeloSecaoFixa(QObject* parent = nullptr);
-    void definirFonte(ArquivoFixo* arquivo, int secao);
+    ModeloSecaoFixa(DadosDeck* dados, const QString& nome_padrao, int secao, QObject* parent = nullptr);
+    void definirSecao(int secao);
+    int secao() const { return secao_; }
 
     int rowCount(const QModelIndex& parent = {}) const override;
     int columnCount(const QModelIndex& parent = {}) const override;
@@ -17,11 +20,11 @@ public:
 
 signals:
     void valorRecusado(const QString& motivo);
-    void alterado();
 
 private:
     const SecaoLida* secaoLida() const;
 
-    ArquivoFixo* arquivo_ = nullptr;
-    int secao_ = 0;
+    DadosDeck* dados_;
+    QString nome_;
+    int secao_;
 };

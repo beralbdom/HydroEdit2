@@ -1,10 +1,12 @@
 #pragma once
 #include <QTabWidget>
+#include <map>
 #include <vector>
 
+class QTreeWidgetItem;
+class DadosDeck;
 class ModeloHidr;
 class PaginaArquivo;
-class PaginaArquivoFixo;
 class PaginaModificacoes;
 
 class NavegadorDeck : public QTabWidget {
@@ -16,7 +18,10 @@ public:
     bool salvarTodos();
 
 private:
+    void marcarModificados();
+
+    DadosDeck* dados_;
     std::vector<PaginaArquivo*> paginas_;
-    std::vector<PaginaArquivoFixo*> paginas_fixas_;
     PaginaModificacoes* modificacoes_;
+    std::multimap<QString, std::pair<QTreeWidgetItem*, QString>> itens_por_arquivo_;
 };
