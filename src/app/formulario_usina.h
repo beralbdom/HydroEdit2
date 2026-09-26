@@ -29,6 +29,7 @@ public:
     void focarCampo(std::string_view nome);
     void marcarProblemas(const std::vector<std::string>& campos_com_erro);
     void adicionarAoCabecalho(QWidget* widget);
+    void atualizarArquivo();
     static void alinharRotulos(QWidget* pagina);
     static QWidget* paginaRolavel(QWidget* conteudo, QWidget* pai);
     static QTabWidget* novasAbas(QWidget* pai);
@@ -68,6 +69,7 @@ private:
     std::vector<GradeVetor*> grades_;
     std::map<std::string, int> pagina_do_campo_;
     QLabel* titulo_;
+    QLabel* arquivo_;
     QHBoxLayout* cabecalho_;
     QTabWidget* abas_;
     GraficoPolinomio* grafico_cota_volume_ = nullptr;

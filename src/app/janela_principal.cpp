@@ -309,6 +309,7 @@ void JanelaPrincipal::criarMenus() {
     ocultar_vazias_->setCheckable(true);
     ocultar_vazias_->setChecked(true);
     connect(ocultar_vazias_, &QAction::toggled, filtro_, &FiltroUsinas::definirOcultarVazias);
+    connect(ocultar_vazias_, &QAction::toggled, navegador_, &NavegadorDeck::definirOcultarVazios);
     ver->addSeparator();
     nomes_cascata_ = ver->addAction(QStringLiteral("&Nomes na cascata"));
     nomes_cascata_->setCheckable(true);
@@ -567,6 +568,7 @@ void JanelaPrincipal::atualizarTitulo() {
                                  : QStringLiteral(" (%1)").arg(QString::fromUtf8(DeckLookup::nomeModelo(deck_modelo)));
     setWindowTitle(QStringLiteral("HydroEdit 2 - %1%2%3").arg(nome, modelo_titulo, sujo));
     botao_salvar_->setEnabled(!modelo_->caminho().isEmpty() && !modelo_->pilhaUndo()->isClean());
+    formulario_->atualizarArquivo();
 }
 
 void JanelaPrincipal::atualizarStatus() {

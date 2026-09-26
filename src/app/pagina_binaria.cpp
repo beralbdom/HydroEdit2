@@ -30,6 +30,12 @@ int anoInicial(const DadosDeck* dados) {
     }
     return ano;
 }
+
+// Posto vazio e o registro sem nome no postos.dat; no deck de exemplo todos eles tem vazao zero em
+// todos os meses do vazoes.dat.
+bool postoVazio(const ArquivoBinario* postos, int registro) {
+    return postos->texto(registro, postos_dat::NOME, postos_dat::TAMANHO_NOME).empty();
+}
 }  // namespace
 
 // Tabela do postos.dat, um posto por linha: codigo (a posicao do registro), nome e anos inicial e
@@ -236,15 +242,34 @@ void PaginaBinaria::atualizar(const QString& aviso) {
     botao_salvar_->setEnabled(arquivo && arquivo->modificado());
 }
 
+// Com Ver > Ocultar registros vazios, os postos sem nome somem da tabela; a lista se refaz quando o
+// deck muda ou um nome e editado.
 PaginaPostos::PaginaPostos(DadosDeck* dados, QWidget* parent)
     : PaginaBinaria(QStringLiteral("Postos fluviométricos"), POSTOS, QStringLiteral("3.10"), dados, parent) {
     modelo_ = new ModeloPostos(dados_, this);
     modelo_->recusado = [this](const QString& motivo) { atualizar(motivo); };
-    QTableView* tabela = novaTabela();
-    tabela->setModel(modelo_);
-    connect(dados_, &DadosDeck::recarregado, tabela, [tabela] { tabela->resizeColumnsToContents(); });
-    tabela->resizeColumnsToContents();
+    tabela_ = novaTabela();
+    tabela_->setModel(modelo_);
+    connect(dados_, &DadosDeck::recarregado, this, [this] {
+        tabela_->resizeColumnsToContents();
+        aplicarOcultos();
+    });
+    connect(dados_, &DadosDeck::alterado, this, [this](const QString& nome) {
+        if (nome == POSTOS) aplicarOcultos();
+    });
+    tabela_->resizeColumnsToContents();
+    aplicarOcultos();
     atualizar();
+}
+
+void PaginaPostos::definirOcultarVazios(bool ocultar) {
+    ocultar_vazios_ = ocultar;
+    aplicarOcultos();
+}
+
+void PaginaPostos::aplicarOcultos() {
+    const ArquivoBinario* postos = dados_->arquivoBinario(POSTOS);
+    for (int r = 0; r < modelo_->rowCount(); ++r) tabela_->setRowHidden(r, ocultar_vazios_ && postos && postoVazio(postos, r));
 }
 
 QString PaginaPostos::resumo() const {
@@ -255,8 +280,9 @@ QString PaginaPostos::resumo() const {
     return QStringLiteral("%1 postos, %2 com nome").arg(a->registros()).arg(com_nome);
 }
 
-// Vazoes de um posto por vez, escolhido na lista (codigo e nome do postos.dat); a lista se refaz
-// quando o deck muda ou um nome e editado, mantendo o posto escolhido.
+// Vazoes de um posto por vez, escolhido na lista (codigo e nome do postos.dat, sem os postos vazios
+// com Ver > Ocultar registros vazios); a lista se refaz quando o deck muda, um nome e editado ou a
+// opcao muda, mantendo o posto escolhido se ele continuar nela.
 PaginaVazoes::PaginaVazoes(DadosDeck* dados, QWidget* parent)
     : PaginaBinaria(QStringLiteral("Vazões históricas"), VAZOES, QStringLiteral("3.14"), dados, parent) {
     auto* linha = new QHBoxLayout;
@@ -273,7 +299,7 @@ PaginaVazoes::PaginaVazoes(DadosDeck* dados, QWidget* parent)
     tabela_->setModel(modelo_);
 
     connect(postos_, &QComboBox::currentIndexChanged, this, [this](int i) {
-        modelo_->definirPosto(i + 1);
+        modelo_->definirPosto(i >= 0 ? postos_->itemData(i).toInt() : 0);
         tabela_->resizeColumnsToContents();
     });
     connect(dados_, &DadosDeck::recarregado, this, &PaginaVazoes::preencherPostos);
@@ -283,21 +309,28 @@ PaginaVazoes::PaginaVazoes(DadosDeck* dados, QWidget* parent)
     preencherPostos();
 }
 
+void PaginaVazoes::definirOcultarVazios(bool ocultar) {
+    ocultar_vazios_ = ocultar;
+    preencherPostos();
+}
+
 void PaginaVazoes::preencherPostos() {
-    const int atual = std::max(0, postos_->currentIndex());
+    const int atual = postos_->currentData().toInt();
     const ArquivoBinario* postos = dados_->arquivoBinario(POSTOS);
     const ArquivoBinario* vazoes = dados_->arquivoBinario(VAZOES);
     const int n = vazoes ? vazoes->tamanhoRegistro() / 4 : 0;
     const QSignalBlocker bloqueio(postos_);
     postos_->clear();
     for (int p = 1; p <= n; ++p) {
-        const QString nome = postos && p <= postos->registros()
-                                 ? QString::fromLatin1(postos->texto(p - 1, postos_dat::NOME, postos_dat::TAMANHO_NOME).c_str())
-                                 : QString();
-        postos_->addItem(nome.isEmpty() ? QString::number(p) : QStringLiteral("%1  %2").arg(p).arg(nome));
+        const bool com_registro = postos && p <= postos->registros();
+        if (ocultar_vazios_ && com_registro && postoVazio(postos, p - 1)) continue;
+        const QString nome =
+            com_registro ? QString::fromLatin1(postos->texto(p - 1, postos_dat::NOME, postos_dat::TAMANHO_NOME).c_str()) : QString();
+        postos_->addItem(nome.isEmpty() ? QString::number(p) : QStringLiteral("%1  %2").arg(p).arg(nome), p);
     }
-    postos_->setCurrentIndex(n > 0 ? std::min(atual, n - 1) : -1);
-    modelo_->definirPosto(n > 0 ? postos_->currentIndex() + 1 : 0);
+    const int escolhido = postos_->findData(atual);
+    postos_->setCurrentIndex(escolhido >= 0 ? escolhido : (postos_->count() > 0 ? 0 : -1));
+    modelo_->definirPosto(postos_->currentIndex() >= 0 ? postos_->currentData().toInt() : 0);
     tabela_->resizeColumnsToContents();
     atualizar();
 }

@@ -1,6 +1,7 @@
 #include "formulario_usina.h"
 #include <QComboBox>
 #include <QDoubleValidator>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
@@ -10,6 +11,7 @@
 #include <QLineEdit>
 #include <QScrollArea>
 #include <QTabWidget>
+#include <QUndoStack>
 #include <QVBoxLayout>
 #include <algorithm>
 #include "grade_vetor.h"
@@ -31,6 +33,12 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     cabecalho_->addWidget(titulo_);
     cabecalho_->addStretch(1);
     externo->addLayout(cabecalho_);
+    arquivo_ = new QLabel(this);
+    arquivo_->setEnabled(false);
+    externo->addWidget(arquivo_);
+    connect(modelo_->pilhaUndo(), &QUndoStack::cleanChanged, this, &FormularioUsina::atualizarArquivo);
+    connect(modelo_, &QAbstractItemModel::modelReset, this, &FormularioUsina::atualizarArquivo);
+    atualizarArquivo();
 
     abas_ = novasAbas(this);
 
@@ -62,6 +70,15 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
 
 // Widgets de fora do formulario que acompanham o titulo da usina, alinhados a direita dele.
 void FormularioUsina::adicionarAoCabecalho(QWidget* widget) { cabecalho_->addWidget(widget); }
+
+// Linha abaixo do titulo com o arquivo do cadastro, como a lista de arquivos das termoeletricas, e o
+// aviso de alteracao nao salva.
+void FormularioUsina::atualizarArquivo() {
+    const QString nome = QFileInfo(modelo_->caminho()).fileName();
+    arquivo_->setText(nome.isEmpty()                         ? QStringLiteral("nenhum arquivo aberto")
+                      : modelo_->pilhaUndo()->isClean() ? nome
+                                                        : QStringLiteral("alterado, não salvo: %1").arg(nome));
+}
 
 void FormularioUsina::configurarLayout(QLayout* l) {
     l->setContentsMargins(6, 4, 6, 4);

@@ -32,17 +32,22 @@ class PaginaPostos : public PaginaBinaria {
     Q_OBJECT
 public:
     explicit PaginaPostos(DadosDeck* dados, QWidget* parent = nullptr);
+    void definirOcultarVazios(bool ocultar);
 
 private:
     QString resumo() const override;
+    void aplicarOcultos();
 
     ModeloPostos* modelo_;
+    QTableView* tabela_;
+    bool ocultar_vazios_ = true;
 };
 
 class PaginaVazoes : public PaginaBinaria {
     Q_OBJECT
 public:
     explicit PaginaVazoes(DadosDeck* dados, QWidget* parent = nullptr);
+    void definirOcultarVazios(bool ocultar);
 
 private:
     QString resumo() const override;
@@ -51,4 +56,5 @@ private:
     QComboBox* postos_;
     ModeloVazoes* modelo_;
     QTableView* tabela_;
+    bool ocultar_vazios_ = true;
 };

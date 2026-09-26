@@ -69,8 +69,8 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 const bool termicas = arquivo.nome_padrao == QStringLiteral("term.dat");
                 QWidget* pagina = nullptr;
                 if (arquivo.nome_padrao == QStringLiteral("hidr.dat")) pagina = editor_hidr;
-                else if (arquivo.nome_padrao == QStringLiteral("postos.dat")) pagina = new PaginaPostos(dados_, paginas);
-                else if (arquivo.nome_padrao == QStringLiteral("vazoes.dat")) pagina = new PaginaVazoes(dados_, paginas);
+                else if (arquivo.nome_padrao == QStringLiteral("postos.dat")) pagina = postos_ = new PaginaPostos(dados_, paginas);
+                else if (arquivo.nome_padrao == QStringLiteral("vazoes.dat")) pagina = vazoes_ = new PaginaVazoes(dados_, paginas);
                 else if (termicas) pagina = new EditorTermicas(dados_, paginas);
                 else if (layout) pagina = new PaginaArquivoFixo(arquivo, *layout, dados_, paginas);
                 int indice = pagina ? paginas->addWidget(pagina) : -1;
@@ -141,6 +141,13 @@ void NavegadorDeck::definirModoTexto(bool ativo) {
     modo_texto_ = ativo;
     for (QTreeWidget* lista : listas_) emit lista->itemSelectionChanged();
     pilha_modificacoes_->setCurrentIndex(ativo ? 1 : 0);
+}
+
+// Ver > Ocultar registros vazios vale tambem para os postos sem nome, na tabela do postos.dat e na
+// lista de postos das vazoes.
+void NavegadorDeck::definirOcultarVazios(bool ocultar) {
+    if (postos_) postos_->definirOcultarVazios(ocultar);
+    if (vazoes_) vazoes_->definirOcultarVazios(ocultar);
 }
 
 void NavegadorDeck::aplicarEdicoesPendentes() {
