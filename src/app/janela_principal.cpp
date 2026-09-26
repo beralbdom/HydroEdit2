@@ -322,10 +322,11 @@ void JanelaPrincipal::criarMenus() {
         QMessageBox sobre(this);
         sobre.setWindowTitle(QStringLiteral("Sobre"));
         sobre.setWindowIcon(QIcon(QStringLiteral(":/hidr.ico")));
-        const QPixmap logo(QStringLiteral(":/hidr.ico"));
-        QPixmap logo_com_margem(logo.width() + 8, logo.height());
+        const QPixmap logo = QIcon(QStringLiteral(":/hidr.ico")).pixmap(QSize(64, 64), devicePixelRatio());
+        QPixmap logo_com_margem(logo.width() + qRound(8 * logo.devicePixelRatio()), logo.height());
+        logo_com_margem.setDevicePixelRatio(logo.devicePixelRatio());
         logo_com_margem.fill(Qt::transparent);
-        QPainter(&logo_com_margem).drawPixmap(8, 0, logo);
+        QPainter(&logo_com_margem).drawPixmap(QPointF(8, 0), logo);
         sobre.setIconPixmap(logo_com_margem);
         sobre.setTextFormat(Qt::RichText);
         const QString cor_esmaecida = palette().color(QPalette::Disabled, QPalette::WindowText).name();

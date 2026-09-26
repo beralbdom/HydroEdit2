@@ -31,6 +31,10 @@ ctest --preset msvc-debug
 scripts\compilar.bat
 ```
 
+### Build automático
+
+O workflow `.github/workflows/build.yml` compila o executável único (Qt estático pelo vcpkg, no mesmo commit do vcpkg usado localmente) a cada push na `main` e deixa o `HydroEdit2.exe` como artefato do run. Ao enviar uma tag de versão igual à de `src/app/main.cpp` (por exemplo `0.3`), ele publica o executável na release dessa tag. O primeiro run compila o Qt e leva mais de uma hora; os seguintes usam o cache.
+
 ### Visual Studio
 
 Abra a pasta do repositório (Arquivo > Abrir > Pasta). O Visual Studio lê o `CMakePresets.json` e mostra os presets na barra de ferramentas (`msvc-debug`, `msvc-release`, `msvc-static`). Escolha `HydroEdit2.exe` como item de inicialização; a configuração de depuração em `.vs/launch.vs.json` já passa o deck de exemplo como argumento e coloca o Qt no PATH. Os testes aparecem no Gerenciador de Testes via CTest.

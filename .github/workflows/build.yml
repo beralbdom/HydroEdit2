@@ -1,0 +1,95 @@
+name: Build estatico
+
+on:
+  push:
+    branches: [main]
+    tags: ['[0-9]+.[0-9]+*']
+    paths-ignore: ['**.md', 'docs/**', '.vscode/**', 'scripts/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  VCPKG_COMMIT: fa8cecf91d7f31a1715a7a6524f208897ffb33ce
+  VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-cache
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versao do app igual a tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          $linha = Select-String -Path src/app/main.cpp -Pattern 'setApplicationVersion\(QStringLiteral\("([^"]+)"\)\)'
+          $versao = $linha.Matches[0].Groups[1].Value
+          if ($versao -ne $env:GITHUB_REF_NAME) { throw "A tag $env:GITHUB_REF_NAME difere da versao $versao em src/app/main.cpp" }
+
+      - name: Ambiente do MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: vcpkg no mesmo commit do build local
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          git -C $env:VCPKG_INSTALLATION_ROOT fetch --depth 1 origin $env:VCPKG_COMMIT
+          git -C $env:VCPKG_INSTALLATION_ROOT checkout --force $env:VCPKG_COMMIT
+          & "$env:VCPKG_INSTALLATION_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+
+      - name: Restaurar pacotes compilados do vcpkg
+        id: cache-vcpkg
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg-triplets/**') }}
+
+      - name: Qt estatico pelo vcpkg
+        run: >
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install
+          "qtbase[core,gui,widgets,harfbuzz,png]:x64-windows-static"
+          "qtcharts[core]:x64-windows-static"
+          --overlay-triplets=vcpkg-triplets --clean-after-build
+
+      - name: Guardar pacotes compilados do vcpkg
+        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg-triplets/**') }}
+
+      - name: Compilar
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --preset msvc-static -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          cmake --build --preset msvc-static
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item "$env:LOCALAPPDATA\HydroEdit\build-static\src\app\HydroEdit2.exe" dist\HydroEdit2.exe
+
+      - name: Artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: HydroEdit2-${{ github.sha }}
+          path: dist/HydroEdit2.exe
+
+      - name: Publicar na release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME dist/HydroEdit2.exe --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME dist/HydroEdit2.exe --title $env:GITHUB_REF_NAME --generate-notes
+          }
