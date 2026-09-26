@@ -7,6 +7,7 @@ class QLabel;
 class QPushButton;
 class QTableView;
 class DadosDeck;
+class ModeloParametros;
 class ModeloSecaoFixa;
 
 class PaginaArquivoFixo : public QWidget {
@@ -25,5 +26,6 @@ private:
     QLabel* detalhes_;
     QPushButton* botao_salvar_;
     QTableView* tabela_;
-    ModeloSecaoFixa* modelo_;
+    ModeloSecaoFixa* modelo_ = nullptr;
+    ModeloParametros* parametros_ = nullptr;
 };

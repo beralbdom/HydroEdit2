@@ -96,7 +96,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 itens_.push_back({item, arquivo.titulo, arquivo.nome_padrao, previa});
                 if (!primeiro) primeiro = item;
                 largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
-                if (layout && !termicas && layout->secoes.size() > 1) {
+                if (layout && !termicas && !layout->parametros && layout->secoes.size() > 1) {
                     for (size_t s = 0; s < layout->secoes.size(); ++s) {
                         const QString titulo = QString::fromStdString(layout->secoes[s].titulo);
                         auto* filho = new QTreeWidgetItem(item, {titulo});

@@ -1,5 +1,7 @@
 #include <QtTest>
 #include <QTemporaryDir>
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -160,8 +162,10 @@ private slots:
         QCOMPARE(a.valor(0, 1, 2), std::string("2"));
         QCOMPARE(a.valor(0, 2, 2), std::string("1"));
         QCOMPARE(a.valor(0, 1, 4), std::string("21."));
-        QVERIFY(!a.definir(0, 0, 0, "5").ok);
         QVERIFY(!a.definir(0, 0, 2, "5").ok);
+        QVERIFY(a.definir(0, 0, 0, "5").ok);
+        QCOMPARE(a.valor(0, 1, 0), std::string("5"));
+        QCOMPARE(a.valor(1, 0, 0), std::string("SUDESTE"));
         QVERIFY(a.definir(0, 1, 3, "12").ok);
         QCOMPARE(a.valor(0, 1, 3), std::string("12."));
         QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(2));
@@ -169,6 +173,37 @@ private slots:
         QCOMPARE(a.secoes()[2].linhas.size(), static_cast<size_t>(1));
         QCOMPARE(a.valor(2, 0, 0), std::string("5"));
         QCOMPARE(a.valor(3, 0, 0), std::string("7"));
+    }
+    void regiaoContiguaEGruposSeparadosPorLinhaEmBranco() {
+        using T = TipoColunaFixa;
+        const FiltroLinha dados{1, 4, TesteFiltro::Vazio, {}};
+        LayoutArquivoFixo layout{"0.0",
+                                 {{.titulo = "Valores",
+                                   .colunas = {{"Par", 2, 4, T::Inteiro, 0, 0}, {"Sentido", 0, 0, T::Grupo, 0, 0}, {"Valor", 7, 9, T::Inteiro, 0}},
+                                   .filtro = {dados},
+                                   .contextos = {{{{1, 4, TesteFiltro::Preenchido, {}}}}},
+                                   .contigua = false},
+                                  {.titulo = "Anos",
+                                   .linhas_cabecalho = 1,
+                                   .colunas = {{"Ano", 1, 4, T::Inteiro, 0}},
+                                   .filtro = {{6, 8, TesteFiltro::Vazio, {}}},
+                                   .contigua = true},
+                                  {.titulo = "Resto", .colunas = {{"Ano", 1, 4, T::Inteiro, 0}}}}};
+        layout.secoes[0].terminador = "999";
+        ArquivoFixo a;
+        QVERIFY(a.interpretar("   1\n      10\n      11\n\n      20\n   2\n      30\n 999\n"
+                              " CAB\n2026\n2027\nLINHA DE COMENTARIO\n2030\n",
+                              layout)
+                    .ok);
+        QCOMPARE(a.secoes()[0].linhas.size(), static_cast<size_t>(4));
+        QCOMPARE(a.valor(0, 1, 1), std::string("1"));
+        QCOMPARE(a.valor(0, 2, 1), std::string("2"));
+        QCOMPARE(a.valor(0, 2, 0), std::string("1"));
+        QCOMPARE(a.valor(0, 3, 1), std::string("1"));
+        QVERIFY(!a.definir(0, 0, 1, "2").ok);
+        QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(2));
+        QCOMPARE(a.secoes()[2].linhas.size(), static_cast<size_t>(2));
+        QCOMPARE(a.valor(2, 1, 0), std::string("2030"));
     }
     void maxRegistrosEncerraASecao() {
         const ColunaFixa codigo{"Codigo", 2, 2, TipoColunaFixa::Inteiro, 0};
@@ -180,6 +215,50 @@ private slots:
         QCOMPARE(a.secoes()[0].linhas.size(), static_cast<size_t>(1));
         QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(2));
         QCOMPARE(a.valor(1, 0, 0), std::string("2"));
+    }
+    void realMantemAsCasasDigitadasQueCabem() {
+        ArquivoFixo a;
+        a.interpretar(conteudoDeTeste(), layoutDeTeste());
+        QVERIFY(a.definir(0, 0, 2, "1.5").ok);
+        QCOMPARE(a.valor(0, 0, 2), std::string("1.5"));
+        QVERIFY(a.definir(0, 0, 3, "5.125").ok);
+        QCOMPARE(a.valor(0, 0, 3), std::string("5.125"));
+        QVERIFY(a.definir(0, 0, 3, "5.12345").ok);
+        QCOMPARE(a.valor(0, 0, 3), std::string("5.1235"));
+        QVERIFY(!a.definir(0, 0, 3, "12345.678").ok);
+    }
+    void camposSeparadosPorPontoEVirgula() {
+        using T = TipoColunaFixa;
+        LayoutArquivoFixo layout{"0.0",
+                                 {{.titulo = "Formulas",
+                                   .colunas = {{"Codigo", 2, 2, T::Inteiro, 0}, {"Formula", 3, 3, T::Texto, 0}},
+                                   .filtro = {{1, 1, TesteFiltro::Igual, {"RE"}}}},
+                                  {.titulo = "Horizonte",
+                                   .colunas = {{"Codigo", 2, 2, T::Inteiro, 0}, {"Fim", 4, 4, T::Texto, 0}, {"Extra", 5, 5, T::Real, 0}},
+                                   .filtro = {{1, 1, TesteFiltro::Igual, {"RE-HORIZ-PER"}}},
+                                   .mesma_regiao = true}},
+                                 false,
+                                 ';'};
+        ArquivoFixo a;
+        QVERIFY(a.interpretar("&RE; cod; formula\n"
+                              "RE ;        1;   ger_usih(285)\n"
+                              " & comentario\n"
+                              "RE-HORIZ-PER ;        1;2026/09;2026/10\n",
+                              layout)
+                    .ok);
+        QCOMPARE(a.secoes()[0].linhas.size(), static_cast<size_t>(1));
+        QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(1));
+        QCOMPARE(a.valor(0, 0, 1), std::string("ger_usih(285)"));
+        QCOMPARE(a.valor(1, 0, 1), std::string("2026/10"));
+        QCOMPARE(a.valor(1, 0, 2), std::string(""));
+        QVERIFY(a.definir(0, 0, 0, "20").ok);
+        QVERIFY(a.definir(1, 0, 1, "2027/01").ok);
+        QVERIFY(a.definir(1, 0, 2, "1,5").ok);
+        QVERIFY(!a.definir(1, 0, 2, "x").ok);
+        QCOMPARE(a.conteudo(), std::string("&RE; cod; formula\n"
+                                           "RE ;       20;   ger_usih(285)\n"
+                                           " & comentario\n"
+                                           "RE-HORIZ-PER ;        1;2026/09;2027/01;1.5\n"));
     }
     void salvaEReabre() {
         QTemporaryDir dir;
@@ -193,6 +272,59 @@ private slots:
         QVERIFY(b.carregar(p, layoutDeTeste()).ok);
         QCOMPARE(b.valor(0, 0, 0), std::string("2"));
         QVERIFY(!fs::exists(fs::path(p).concat(".tmp")));
+    }
+    void todosOsLayoutsLeemODeckReal() {
+        fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "dger.dat")) QSKIP("deck ausente");
+        const auto numeroValido = [](const std::string& v, TipoColunaFixa tipo) {
+            if (v.empty() || (tipo != TipoColunaFixa::Inteiro && tipo != TipoColunaFixa::Real)) return true;
+            size_t lidos = 0;
+            try {
+                if (tipo == TipoColunaFixa::Inteiro) static_cast<void>(std::stoll(v, &lidos));
+                else static_cast<void>(std::stod(v, &lidos));
+            } catch (...) {
+                return false;
+            }
+            return lidos == v.size();
+        };
+        struct Caso {
+            const char* nome;
+            int invalidos;
+            size_t registros;
+        };
+        const Caso casos[] = {{"arquivos.dat", 0, 45},  {"dger.dat", 0, 101},   {"shist.dat", 0, 1},       {"sistema.dat", 0, 292},
+                              {"patamar.dat", 0, 784},  {"confhd.dat", 0, 171}, {"exph.dat", 0, 20},       {"loss.dat", 0, 0},
+                              {"dsvagua.dat", 0, 1065}, {"vazpast.dat", 0, 223}, {"gtminpat.dat", 0, 0},   {"penalid.dat", 0, 72},
+                              {"curva.dat", 0, 54},     {"agrint.dat", 60, 39}, {"c_adic.dat", 0, 42},     {"adterm.dat", 0, 6},
+                              {"ghmin.dat", 0, 91},     {"cvar.dat", 0, 13},    {"ree.dat", 0, 13},        {"re.dat", 0, 0},
+                              {"selcor.dat", 0, 7},     {"tecno.dat", 0, 0},    {"polinjus.csv", 0, 1826}, {"volref_saz.dat", 0, 149},
+                              {"restricao-eletrica.csv", 0, 60}};
+        for (const Caso& caso : casos) {
+            const LayoutArquivoFixo* layout = layoutNewave(caso.nome);
+            QVERIFY2(layout, caso.nome);
+            fs::path caminho;
+            for (const auto& entrada : fs::directory_iterator(deck)) {
+                std::string nome = entrada.path().filename().string();
+                std::transform(nome.begin(), nome.end(), nome.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (nome == caso.nome) caminho = entrada.path();
+            }
+            QVERIFY2(!caminho.empty(), caso.nome);
+            ArquivoFixo a;
+            QVERIFY(a.carregar(caminho, *layout).ok);
+            QVERIFY2(a.conteudo() == lerBytes(caminho), caso.nome);
+            int invalidos = 0;
+            size_t registros = 0;
+            for (size_t s = 0; s < a.secoes().size(); ++s) {
+                const SecaoLida& secao = a.secoes()[s];
+                registros += secao.linhas.size();
+                for (size_t r = 0; r < secao.linhas.size(); ++r)
+                    for (size_t c = 0; c < secao.definicao.colunas.size(); ++c)
+                        if (!numeroValido(a.valor(static_cast<int>(s), static_cast<int>(r), static_cast<int>(c)), secao.definicao.colunas[c].tipo))
+                            ++invalidos;
+            }
+            QVERIFY2(invalidos == caso.invalidos, caso.nome);
+            QVERIFY2(registros == caso.registros, (std::string(caso.nome) + ": " + std::to_string(registros)).c_str());
+        }
     }
     void arquivosTermicosDoDeckReal() {
         fs::path deck(DIR_DECK);

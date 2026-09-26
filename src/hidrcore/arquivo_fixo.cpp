@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <fstream>
 #include <sstream>
+#include <tuple>
+#include <utility>
 
 namespace fs = std::filesystem;
 
@@ -20,26 +22,53 @@ std::string primeiroToken(const std::string& linha) {
     return token;
 }
 
-bool emBranco(const std::string& linha) { return linha.find_first_not_of(" \t") == std::string::npos; }
-
 size_t comprimentoUtil(const std::string& linha) {
     size_t fim = linha.find_last_not_of(" \t");
     return fim == std::string::npos ? 0 : fim + 1;
 }
+
+// Posicao e tamanho do campo de numero n (a partir de 1) numa linha de campos separados; posicao npos
+// se a linha tem menos campos.
+std::pair<size_t, size_t> limitesCampo(const std::string& linha, char separador, int n) {
+    size_t inicio = 0;
+    for (int k = 1; k < n; ++k) {
+        const size_t proximo = linha.find(separador, inicio);
+        if (proximo == std::string::npos) return {std::string::npos, 0};
+        inicio = proximo + 1;
+    }
+    const size_t fim = linha.find(separador, inicio);
+    return {inicio, (fim == std::string::npos ? linha.size() : fim) - inicio};
+}
 }  // namespace
 
+// Texto aparado das colunas inicio a fim; em arquivo de campos separados, do campo de numero inicio.
+std::string ArquivoFixo::campo(const std::string& linha, int inicio, int fim) const {
+    if (separador_) {
+        const auto [posicao, tamanho] = limitesCampo(linha, separador_, inicio);
+        return posicao == std::string::npos ? std::string() : aparar(linha.substr(posicao, tamanho));
+    }
+    if (static_cast<int>(linha.size()) < inicio) return {};
+    return aparar(linha.substr(static_cast<size_t>(inicio - 1), static_cast<size_t>(fim - inicio + 1)));
+}
+
+// Linha que nunca e registro nem contexto: em branco ou, em arquivo de campos separados, comentario
+// comecado por &.
+bool ArquivoFixo::ignorada(int linha) const {
+    const std::string& texto = linhas_[static_cast<size_t>(linha)];
+    const size_t primeiro = texto.find_first_not_of(" \t");
+    return primeiro == std::string::npos || (separador_ && texto[primeiro] == '&');
+}
+
 // Todos os testes do filtro valem para a linha (filtro vazio aceita qualquer uma). O texto testado e
-// o das colunas inicio a fim, aparado.
+// o do campo, aparado.
 bool ArquivoFixo::passa(const std::vector<FiltroLinha>& filtro, int linha) const {
     const std::string& texto = linhas_[static_cast<size_t>(linha)];
     for (const FiltroLinha& f : filtro) {
-        std::string campo = static_cast<int>(texto.size()) < f.inicio
-                                ? std::string()
-                                : aparar(texto.substr(static_cast<size_t>(f.inicio - 1), static_cast<size_t>(f.fim - f.inicio + 1)));
-        const bool listado = std::find(f.valores.begin(), f.valores.end(), campo) != f.valores.end();
+        const std::string valor = campo(texto, f.inicio, f.fim);
+        const bool listado = std::find(f.valores.begin(), f.valores.end(), valor) != f.valores.end();
         switch (f.teste) {
-        case TesteFiltro::Vazio: if (!campo.empty()) return false; break;
-        case TesteFiltro::Preenchido: if (campo.empty()) return false; break;
+        case TesteFiltro::Vazio: if (!valor.empty()) return false; break;
+        case TesteFiltro::Preenchido: if (valor.empty()) return false; break;
         case TesteFiltro::Igual: if (!listado) return false; break;
         case TesteFiltro::Diferente: if (listado) return false; break;
         }
@@ -50,17 +79,20 @@ bool ArquivoFixo::passa(const std::vector<FiltroLinha>& filtro, int linha) const
 // Separa o conteudo em linhas, guardando o tipo de quebra (CRLF ou LF) e se o arquivo termina com
 // quebra, para salvar byte a byte igual. As secoes sao lidas em ordem: cada uma pula as suas linhas
 // de cabecalho e sua regiao vai ate a linha cujo primeiro campo e o terminador (consumida), ate o
-// fim do arquivo ou, com max_registros, ate o ultimo registro permitido. Registro e toda linha nao
+// fim do arquivo, com max_registros ate o ultimo registro permitido ou, se contigua, ate a primeira
+// linha nao vazia que nao passa no filtro (que fica para a secao seguinte). Registro e toda linha nao
 // vazia da regiao que passa no filtro. Secao com mesma_regiao le de novo a regiao da anterior, sem
 // cabecalho e sem avancar, para mostrar outro tipo de registro das mesmas linhas. Para cada contexto
 // da secao, cada registro guarda a linha de contexto: a mais proxima, no proprio registro ou antes
 // dele dentro da regiao, que passa no filtro do contexto (-1 se nenhuma). Uma secao que o arquivo
 // nao chega a ter fica sem registros. Com passo_repeticao, a ultima coluna da secao se repete a cada
 // passo enquanto alguma linha tiver texto naquela posicao, e as copias sao numeradas a partir de 1.
+// Com separador, as colunas sao numeros de campo e as linhas comecadas por & sao comentario.
 Resultado ArquivoFixo::interpretar(const std::string& conteudo, const LayoutArquivoFixo& layout) {
     linhas_.clear();
     secoes_.clear();
     modificado_ = false;
+    separador_ = layout.separador;
     quebra_ = conteudo.find("\r\n") != std::string::npos ? "\r\n" : "\n";
     quebra_final_ = !conteudo.empty() && conteudo.back() == '\n';
     std::istringstream entrada(conteudo);
@@ -91,14 +123,18 @@ Resultado ArquivoFixo::interpretar(const std::string& conteudo, const LayoutArqu
                 if (!repetir) regiao_fim = pos = p;
                 break;
             }
-            if (!emBranco(linhas_[p]) && passa(definicao.filtro, static_cast<int>(p))) secao.linhas.push_back(static_cast<int>(p));
+            if (!repetir && definicao.contigua && !ignorada(static_cast<int>(p)) && !passa(definicao.filtro, static_cast<int>(p))) {
+                regiao_fim = pos = p;
+                break;
+            }
+            if (!ignorada(static_cast<int>(p)) && passa(definicao.filtro, static_cast<int>(p))) secao.linhas.push_back(static_cast<int>(p));
         }
         for (int linha : secao.linhas) {
             std::vector<int> contexto;
             for (const ContextoFixo& c : definicao.contextos) {
                 int achada = -1;
                 for (int q = linha; q >= static_cast<int>(regiao_inicio) && achada < 0; --q)
-                    if (!emBranco(linhas_[static_cast<size_t>(q)]) && passa(c.filtro, q)) achada = q;
+                    if (!ignorada(q) && passa(c.filtro, q)) achada = q;
                 contexto.push_back(achada);
             }
             secao.linhas_contexto.push_back(std::move(contexto));
@@ -188,7 +224,9 @@ Resultado ArquivoFixo::salvar(const fs::path& caminho) {
 }
 
 // Coluna de contexto le da linha de contexto do registro; coluna Ordinal da a posicao do registro
-// entre os da secao desde a sua linha de contexto, a partir de 1.
+// entre os da secao desde a sua linha de contexto, e coluna Grupo o numero do grupo de linhas
+// separado por linha em branco em que o registro esta, contado desde a linha de contexto; ambas a
+// partir de 1.
 std::string ArquivoFixo::valor(int secao, int registro, int coluna) const {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
     const ColunaFixa& c = s.definicao.colunas[static_cast<size_t>(coluna)];
@@ -203,16 +241,25 @@ std::string ArquivoFixo::valor(int secao, int registro, int coluna) const {
         for (int q = registro; q >= 0 && s.linhas[static_cast<size_t>(q)] >= indice; --q) ++posicao;
         return std::to_string(posicao);
     }
-    const std::string& linha = linhas_[static_cast<size_t>(indice)];
-    if (static_cast<int>(linha.size()) < c.inicio) return {};
-    return aparar(linha.substr(static_cast<size_t>(c.inicio - 1), static_cast<size_t>(c.fim - c.inicio + 1)));
+    if (c.tipo == TipoColunaFixa::Grupo) {
+        const auto vazia = [this](int q) { return linhas_[static_cast<size_t>(q)].find_first_not_of(" \t") == std::string::npos; };
+        int grupo = 1;
+        for (int q = indice + 1; q <= s.linhas[r]; ++q)
+            if (!vazia(q) && vazia(q - 1)) ++grupo;
+        return std::to_string(grupo);
+    }
+    return campo(linhas_[static_cast<size_t>(indice)], c.inicio, c.fim);
 }
 
 // Formata o texto no campo e troca so as colunas dele na linha, que e completada com espacos se for
 // mais curta; o resto da linha fica intacto. Vazio apaga o campo. Inteiro e real ficam alinhados a
-// direita e texto a esquerda, como nos arquivos do deck; real sai com as casas do formato Fw.d e, no
-// formato Fw.0, com o ponto no fim, como o Fortran escreve. Numero invalido ou que nao cabe na
-// largura e erro, e a linha nao muda; colunas de contexto e ordinais nao se editam.
+// direita e texto a esquerda, como nos arquivos do deck; real sai com as casas do formato Fw.d, ou com
+// as casas digitadas se forem mais e couberem na largura (o Fortran le o ponto explicito), e, sem
+// casas, com o ponto no fim, como o Fortran escreve. Numero invalido ou que nao cabe na
+// largura e erro, e a linha nao muda. Coluna de contexto grava na linha de contexto do registro,
+// valendo para todo o bloco; Ordinal e Grupo nao se editam. Em arquivo de
+// campos separados, real fica como foi digitado, o campo mantem a largura que tinha quando o valor
+// cabe nela e a linha ganha separadores se tiver campos de menos.
 Resultado ArquivoFixo::definir(int secao, int registro, int coluna, const std::string& texto) {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
     const ColunaFixa& c = s.definicao.colunas[static_cast<size_t>(coluna)];
@@ -229,18 +276,50 @@ Resultado ArquivoFixo::definir(int secao, int registro, int coluna, const std::s
             try {
                 if (c.tipo == TipoColunaFixa::Inteiro) {
                     campo = std::to_string(std::stoll(entrada, &lidos));
+                } else if (separador_) {
+                    static_cast<void>(std::stod(entrada, &lidos));
+                    campo = entrada;
                 } else {
-                    double v = std::stod(entrada, &lidos);
-                    char buffer[64];
-                    std::snprintf(buffer, sizeof buffer, "%.*f", c.decimais, v);
-                    campo = buffer;
-                    if (c.decimais == 0) campo += '.';
+                    const double v = std::stod(entrada, &lidos);
+                    const size_t ponto = entrada.find('.');
+                    int casas = c.decimais;
+                    if (ponto != std::string::npos) {
+                        const size_t fim = entrada.find_first_not_of("0123456789", ponto + 1);
+                        casas = std::max(casas, static_cast<int>((fim == std::string::npos ? entrada.size() : fim) - ponto - 1));
+                    }
+                    for (;; --casas) {
+                        char buffer[64];
+                        std::snprintf(buffer, sizeof buffer, "%.*f", casas, v);
+                        campo = buffer;
+                        if (casas == 0) campo += '.';
+                        if (casas <= c.decimais || campo.size() <= largura) break;
+                    }
                 }
             } catch (...) {
                 lidos = 0;
             }
             if (lidos != entrada.size()) return Resultado::erro("Valor invalido para " + c.nome + ": " + texto);
         }
+    }
+    const int indice = c.contexto < 0 ? s.linhas[static_cast<size_t>(registro)]
+                                      : s.linhas_contexto[static_cast<size_t>(registro)][static_cast<size_t>(c.contexto)];
+    if (indice < 0) return Resultado::erro(c.nome + ": o registro nao tem linha de contexto");
+    std::string& linha = linhas_[static_cast<size_t>(indice)];
+    if (separador_) {
+        auto [posicao, tamanho] = limitesCampo(linha, separador_, c.inicio);
+        while (posicao == std::string::npos) {
+            linha += separador_;
+            std::tie(posicao, tamanho) = limitesCampo(linha, separador_, c.inicio);
+        }
+        if (campo.size() < tamanho) {
+            if (c.tipo == TipoColunaFixa::Texto) campo.append(tamanho - campo.size(), ' ');
+            else campo.insert(0, tamanho - campo.size(), ' ');
+        }
+        linha.replace(posicao, tamanho, campo);
+        modificado_ = true;
+        return Resultado::sucesso();
+    }
+    if (!campo.empty()) {
         if (campo.size() > largura)
             return Resultado::erro(c.nome + ": " + campo + " nao cabe em " + std::to_string(largura) + " colunas");
         if (c.tipo == TipoColunaFixa::Texto) campo.append(largura - campo.size(), ' ');
@@ -248,7 +327,6 @@ Resultado ArquivoFixo::definir(int secao, int registro, int coluna, const std::s
     } else {
         campo.assign(largura, ' ');
     }
-    std::string& linha = linhas_[static_cast<size_t>(s.linhas[static_cast<size_t>(registro)])];
     if (linha.size() < static_cast<size_t>(c.fim)) linha.append(static_cast<size_t>(c.fim) - linha.size(), ' ');
     linha.replace(static_cast<size_t>(c.inicio - 1), largura, campo);
     modificado_ = true;

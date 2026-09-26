@@ -87,12 +87,13 @@ QVariant ModeloSecaoFixa::headerData(int secao, Qt::Orientation o, int role) con
     if (role == Qt::DisplayRole) return QString::fromStdString(c.nome);
     if (role == Qt::ToolTipRole) {
         if (c.tipo == TipoColunaFixa::Ordinal) return QStringLiteral("Posição do registro no bloco; somente leitura");
+        if (c.tipo == TipoColunaFixa::Grupo) return QStringLiteral("Grupo de linhas do bloco, separados por linha em branco; somente leitura");
         const int largura = c.fim - c.inicio + 1;
         QString formato = c.tipo == TipoColunaFixa::Texto     ? QStringLiteral("A%1").arg(largura)
                           : c.tipo == TipoColunaFixa::Inteiro ? QStringLiteral("I%1").arg(largura)
                                                               : QStringLiteral("F%1.%2").arg(largura).arg(c.decimais);
         const QString dica = QStringLiteral("Colunas %1 a %2, formato %3").arg(c.inicio).arg(c.fim).arg(formato);
-        return c.contexto < 0 ? dica : dica + QStringLiteral(", da linha que abre o bloco; somente leitura");
+        return c.contexto < 0 ? dica : dica + QStringLiteral(", da linha que abre o bloco; editar muda o bloco inteiro");
     }
     return {};
 }
