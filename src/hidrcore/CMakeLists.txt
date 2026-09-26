@@ -12,6 +12,7 @@ add_library(hidrcore STATIC
     regras_gevazp.cpp
     deck_newave.cpp
     arquivo_fixo.cpp
+    arquivo_binario.cpp
     layouts_newave.cpp
 )
 target_include_directories(hidrcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

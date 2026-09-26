@@ -17,7 +17,7 @@ qt_add_library(hydroedit_ui STATIC
     grafico_polinomio.cpp grafico_polinomio.h
     botao_combo.cpp botao_combo.h
     catalogo_newave.cpp catalogo_newave.h
-    pagina_arquivo.cpp pagina_arquivo.h
+    pagina_binaria.cpp pagina_binaria.h
     pagina_modificacoes.cpp pagina_modificacoes.h
     navegador_deck.cpp navegador_deck.h
     modelo_secao_fixa.cpp modelo_secao_fixa.h

@@ -12,7 +12,7 @@
 #include "editor_texto_arquivo.h"
 #include "estilo_arvore.h"
 #include "layouts_newave.h"
-#include "pagina_arquivo.h"
+#include "pagina_binaria.h"
 #include "pagina_arquivo_fixo.h"
 #include "pagina_modificacoes.h"
 
@@ -25,8 +25,9 @@ constexpr int PAPEL_TEXTO = Qt::UserRole + 2;
 // Uma aba por secao do catalogo, cada uma com a arvore dos arquivos a esquerda e a pagina do item
 // selecionado a direita. Na arvore, os arquivos ficam sob cabecalhos de grupo colapsaveis (na ordem
 // em que o grupo aparece no catalogo), e arquivo de colunas fixas com mais de uma secao ganha um
-// filho por secao. Cada arquivo de texto tem duas paginas: a normal (editor, tabela ou previa) e a
-// do editor textual, mostrada quando o modo textual esta ligado; os binarios so tem a normal. A aba
+// filho por secao. Cada arquivo de texto tem duas paginas: a normal (editor ou tabela) e a do editor
+// textual, mostrada quando o modo textual esta ligado; os binarios so tem a normal, e um arquivo de
+// texto sem layout so tem a do editor textual. A aba
 // Modificacoes alterna do mesmo jeito entre a arvore do modif.dat e o texto dele. Todas as vistas
 // editaveis usam o mesmo repositorio.
 NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWidget* parent) : QTabWidget(parent) {
@@ -67,33 +68,25 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 const LayoutArquivoFixo* layout = layoutNewave(arquivo.nome_padrao.toStdString());
                 const bool termicas = arquivo.nome_padrao == QStringLiteral("term.dat");
                 QWidget* pagina = nullptr;
-                PaginaArquivo* previa = nullptr;
-                if (arquivo.nome_padrao == QStringLiteral("hidr.dat")) {
-                    pagina = editor_hidr;
-                } else if (termicas) {
-                    pagina = new EditorTermicas(dados_, paginas);
-                } else if (layout) {
-                    pagina = new PaginaArquivoFixo(arquivo, *layout, dados_, paginas);
-                } else {
-                    previa = new PaginaArquivo(arquivo, dados_, paginas);
-                    paginas_.push_back(previa);
-                    pagina = previa;
-                }
-                const int indice = paginas->addWidget(pagina);
+                if (arquivo.nome_padrao == QStringLiteral("hidr.dat")) pagina = editor_hidr;
+                else if (arquivo.nome_padrao == QStringLiteral("postos.dat")) pagina = new PaginaPostos(dados_, paginas);
+                else if (arquivo.nome_padrao == QStringLiteral("vazoes.dat")) pagina = new PaginaVazoes(dados_, paginas);
+                else if (termicas) pagina = new EditorTermicas(dados_, paginas);
+                else if (layout) pagina = new PaginaArquivoFixo(arquivo, *layout, dados_, paginas);
+                int indice = pagina ? paginas->addWidget(pagina) : -1;
                 int indice_texto = -1;
                 if (!DadosDeck::binario(arquivo.nome_padrao)) {
                     auto* editor = new EditorTextoArquivo(arquivo.titulo, arquivo.nome_padrao, arquivo.secao_manual, dados_, paginas);
                     editores_texto_.push_back(editor);
                     indice_texto = paginas->addWidget(editor);
                 }
+                if (indice < 0) indice = indice_texto;
                 auto* item = cabecalho ? new QTreeWidgetItem(cabecalho, {arquivo.titulo}) : new QTreeWidgetItem(lista, {arquivo.titulo});
-                item->setToolTip(0, previa && indice_texto >= 0
-                                        ? QStringLiteral("%1  ·  prévia; edite pelo editor textual (menu Ver)").arg(arquivo.nome_padrao)
-                                        : arquivo.nome_padrao);
+                item->setToolTip(0, arquivo.nome_padrao);
                 item->setData(0, PAPEL_PAGINA, indice);
                 item->setData(0, PAPEL_SECAO, 0);
                 item->setData(0, PAPEL_TEXTO, indice_texto);
-                itens_.push_back({item, arquivo.titulo, arquivo.nome_padrao, previa});
+                itens_.push_back({item, arquivo.titulo, arquivo.nome_padrao});
                 if (!primeiro) primeiro = item;
                 largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
                 if (layout && !termicas && !layout->parametros && layout->secoes.size() > 1) {
@@ -133,12 +126,11 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
     connect(dados_, &DadosDeck::recarregado, this, &NavegadorDeck::atualizarItens);
 }
 
-// Le o arquivos.dat da pasta do deck uma vez e repassa ao repositorio e as paginas de previa, que
-// resolvem o nome real dos seus arquivos por ele.
+// Le o arquivos.dat da pasta do deck e repassa ao repositorio, que resolve por ele o nome real dos
+// arquivos.
 void NavegadorDeck::carregarDeck(const QString& dir_deck) {
     const auto arquivos = lerArquivosDat(std::filesystem::path(QDir(dir_deck).filePath(QStringLiteral("arquivos.dat")).toStdWString()));
     dados_->carregar(dir_deck, arquivos);
-    for (PaginaArquivo* pagina : paginas_) pagina->carregar(dir_deck, arquivos);
 }
 
 // Liga ou desliga o editor textual: antes de trocar, aplica o que estiver pendente nos editores de
@@ -164,7 +156,7 @@ void NavegadorDeck::atualizarItens() {
         QTreeWidget* arvore = i.item->treeWidget();
         bool ausente = false;
         if (dados_->carregado() && i.nome_padrao != QStringLiteral("hidr.dat"))
-            ausente = DadosDeck::binario(i.nome_padrao) ? !i.previa->encontrado() : dados_->arquivo(i.nome_padrao) == nullptr;
+            ausente = !dados_->lido(i.nome_padrao);
         const QPalette& paleta = arvore->palette();
         const QColor cor = ausente ? paleta.color(QPalette::Disabled, QPalette::Text) : paleta.color(QPalette::Text);
         QFont fonte = arvore->font();

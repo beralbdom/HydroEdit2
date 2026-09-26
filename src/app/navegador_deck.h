@@ -8,7 +8,6 @@ class QTreeWidgetItem;
 class DadosDeck;
 class EditorTextoArquivo;
 class ModeloHidr;
-class PaginaArquivo;
 class PaginaModificacoes;
 
 class NavegadorDeck : public QTabWidget {
@@ -26,14 +25,12 @@ private:
         QTreeWidgetItem* item;
         QString titulo;
         QString nome_padrao;
-        PaginaArquivo* previa;
     };
 
     void atualizarItens();
 
     DadosDeck* dados_;
     bool modo_texto_ = false;
-    std::vector<PaginaArquivo*> paginas_;
     std::vector<QTreeWidget*> listas_;
     std::vector<EditorTextoArquivo*> editores_texto_;
     PaginaModificacoes* modificacoes_;

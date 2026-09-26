@@ -3,6 +3,7 @@
 #include <QStringList>
 #include <map>
 #include <string>
+#include "arquivo_binario.h"
 #include "arquivo_fixo.h"
 
 class DadosDeck : public QObject {
@@ -14,11 +15,15 @@ public:
     static bool binario(const QString& nome_padrao);
 
     const ArquivoFixo* arquivo(const QString& nome_padrao) const;
+    const ArquivoBinario* arquivoBinario(const QString& nome_padrao) const;
+    bool lido(const QString& nome_padrao) const;
     QString nomeNoDeck(const QString& nome_padrao) const;
     QString erro(const QString& nome_padrao) const;
     int registroPorValor(const QString& nome_padrao, int secao, int coluna, const QString& valor) const;
 
     Resultado definir(const QString& nome_padrao, int secao, int registro, int coluna, const QString& texto);
+    Resultado definirTextoBinario(const QString& nome_padrao, int registro, int inicio, int tamanho, const QString& texto);
+    Resultado definirInteiroBinario(const QString& nome_padrao, int registro, int inicio, const QString& texto);
     QString texto(const QString& nome_padrao) const;
     void substituirTexto(const QString& nome_padrao, const QString& texto);
     bool salvar(const QString& nome_padrao, QString* motivo = nullptr);
@@ -32,6 +37,8 @@ signals:
 private:
     struct Entrada {
         ArquivoFixo arquivo;
+        ArquivoBinario binario;
+        bool eh_binario = false;
         LayoutArquivoFixo layout;
         QString caminho;
         QString erro;
@@ -39,6 +46,8 @@ private:
     };
     void carregarArquivo(const QString& nome_padrao, const QString& rotulo, const LayoutArquivoFixo& layout,
                          const std::map<std::string, std::string>& arquivos_dat);
+    void carregarBinario(const QString& nome_padrao, int tamanho_registro);
+    Entrada* binarioLido(const QString& nome_padrao);
 
     std::map<QString, Entrada> arquivos_;
     QString dir_;
