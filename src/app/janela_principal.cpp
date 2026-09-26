@@ -36,7 +36,9 @@
 #include "formulario_usina.h"
 #include "modelo_hidr.h"
 #include "painel_problemas.h"
+#include "regras_gevazp.h"
 #include "validacao.h"
+#include "vazoes.h"
 #include "vista_cascata.h"
 
 namespace {
@@ -306,9 +308,14 @@ void JanelaPrincipal::criarMenus() {
     menu_usina_->addAction(QStringLiteral("&Excluir (zerar registro)"), QKeySequence::Delete, this, &JanelaPrincipal::excluirUsina);
     menu_usina_->setEnabled(false);
 
+    QMenu* ferramentas = menuBar()->addMenu(QStringLiteral("&Ferramentas"));
+    acao_incrementais_ = ferramentas->addAction(QStringLiteral("Exportar vazões &incrementais..."), this,
+                                                &JanelaPrincipal::exportarIncrementais);
+
     acao_salvar_->setEnabled(false);
     acao_salvar_como_->setEnabled(false);
     acao_exportar_->setEnabled(false);
+    acao_incrementais_->setEnabled(false);
 
     QMenu* ajuda = menuBar()->addMenu(QStringLiteral("A&juda"));
     ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
@@ -377,6 +384,7 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     acao_salvar_->setEnabled(true);
     acao_salvar_como_->setEnabled(true);
     acao_exportar_->setEnabled(true);
+    acao_incrementais_->setEnabled(true);
     menu_usina_->setEnabled(true);
     painel_problemas_->definirProblemas({});
     if (modelo_->numUsinas() > 0) selecionarLinha(0);
@@ -423,6 +431,106 @@ void JanelaPrincipal::exportarCsv() {
     Resultado r = ::exportarCsv(modelo_->arquivo(), paraPath(caminho), o);
     if (!r.ok) QMessageBox::critical(this, QStringLiteral("Erro ao exportar"), QString::fromUtf8(r.mensagem));
     else statusBar()->showMessage(QStringLiteral("CSV gerado: %1").arg(caminho), 5000);
+}
+
+// Le o vazoes.dat da pasta do cadastro aberto, datado pelo postos.dat, e calcula a incremental de
+// cada usina com o cadastro em memoria (inclusive edicoes ainda nao salvas) e o confhd.dat do deck.
+// Antes do calculo o usuario pode aplicar um REGRAS.DAT do GEVAZP, que recalcula os postos
+// artificiais; o ultimo arquivo escolhido fica guardado nas configuracoes. Ao fim, resume o periodo,
+// as regras aplicadas, os meses truncados em zero e os avisos de posto invalido.
+void JanelaPrincipal::exportarIncrementais() {
+    const QString titulo = QStringLiteral("Vazões incrementais");
+    const DeckLookup& lookup = modelo_->lookup();
+    if (lookup.modelo == ModeloDeck::Dessem) {
+        QMessageBox::information(this, titulo,
+                                 QStringLiteral("A exportação usa o vazoes.dat, que só existe em decks do NEWAVE."));
+        return;
+    }
+    if (lookup.anoInicialHistorico() == 0) {
+        QMessageBox::warning(this, titulo,
+                             QStringLiteral("O postos.dat do deck é necessário para datar o histórico do vazoes.dat."));
+        return;
+    }
+    QString pasta = QFileInfo(modelo_->caminho()).absolutePath();
+    ResultadoLeituraVazoes leitura =
+        lerVazoesDat(paraPath(pasta + QStringLiteral("/vazoes.dat")), modelo_->numUsinas(), lookup.anoInicialHistorico());
+    if (!leitura.erro.empty()) {
+        QMessageBox::critical(this, titulo, QString::fromUtf8(leitura.erro));
+        return;
+    }
+
+    QMessageBox pergunta(QMessageBox::Question, titulo,
+                         QStringLiteral("Aplicar as regras de postos artificiais de um REGRAS.DAT do GEVAZP antes do cálculo?"),
+                         QMessageBox::NoButton, this);
+    QPushButton* com_regras = pergunta.addButton(QStringLiteral("Usar REGRAS.DAT..."), QMessageBox::ActionRole);
+    QPushButton* sem_regras = pergunta.addButton(QStringLiteral("Sem regras"), QMessageBox::ActionRole);
+    pergunta.addButton(QMessageBox::Cancel);
+    pergunta.setDefaultButton(sem_regras);
+    pergunta.exec();
+    if (pergunta.clickedButton() != com_regras && pergunta.clickedButton() != sem_regras) return;
+
+    QString resumo_regras;
+    if (pergunta.clickedButton() == com_regras) {
+        QSettings configuracoes;
+        QString anterior = configuracoes.value(QStringLiteral("regras_gevazp/ultimo"), pasta).toString();
+        QString arquivo_regras = QFileDialog::getOpenFileName(this, QStringLiteral("REGRAS.DAT do GEVAZP"), anterior,
+                                                              QStringLiteral("Regras (*.dat);;Todos os arquivos (*)"));
+        if (arquivo_regras.isEmpty()) return;
+        ResultadoLeituraRegras regras = lerRegras(paraPath(arquivo_regras));
+        if (!regras.erro.empty()) {
+            QMessageBox::critical(this, titulo, QString::fromUtf8(regras.erro));
+            return;
+        }
+        Resultado aplicacao = aplicarRegras(regras.regras, leitura.serie);
+        if (!aplicacao.ok) {
+            QMessageBox::critical(this, titulo, QString::fromUtf8(aplicacao.mensagem));
+            return;
+        }
+        configuracoes.setValue(QStringLiteral("regras_gevazp/ultimo"), arquivo_regras);
+        std::set<int> postos_recalculados;
+        for (const RegraPosto& regra : regras.regras) postos_recalculados.insert(regra.posto);
+        resumo_regras = QStringLiteral("\nRegras do GEVAZP aplicadas: %1 postos recalculados (%2).")
+                            .arg(postos_recalculados.size())
+                            .arg(QFileInfo(arquivo_regras).fileName());
+    }
+
+    QString caminho = QFileDialog::getSaveFileName(this, QStringLiteral("Exportar vazões incrementais"),
+                                                   pasta + QStringLiteral("/vazoes_incrementais.csv"),
+                                                   QStringLiteral("CSV (*.csv)"));
+    if (caminho.isEmpty()) return;
+
+    Incrementais incrementais = calcularIncrementais(modelo_->arquivo().usinas, lookup.confhd, leitura.serie);
+    Resultado r = exportarIncrementaisCsv(incrementais, leitura.serie, paraPath(caminho));
+    if (!r.ok) {
+        QMessageBox::critical(this, titulo, QString::fromUtf8(r.mensagem));
+        return;
+    }
+
+    int usinas_truncadas = 0;
+    int meses_truncados = 0;
+    for (const UsinaIncremental& u : incrementais.usinas) {
+        if (u.meses_truncados == 0) continue;
+        ++usinas_truncadas;
+        meses_truncados += u.meses_truncados;
+    }
+    int ano_final = leitura.serie.ano_inicial + (leitura.serie.meses() + 11) / 12 - 1;
+    QString resumo = QStringLiteral("%1 usinas exportadas, de %2 a %3.%4\n%5 usinas tiveram valores negativos truncados "
+                                    "em zero, %6 meses no total.")
+                         .arg(incrementais.usinas.size())
+                         .arg(leitura.serie.ano_inicial)
+                         .arg(ano_final)
+                         .arg(resumo_regras)
+                         .arg(usinas_truncadas)
+                         .arg(meses_truncados);
+    if (!incrementais.avisos.empty()) {
+        constexpr size_t kMaximoAvisos = 10;
+        resumo += QStringLiteral("\n\nAvisos:");
+        for (size_t i = 0; i < std::min(incrementais.avisos.size(), kMaximoAvisos); ++i)
+            resumo += QStringLiteral("\n") + QString::fromUtf8(incrementais.avisos[i]);
+        if (incrementais.avisos.size() > kMaximoAvisos)
+            resumo += QStringLiteral("\n+%1 outros").arg(incrementais.avisos.size() - kMaximoAvisos);
+    }
+    QMessageBox::information(this, titulo, resumo);
 }
 
 void JanelaPrincipal::atualizarTitulo() {

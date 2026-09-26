@@ -23,6 +23,13 @@ private slots:
         QCOMPARE(d.nomePosto(2), std::string(""));
         QCOMPARE(d.nomePosto(3), std::string("ITUMBIARA"));
         QVERIFY(d.notas.empty());
+        QCOMPARE(d.anos_postos.at(1), std::make_pair(1931, 2024));
+        QVERIFY(d.anos_postos.find(2) == d.anos_postos.end());
+        QCOMPARE(d.anoInicialHistorico(), 1931);
+    }
+    void anoInicialSemPostosEhZero() {
+        DeckLookup d;
+        QCOMPARE(d.anoInicialHistorico(), 0);
     }
     void leReeDasUsinasDoConfhd() {
         DeckLookup d;
@@ -32,6 +39,16 @@ private slots:
         QCOMPARE(d.reeDaUsina(21), 10);
         QCOMPARE(d.reeDaUsina(999), 0);
         QCOMPARE(d.ree_da_usina.size(), static_cast<size_t>(3));
+    }
+    void lePostoEJusanteDoConfhd() {
+        DeckLookup d;
+        d.carregarDeck(fs::path(DIR_FIXTURES));
+        QCOMPARE(d.confhd.size(), static_cast<size_t>(3));
+        QCOMPARE(d.confhd.at(4).posto, 211);
+        QCOMPARE(d.confhd.at(4).jusante, 6);
+        QCOMPARE(d.confhd.at(20).posto, 22);
+        QCOMPARE(d.confhd.at(20).jusante, 21);
+        QCOMPARE(d.confhd.at(21).jusante, 24);
     }
     void leReesDoReeDat() {
         DeckLookup d;

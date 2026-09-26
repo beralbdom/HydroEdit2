@@ -52,6 +52,7 @@ private slots:
     void salvar();
     void salvarComo();
     void exportarCsv();
+    void exportarIncrementais();
     void novaUsina();
     void novaUsinaEmCodigo();
     void duplicarUsina();
@@ -80,6 +81,7 @@ private:
     QAction* acao_salvar_;
     QAction* acao_salvar_como_;
     QAction* acao_exportar_;
+    QAction* acao_incrementais_;
     QMenu* menu_usina_;
     QMenu* menu_recentes_;
     bool dimensionado_ = false;

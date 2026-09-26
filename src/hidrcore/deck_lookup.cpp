@@ -1,6 +1,7 @@
 #include "deck_lookup.h"
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include "texto.h"
@@ -81,32 +82,41 @@ std::map<int, std::string> lerSistema(const fs::path& p, std::vector<std::string
 }
 
 // postos.dat: registros de 20 bytes (nome A12, ano inicial I4, ano final I4); codigo = indice + 1.
-std::map<int, std::string> lerPostos(const fs::path& p, std::vector<std::string>& notas) {
-    std::map<int, std::string> m;
+// Manual NEWAVE 30.0.2, secao 3.10: os anos sao o inicio e o fim do registro de vazoes historicas.
+// Os anos so sao guardados para postos com nome.
+void lerPostos(const fs::path& p, std::vector<std::string>& notas, std::map<int, std::string>& nomes,
+               std::map<int, std::pair<int, int>>& anos) {
     std::ifstream f(p, std::ios::binary);
     if (!f) {
         notas.push_back("postos.dat nao encontrado");
-        return m;
+        return;
     }
     char reg[20];
     int codigo = 1;
     while (f.read(reg, 20)) {
         std::string nome = apararDireita(std::string_view(reg, 12));
-        if (!nome.empty()) m[codigo] = nome;
+        if (!nome.empty()) {
+            int32_t inicio = 0;
+            int32_t fim = 0;
+            std::memcpy(&inicio, reg + 12, 4);
+            std::memcpy(&fim, reg + 16, 4);
+            nomes[codigo] = nome;
+            anos[codigo] = {inicio, fim};
+        }
         ++codigo;
     }
-    return m;
 }
 
 // confhd.dat: duas linhas de cabecalho, depois uma usina por linha (manual NEWAVE 30.0.2, secao
-// 3.9: campo 1 nas colunas 2-5 = codigo da usina, campo 5 nas colunas 31-34 = numero do REE,
-// em base 1). Linhas curtas ou sem numero nessas colunas sao ignoradas.
-std::map<int, int> lerConfhd(const fs::path& p, std::vector<std::string>& notas) {
-    std::map<int, int> m;
+// 3.9, colunas em base 1: campo 1 nas colunas 2-5 = codigo da usina, campo 3 nas colunas 20-23 =
+// posto, campo 4 nas colunas 26-29 = usina a jusante, campo 5 nas colunas 31-34 = REE). Linhas
+// curtas ou sem numero nessas colunas sao ignoradas.
+void lerConfhd(const fs::path& p, std::vector<std::string>& notas, std::map<int, int>& ree_da_usina,
+               std::map<int, UsinaConfhd>& confhd) {
     std::ifstream f(p);
     if (!f) {
         notas.push_back("confhd.dat nao encontrado");
-        return m;
+        return;
     }
     std::string linha;
     int cabecalhos = 0;
@@ -117,12 +127,15 @@ std::map<int, int> lerConfhd(const fs::path& p, std::vector<std::string>& notas)
         }
         if (linha.size() < 34) continue;
         try {
-            m[std::stoi(linha.substr(1, 4))] = std::stoi(linha.substr(30, 4));
+            int codigo = std::stoi(linha.substr(1, 4));
+            UsinaConfhd u{std::stoi(linha.substr(19, 4)), std::stoi(linha.substr(25, 4))};
+            int ree = std::stoi(linha.substr(30, 4));
+            ree_da_usina[codigo] = ree;
+            confhd[codigo] = u;
         } catch (...) {
             continue;
         }
     }
-    return m;
 }
 
 // ree.dat, bloco "REES X SUBMERCADOS": cabecalho "NUM|NOME REES.|...", uma linha de mascara
@@ -243,8 +256,8 @@ void DeckLookup::carregarDeck(const fs::path& dir_deck) {
         return;
     }
     subsistemas = lerSistema(dir_deck / "sistema.dat", notas);
-    postos = lerPostos(dir_deck / "postos.dat", notas);
-    ree_da_usina = lerConfhd(dir_deck / "confhd.dat", notas);
+    lerPostos(dir_deck / "postos.dat", notas, postos, anos_postos);
+    lerConfhd(dir_deck / "confhd.dat", notas, ree_da_usina, confhd);
     rees = lerRee(dir_deck / "ree.dat", notas);
 }
 
@@ -255,6 +268,16 @@ void DeckLookup::carregarCsvs(const fs::path& dir_exe) {
 
 std::string DeckLookup::nomeSubsistema(int codigo) const { return buscar(subsistemas, codigo); }
 std::string DeckLookup::nomePosto(int codigo) const { return buscar(postos, codigo); }
+
+// Primeiro ano do historico de vazoes: o menor ano inicial entre os postos do postos.dat, ou 0 sem
+// postos. E o ano do primeiro registro do vazoes.dat.
+int DeckLookup::anoInicialHistorico() const {
+    int ano = 0;
+    for (const auto& [codigo, anos] : anos_postos) {
+        if (anos.first > 0 && (ano == 0 || anos.first < ano)) ano = anos.first;
+    }
+    return ano;
+}
 std::string DeckLookup::nomeEmpresa(int codigo) const { return buscar(empresas, codigo); }
 std::string DeckLookup::nomeTurbina(int codigo) const { return buscar(turbinas, codigo); }
 

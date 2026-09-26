@@ -8,5 +8,7 @@ add_library(hidrcore STATIC
     validacao.cpp
     deck_lookup.cpp
     cascata.cpp
+    vazoes.cpp
+    regras_gevazp.cpp
 )
 target_include_directories(hidrcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
