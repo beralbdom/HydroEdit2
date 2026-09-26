@@ -42,6 +42,7 @@ private:
     QWidget* criarPaginaOperacao();
 
     static void configurarLayout(QLayout* l);
+    static void alinharRotulos(QWidget* pagina);
     static QVBoxLayout* novaPagina(QWidget* pai);
     static QGroupBox* novoGrupo(QWidget* pai, const QString& titulo);
     static QVBoxLayout* novoConteudo(QWidget* pai);

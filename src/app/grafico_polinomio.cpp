@@ -2,6 +2,7 @@
 #include <QBrush>
 #include <QChart>
 #include <QFont>
+#include <QGraphicsLayout>
 #include <QLegend>
 #include <QLegendMarker>
 #include <QLineSeries>
@@ -20,6 +21,30 @@ double avaliarPolinomio(const std::array<float, 5>& coef, double x) {
 namespace {
 constexpr std::array<const char*, 6> kCoresCascata = {"#4a6fa5", "#4f8a5b", "#b0743a", "#7a5ea8", "#a84f5e", "#5a8f9e"};
 constexpr int kNumPontos = 100;
+
+// A folga antes do menor valor nao atravessa o zero: vazao, volume e area comecam em zero e um eixo
+// que abre em -16 sugere valores negativos que a curva nao tem.
+double inicioDoEixo(double minimo, double margem) {
+    double inicio = minimo - margem;
+    return minimo >= 0.0 ? std::max(0.0, inicio) : inicio;
+}
+
+// Marcas em valores redondos (1, 2 ou 5 vezes uma potencia de 10, umas quatro por eixo) sem mexer
+// na faixa, que continua justa nos dados: applyNiceNumbers arredondaria a faixa para fora e uma
+// curva de 120 a 792 ficaria espremida num eixo de 0 a 1000. As casas decimais seguem o passo.
+void marcarValoresRedondos(QValueAxis* eixo) {
+    double faixa = eixo->max() - eixo->min();
+    if (faixa <= 0.0) return;
+    double bruto = faixa / 4.0;
+    double potencia = std::pow(10.0, std::floor(std::log10(bruto)));
+    double fracao = bruto / potencia;
+    double passo = (fracao < 1.5 ? 1.0 : fracao < 3.5 ? 2.0 : fracao < 7.5 ? 5.0 : 10.0) * potencia;
+    eixo->setTickType(QValueAxis::TicksDynamic);
+    eixo->setTickAnchor(std::ceil(eixo->min() / passo) * passo);
+    eixo->setTickInterval(passo);
+    int casas = std::max(0, -static_cast<int>(std::floor(std::log10(passo))));
+    eixo->setLabelFormat(QStringLiteral("%.%1f").arg(casas));
+}
 }  // namespace
 
 GraficoPolinomio::GraficoPolinomio(const QString& titulo, const QString& rotulo_x, const QString& rotulo_y, QWidget* parent)
@@ -28,6 +53,9 @@ GraficoPolinomio::GraficoPolinomio(const QString& titulo, const QString& rotulo_
     setFixedHeight(220);
     chart()->setBackgroundBrush(Qt::NoBrush);
     chart()->setPlotAreaBackgroundVisible(false);
+    chart()->setBackgroundRoundness(0);
+    chart()->setMargins(QMargins(2, 2, 2, 2));
+    chart()->layout()->setContentsMargins(0, 0, 0, 0);
     definirCurvas({}, {});
 }
 
@@ -102,15 +130,16 @@ void GraficoPolinomio::definirCurvas(const std::vector<Curva>& curvas, const std
 
     auto* eixo_x = new QValueAxis(graf);
     eixo_x->setTitleText(rotulo_x_);
-    eixo_x->setRange(x_min_global - margem_x, x_max_global + margem_x);
+    eixo_x->setRange(inicioDoEixo(x_min_global, margem_x), x_max_global + margem_x);
     auto* eixo_y = new QValueAxis(graf);
     eixo_y->setTitleText(rotulo_y_);
-    eixo_y->setRange(y_min_global - margem_y, y_max_global + margem_y);
+    eixo_y->setRange(inicioDoEixo(y_min_global, margem_y), y_max_global + margem_y);
     for (QValueAxis* eixo : {eixo_x, eixo_y}) {
         eixo->setLabelsColor(cor_texto);
         eixo->setTitleBrush(QBrush(cor_texto));
         eixo->setLinePen(QPen(cor_grade));
         eixo->setGridLineColor(cor_grade);
+        marcarValoresRedondos(eixo);
     }
     graf->addAxis(eixo_x, Qt::AlignBottom);
     graf->addAxis(eixo_y, Qt::AlignLeft);

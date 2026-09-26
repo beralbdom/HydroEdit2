@@ -86,6 +86,30 @@ private slots:
         QCOMPARE(m.data(ix, Qt::EditRole).toString(), QStringLiteral("1"));
         QCOMPARE(m.data(m.index(0, m.colunaDoCampo("volume_minimo")), Qt::UserRole).toDouble(), 120.0);
     }
+    void cabecalhoTemRotuloLegivelEDicaComONomeDoCampo() {
+        ModeloHidr m;
+        m.definirArquivo(arquivoDeTeste(), QStringLiteral("x.dat"));
+        QCOMPARE(m.headerData(0, Qt::Horizontal).toString(), QStringLiteral("Código"));
+        QCOMPARE(m.headerData(0, Qt::Horizontal, Qt::ToolTipRole).toString(), QStringLiteral("codigo"));
+        int col = m.colunaDoCampo("posto_bdh");
+        QCOMPARE(m.headerData(col, Qt::Horizontal).toString(), QStringLiteral("Posto BDH"));
+        QCOMPARE(m.headerData(col, Qt::Horizontal, Qt::ToolTipRole).toString(), QStringLiteral("posto_bdh"));
+        for (const Campo& c : campos()) {
+            if (!c.escalar()) continue;
+            QString rotulo = m.headerData(m.colunaDoCampo(c.nome), Qt::Horizontal).toString();
+            QVERIFY2(rotulo != QString::fromLatin1(c.nome.data(), static_cast<int>(c.nome.size())), c.nome.data());
+        }
+    }
+    void colunasComNomeDoLookupAlinhamAEsquerda() {
+        ModeloHidr m;
+        m.definirArquivo(arquivoDeTeste(), QStringLiteral("x.dat"));
+        const int esquerda = int(Qt::AlignLeft | Qt::AlignVCenter);
+        const int direita = int(Qt::AlignRight | Qt::AlignVCenter);
+        QCOMPARE(m.data(m.index(0, m.colunaDoCampo("subsistema")), Qt::TextAlignmentRole).toInt(), esquerda);
+        QCOMPARE(m.data(m.index(0, m.colunaDoCampo("jusante")), Qt::TextAlignmentRole).toInt(), esquerda);
+        QCOMPARE(m.data(m.index(0, m.colunaDoCampo("volume_minimo")), Qt::TextAlignmentRole).toInt(), direita);
+        QCOMPARE(m.data(m.index(0, m.colunaDoCampo("num_conjuntos")), Qt::TextAlignmentRole).toInt(), direita);
+    }
     void filtroOcultaVaziasEBuscaPorNomeOuCodigo() {
         ModeloHidr m;
         m.definirArquivo(arquivoDeTeste(), QStringLiteral("x.dat"));

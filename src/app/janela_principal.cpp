@@ -29,6 +29,7 @@
 #include <filesystem>
 #include <map>
 #include <set>
+#include "botao_combo.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
@@ -157,11 +158,9 @@ void JanelaPrincipal::criarTabela() {
     menu_ree_->setToolTipsVisible(true);
     menu_submercado_ = new QMenu(painel_cascata);
     menu_submercado_->setToolTipsVisible(true);
-    ree_cascata_ = new QToolButton(painel_cascata);
-    ree_cascata_->setPopupMode(QToolButton::InstantPopup);
+    ree_cascata_ = new BotaoCombo(painel_cascata);
     ree_cascata_->setMenu(menu_ree_);
-    submercado_cascata_ = new QToolButton(painel_cascata);
-    submercado_cascata_->setPopupMode(QToolButton::InstantPopup);
+    submercado_cascata_ = new BotaoCombo(painel_cascata);
     submercado_cascata_->setMenu(menu_submercado_);
     // Largura fixa pelo rotulo mais longo possivel, para a barra nao se mexer quando o texto do
     // botao alterna entre "todos" e a contagem.

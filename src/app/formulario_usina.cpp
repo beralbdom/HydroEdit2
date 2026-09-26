@@ -32,6 +32,7 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     abas_->setDocumentMode(false);
 
     auto adicionarPagina = [this](QWidget* conteudo, const QString& titulo) {
+        alinharRotulos(conteudo);
         auto* scroll = new QScrollArea(abas_);
         scroll->setWidgetResizable(true);
         scroll->setFrameShape(QFrame::NoFrame);
@@ -66,6 +67,23 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
 void FormularioUsina::configurarLayout(QLayout* l) {
     l->setContentsMargins(6, 4, 6, 4);
     l->setSpacing(4);
+}
+
+// Cada grupo tem o proprio QFormLayout, que dimensiona a coluna de rotulos pelo maior rotulo dele;
+// com isso os campos de grupos diferentes da mesma aba comecariam em posicoes x diferentes. Todos os
+// rotulos da aba recebem a largura do maior deles e os campos formam uma coluna so.
+void FormularioUsina::alinharRotulos(QWidget* pagina) {
+    std::vector<QWidget*> rotulos;
+    int largura = 0;
+    for (QFormLayout* form : pagina->findChildren<QFormLayout*>()) {
+        for (int i = 0; i < form->rowCount(); ++i) {
+            QLayoutItem* item = form->itemAt(i, QFormLayout::LabelRole);
+            if (!item || !item->widget()) continue;
+            rotulos.push_back(item->widget());
+            largura = std::max(largura, item->widget()->sizeHint().width());
+        }
+    }
+    for (QWidget* rotulo : rotulos) rotulo->setMinimumWidth(largura);
 }
 
 QVBoxLayout* FormularioUsina::novaPagina(QWidget* pai) {

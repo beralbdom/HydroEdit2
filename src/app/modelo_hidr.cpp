@@ -1,7 +1,59 @@
 #include "modelo_hidr.h"
 #include <QLocale>
+#include <map>
 #include "comandos.h"
 #include "texto.h"
+
+namespace {
+// Rotulo curto de cada coluna da tabela, com a unidade quando o campo tem uma (as mesmas do
+// formulario). O nome do campo no arquivo continua visivel na dica do cabecalho.
+QString rotuloDaColuna(std::string_view nome) {
+    static const std::map<std::string_view, QString> rotulos = {
+        {"codigo", QStringLiteral("Código")},
+        {"nome", QStringLiteral("Nome")},
+        {"posto", QStringLiteral("Posto")},
+        {"posto_bdh", QStringLiteral("Posto BDH")},
+        {"subsistema", QStringLiteral("Subsistema")},
+        {"empresa", QStringLiteral("Empresa")},
+        {"jusante", QStringLiteral("Jusante")},
+        {"desvio", QStringLiteral("Desvio")},
+        {"volume_minimo", QStringLiteral("Vol. mín. (hm³)")},
+        {"volume_maximo", QStringLiteral("Vol. máx. (hm³)")},
+        {"volume_vertedouro", QStringLiteral("Vol. vertedouro (hm³)")},
+        {"volume_desvio", QStringLiteral("Vol. desvio (hm³)")},
+        {"cota_minima", QStringLiteral("Cota mín. (m)")},
+        {"cota_maxima", QStringLiteral("Cota máx. (m)")},
+        {"num_conjuntos", QStringLiteral("Conjuntos")},
+        {"produtibilidade", QStringLiteral("Produtibilidade")},
+        {"perdas", QStringLiteral("Perdas")},
+        {"num_pol_jusante", QStringLiteral("Pol. jusante")},
+        {"canal_fuga_medio", QStringLiteral("Canal de fuga (m)")},
+        {"influencia_vertimento", QStringLiteral("Infl. vertimento")},
+        {"fator_carga_maximo", QStringLiteral("FC máx. (%)")},
+        {"fator_carga_minimo", QStringLiteral("FC mín. (%)")},
+        {"vazao_minima_historica", QStringLiteral("Vazão mín. hist. (m³/s)")},
+        {"num_unidades_base", QStringLiteral("Unid. base")},
+        {"tipo_turbina", QStringLiteral("Tipo de turbina")},
+        {"representacao_conjunto", QStringLiteral("Repr. conjunto")},
+        {"teif", QStringLiteral("TEIF (%)")},
+        {"ip", QStringLiteral("IP (%)")},
+        {"tipo_perda", QStringLiteral("Tipo de perda")},
+        {"data", QStringLiteral("Data")},
+        {"observacao", QStringLiteral("Observação")},
+        {"volume_referencia", QStringLiteral("Vol. referência (hm³)")},
+        {"regulacao", QStringLiteral("Regulação")},
+    };
+    auto it = rotulos.find(nome);
+    return it != rotulos.end() ? it->second : QString::fromLatin1(nome.data(), static_cast<int>(nome.size()));
+}
+
+// Campos inteiros que a tabela mostra como "codigo nome" (os mesmos de ModeloHidr::nomeLookup). O
+// texto comeca pelo codigo mas termina num nome, entao alinha a esquerda como as colunas de texto.
+bool campoComNome(std::string_view nome) {
+    return nome == "subsistema" || nome == "posto" || nome == "empresa" || nome == "tipo_turbina" ||
+           nome == "jusante" || nome == "desvio";
+}
+}  // namespace
 
 QString textoValor(const Valor& v) {
     if (const std::string* s = std::get_if<std::string>(&v)) return QString::fromLatin1(s->c_str());
@@ -127,7 +179,8 @@ QVariant ModeloHidr::data(const QModelIndex& ix, int role) const {
             if (c.tipo == TipoCampo::Real) return static_cast<double>(std::get<float>(v));
             return textoValor(v);
         case Qt::TextAlignmentRole:
-            return c.tipo == TipoCampo::Texto ? int(Qt::AlignLeft | Qt::AlignVCenter) : int(Qt::AlignRight | Qt::AlignVCenter);
+            return c.tipo == TipoCampo::Texto || campoComNome(c.nome) ? int(Qt::AlignLeft | Qt::AlignVCenter)
+                                                                       : int(Qt::AlignRight | Qt::AlignVCenter);
         default: return {};
     }
 }
@@ -142,10 +195,11 @@ bool ModeloHidr::setData(const QModelIndex& ix, const QVariant& value, int role)
 }
 
 QVariant ModeloHidr::headerData(int section, Qt::Orientation o, int role) const {
-    if (role != Qt::DisplayRole) return {};
-    if (o == Qt::Vertical) return section + 1;
-    if (section == 0) return QStringLiteral("codigo");
-    return QString::fromLatin1(campoDaColuna(section)->nome.data(), static_cast<int>(campoDaColuna(section)->nome.size()));
+    if (o == Qt::Vertical) return role == Qt::DisplayRole ? QVariant(section + 1) : QVariant();
+    std::string_view nome = section == 0 ? std::string_view("codigo") : campoDaColuna(section)->nome;
+    if (role == Qt::DisplayRole) return rotuloDaColuna(nome);
+    if (role == Qt::ToolTipRole) return QString::fromLatin1(nome.data(), static_cast<int>(nome.size()));
+    return {};
 }
 
 Qt::ItemFlags ModeloHidr::flags(const QModelIndex& ix) const {

@@ -1,6 +1,7 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QLineEdit>
 #include <QVBoxLayout>
 #include "formulario_usina.h"
 #include "grade_vetor.h"
@@ -25,6 +26,8 @@ QWidget* FormularioUsina::criarPaginaCadastro() {
     reg->addItem(QStringLiteral("S  Semanal"), QStringLiteral("S"));
     reg->addItem(QStringLiteral("D  Diária"), QStringLiteral("D"));
     ligarEdit(fi, kCadastro, QStringLiteral("Data"), "data");
+    QLineEdit* observacao = ligarEdit(fi, kCadastro, QStringLiteral("Observação"), "observacao");
+    observacao->setFixedWidth(observacao->fontMetrics().averageCharWidth() * 40 + 12);
     v->addWidget(identificacao);
 
     QGroupBox* vinculos = novoGrupo(pagina, QStringLiteral("Vínculos"));
@@ -34,11 +37,6 @@ QWidget* FormularioUsina::criarPaginaCadastro() {
     ligarCombo(fv, kCadastro, QStringLiteral("Jusante"), "jusante");
     ligarCombo(fv, kCadastro, QStringLiteral("Desvio"), "desvio");
     v->addWidget(vinculos);
-
-    QGroupBox* obs = novoGrupo(pagina, QStringLiteral("Observação"));
-    auto* fo = novoForm(obs);
-    ligarEdit(fo, kCadastro, QStringLiteral("Observação"), "observacao");
-    v->addWidget(obs);
 
     v->addStretch(1);
     return pagina;
@@ -189,7 +187,7 @@ QWidget* FormularioUsina::criarPaginaJusante() {
 
     QGroupBox* curvasJusante = novoGrupo(pagina, QStringLiteral("Curvas de jusante"));
     auto* vcj = novoConteudo(curvasJusante);
-    grafico_jusante_ = new GraficoPolinomio(QStringLiteral("Jusante"), QStringLiteral("Vazão (m³/s)"), QStringLiteral("Cota de jusante (m)"), curvasJusante);
+    grafico_jusante_ = new GraficoPolinomio(QStringLiteral("Jusante"), QStringLiteral("Vazão (m³/s)"), QStringLiteral("Cota (m)"), curvasJusante);
     vcj->addWidget(grafico_jusante_);
     v->addWidget(curvasJusante);
 

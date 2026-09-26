@@ -15,6 +15,7 @@ qt_add_library(hydroedit_ui STATIC
     itens_cascata.cpp itens_cascata.h
     legenda_cascata.cpp legenda_cascata.h
     grafico_polinomio.cpp grafico_polinomio.h
+    botao_combo.cpp botao_combo.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts)
