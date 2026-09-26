@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QTableView>
 #include <QVBoxLayout>
+#include "ajuste_colunas.h"
 #include "dados_deck.h"
 #include "modelo_parametros.h"
 #include "modelo_secao_fixa.h"
@@ -45,6 +46,7 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         tabela_->setModel(modelo_);
         connect(modelo_, &ModeloSecaoFixa::valorRecusado, this, [this](const QString& motivo) { atualizar(motivo); });
     }
+    preencherLargura(tabela_);
     tabela_->setAlternatingRowColors(true);
     tabela_->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela_->verticalHeader()->setVisible(false);
@@ -60,12 +62,12 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         if (nome == info_.nome_padrao) atualizar();
     });
     connect(dados_, &DadosDeck::recarregado, this, [this] {
-        tabela_->resizeColumnsToContents();
+        ajustarColunas(tabela_);
         atualizar();
     });
     connect(dados_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
         if (nome != info_.nome_padrao) return;
-        tabela_->resizeColumnsToContents();
+        ajustarColunas(tabela_);
         atualizar();
     });
     mostrarSecao(0);
@@ -75,7 +77,7 @@ void PaginaArquivoFixo::mostrarSecao(int secao) {
     if (modelo_) modelo_->definirSecao(secao);
     const QString titulo_secao = QString::fromStdString(layout_.secoes[static_cast<size_t>(secao)].titulo);
     titulo_->setText(modelo_ && layout_.secoes.size() > 1 ? QStringLiteral("%1  ·  %2").arg(info_.titulo, titulo_secao) : info_.titulo);
-    tabela_->resizeColumnsToContents();
+    ajustarColunas(tabela_);
     atualizar();
 }
 

@@ -13,6 +13,7 @@
 #include <QTableView>
 #include <QTableWidget>
 #include <QVBoxLayout>
+#include "ajuste_colunas.h"
 #include "dados_deck.h"
 #include "formulario_usina.h"
 #include "modelo_secao_fixa.h"
@@ -161,7 +162,7 @@ QWidget* FormularioTermica::criarPaginaCadastro() {
     gtmin_->horizontalHeader()->setFixedHeight(22);
     gtmin_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     gtmin_->setFixedHeight(22 + TERM_GTMIN_COLUNAS * 20 + 2 * gtmin_->frameWidth() + 2);
-    gtmin_->setFixedWidth(gtmin_->verticalHeader()->sizeHint().width() + 110 + 2 * gtmin_->frameWidth());
+    gtmin_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     gtmin_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     gtmin_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     connect(gtmin_, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* item) {
@@ -209,9 +210,7 @@ QTableView* FormularioTermica::novaTabela(QSortFilterProxyModel* filtro, QWidget
     tabela->verticalHeader()->setVisible(false);
     tabela->verticalHeader()->setDefaultSectionSize(20);
     tabela->horizontalHeader()->setFixedHeight(22);
-    connect(filtro, &QAbstractItemModel::modelReset, tabela, &QTableView::resizeColumnsToContents);
-    connect(filtro, &QAbstractItemModel::layoutChanged, tabela, &QTableView::resizeColumnsToContents);
-    connect(filtro, &QAbstractItemModel::rowsInserted, tabela, &QTableView::resizeColumnsToContents);
+    preencherLargura(tabela);
     return tabela;
 }
 

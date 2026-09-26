@@ -5,6 +5,7 @@
 #include <QTableView>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include "ajuste_colunas.h"
 #include "dados_deck.h"
 #include "formulario_termica.h"
 #include "modelo_secao_fixa.h"
@@ -62,6 +63,7 @@ EditorTermicas::EditorTermicas(DadosDeck* dados, QWidget* parent) : QSplitter(Qt
     tabela_->verticalHeader()->setVisible(false);
     tabela_->verticalHeader()->setDefaultSectionSize(20);
     tabela_->horizontalHeader()->setFixedHeight(22);
+    preencherLargura(tabela_);
 
     formulario_ = new FormularioTermica(dados, this);
     auto* busca = new QLineEdit(formulario_);
@@ -83,7 +85,7 @@ EditorTermicas::EditorTermicas(DadosDeck* dados, QWidget* parent) : QSplitter(Qt
         formulario_->definirUsina(atual.isValid() ? ordenacao_->index(atual.row(), 0).data().toString() : QString());
     });
     connect(dados, &DadosDeck::recarregado, this, [this] {
-        tabela_->resizeColumnsToContents();
+        ajustarColunas(tabela_);
         selecionarPrimeira();
     });
 }

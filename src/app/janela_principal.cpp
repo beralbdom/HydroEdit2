@@ -28,6 +28,7 @@
 #include <filesystem>
 #include <map>
 #include <set>
+#include "ajuste_colunas.h"
 #include "botao_combo.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
@@ -150,6 +151,7 @@ void JanelaPrincipal::criarTabela() {
     tabela_->horizontalHeader()->setFixedHeight(22);
     tabela_->verticalHeader()->setVisible(false);
     tabela_->verticalHeader()->setDefaultSectionSize(20);
+    preencherLargura(tabela_);
     tabela_->setAlternatingRowColors(true);
     abas_esquerda->addTab(tabela_, QStringLiteral("Tabela"));
 
@@ -406,7 +408,7 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     repovoarFiltrosCascata();
     modelo_->definirArquivo(std::move(a), caminho);
     navegador_->carregarDeck(QFileInfo(caminho).absolutePath());
-    tabela_->resizeColumnsToContents();
+    ajustarColunas(tabela_);
     acao_salvar_->setEnabled(true);
     acao_salvar_como_->setEnabled(true);
     acao_exportar_->setEnabled(true);

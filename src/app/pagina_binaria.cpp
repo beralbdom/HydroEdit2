@@ -11,6 +11,7 @@
 #include <QSignalBlocker>
 #include <algorithm>
 #include <functional>
+#include "ajuste_colunas.h"
 #include "dados_deck.h"
 #include "layouts_newave.h"
 
@@ -250,14 +251,15 @@ PaginaPostos::PaginaPostos(DadosDeck* dados, QWidget* parent)
     modelo_->recusado = [this](const QString& motivo) { atualizar(motivo); };
     tabela_ = novaTabela();
     tabela_->setModel(modelo_);
+    preencherLargura(tabela_);
     connect(dados_, &DadosDeck::recarregado, this, [this] {
-        tabela_->resizeColumnsToContents();
+        ajustarColunas(tabela_);
         aplicarOcultos();
     });
     connect(dados_, &DadosDeck::alterado, this, [this](const QString& nome) {
         if (nome == POSTOS) aplicarOcultos();
     });
-    tabela_->resizeColumnsToContents();
+    ajustarColunas(tabela_);
     aplicarOcultos();
     atualizar();
 }
@@ -297,10 +299,11 @@ PaginaVazoes::PaginaVazoes(DadosDeck* dados, QWidget* parent)
     modelo_->recusado = [this](const QString& motivo) { atualizar(motivo); };
     tabela_ = novaTabela();
     tabela_->setModel(modelo_);
+    preencherLargura(tabela_);
 
     connect(postos_, &QComboBox::currentIndexChanged, this, [this](int i) {
         modelo_->definirPosto(i >= 0 ? postos_->itemData(i).toInt() : 0);
-        tabela_->resizeColumnsToContents();
+        ajustarColunas(tabela_);
     });
     connect(dados_, &DadosDeck::recarregado, this, &PaginaVazoes::preencherPostos);
     connect(dados_, &DadosDeck::alterado, this, [this](const QString& nome) {
@@ -331,7 +334,7 @@ void PaginaVazoes::preencherPostos() {
     const int escolhido = postos_->findData(atual);
     postos_->setCurrentIndex(escolhido >= 0 ? escolhido : (postos_->count() > 0 ? 0 : -1));
     modelo_->definirPosto(postos_->currentIndex() >= 0 ? postos_->currentData().toInt() : 0);
-    tabela_->resizeColumnsToContents();
+    ajustarColunas(tabela_);
     atualizar();
 }
 
