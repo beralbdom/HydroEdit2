@@ -1,7 +1,6 @@
 #pragma once
 #include <QTabWidget>
 #include <vector>
-#include "estilo_arvore.h"
 
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -23,7 +22,6 @@ private:
         QTreeWidgetItem* item;
         QString titulo;
         QString nome_padrao;
-        IconeArvore icone;
         PaginaArquivo* previa;
     };
 

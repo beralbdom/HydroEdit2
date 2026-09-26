@@ -7,6 +7,7 @@
 #include <filesystem>
 #include "catalogo_newave.h"
 #include "dados_deck.h"
+#include "estilo_arvore.h"
 #include "deck_newave.h"
 #include "editor_termicas.h"
 #include "layouts_newave.h"
@@ -15,10 +16,9 @@
 #include "pagina_modificacoes.h"
 
 // Uma aba por secao do catalogo, cada uma com a arvore dos arquivos a esquerda e a pagina do item
-// selecionado a direita. Na arvore, os arquivos ficam sob cabecalhos de grupo (na ordem em que o
-// grupo aparece no catalogo), com um icone do tipo de pagina: gota para o editor das
-// hidroeletricas, chama para o das termoeletricas, grade para tabela editavel e folha para arquivo
-// que so tem previa. Arquivo de colunas fixas com mais de uma secao ganha um filho por secao. A aba
+// selecionado a direita. Na arvore, os arquivos ficam sob cabecalhos de grupo colapsaveis (na ordem
+// em que o grupo aparece no catalogo). Arquivo de colunas fixas com mais de uma secao ganha um filho
+// por secao. A aba
 // Modificacoes e a pagina propria do modif.dat. Todas as vistas editaveis usam o mesmo repositorio.
 NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWidget* parent) : QTabWidget(parent) {
     setDocumentMode(true);
@@ -33,11 +33,8 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
         divisor->setHandleWidth(4);
         auto* lista = new QTreeWidget(divisor);
         lista->setHeaderHidden(true);
-        lista->setRootIsDecorated(false);
         estilizarArvore(lista);
         auto* paginas = new QStackedWidget(divisor);
-        const qreal escala = devicePixelRatioF();
-        const QColor cor_icone = lista->palette().color(QPalette::Text);
 
         std::vector<QString> grupos;
         for (const ArquivoNewave& arquivo : catalogoNewave())
@@ -48,7 +45,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
         QTreeWidgetItem* primeiro = nullptr;
         for (const QString& grupo : grupos) {
             QTreeWidgetItem* cabecalho = grupo.isEmpty() ? nullptr : novoGrupoArvore(lista, grupo);
-            const int recuo = cabecalho ? lista->indentation() : 0;
+            const int recuo = (cabecalho ? 2 : 1) * lista->indentation();
             for (const ArquivoNewave& arquivo : catalogoNewave()) {
                 if (arquivo.secao != secao || grupoNewave(arquivo.nome_padrao) != grupo) continue;
                 const LayoutArquivoFixo* layout = layoutNewave(arquivo.nome_padrao.toStdString());
@@ -56,36 +53,30 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 const bool termicas = arquivo.nome_padrao == QStringLiteral("term.dat");
                 QWidget* pagina = nullptr;
                 PaginaArquivo* previa = nullptr;
-                IconeArvore icone = IconeArvore::Tabela;
                 if (hidro) {
                     pagina = editor_hidr;
-                    icone = IconeArvore::Hidro;
                 } else if (termicas) {
                     pagina = new EditorTermicas(dados_, paginas);
-                    icone = IconeArvore::Termica;
                 } else if (layout) {
                     pagina = new PaginaArquivoFixo(arquivo, *layout, dados_, paginas);
                 } else {
                     previa = new PaginaArquivo(arquivo, paginas);
                     paginas_.push_back(previa);
                     pagina = previa;
-                    icone = IconeArvore::Previa;
                 }
                 const int indice = paginas->addWidget(pagina);
                 auto* item = cabecalho ? new QTreeWidgetItem(cabecalho, {arquivo.titulo}) : new QTreeWidgetItem(lista, {arquivo.titulo});
-                item->setIcon(0, iconeArvore(icone, cor_icone, escala));
                 item->setToolTip(0, previa ? QStringLiteral("%1  ·  somente prévia, o editor ainda não existe").arg(arquivo.nome_padrao)
                                            : arquivo.nome_padrao);
                 item->setData(0, Qt::UserRole, indice);
                 item->setData(0, Qt::UserRole + 1, 0);
-                itens_.push_back({item, arquivo.titulo, arquivo.nome_padrao, icone, previa});
+                itens_.push_back({item, arquivo.titulo, arquivo.nome_padrao, previa});
                 if (!primeiro) primeiro = item;
                 largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
                 if (layout && !termicas && layout->secoes.size() > 1) {
                     for (size_t s = 0; s < layout->secoes.size(); ++s) {
                         const QString titulo = QString::fromStdString(layout->secoes[s].titulo);
                         auto* filho = new QTreeWidgetItem(item, {titulo});
-                        filho->setIcon(0, iconeArvore(IconeArvore::Tabela, cor_icone, escala));
                         filho->setData(0, Qt::UserRole, indice);
                         filho->setData(0, Qt::UserRole + 1, static_cast<int>(s));
                         largura = std::max(largura, recuo + lista->indentation() + lista->fontMetrics().horizontalAdvance(titulo));
@@ -105,8 +96,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
         divisor->addWidget(lista);
         divisor->addWidget(paginas);
         divisor->setStretchFactor(1, 1);
-        const int icone_e_folga = lista->iconSize().width() + 8;
-        divisor->setSizes({largura + icone_e_folga + 2 * lista->frameWidth() + 24, 800});
+        divisor->setSizes({largura + 2 * lista->frameWidth() + 24, 800});
         addTab(divisor, secao);
     }
     connect(dados_, &DadosDeck::alterado, this, &NavegadorDeck::atualizarItens);
@@ -125,8 +115,8 @@ void NavegadorDeck::carregarDeck(const QString& dir_deck) {
     modificacoes_->carregar(QDir(dir_deck).filePath(nome_modif));
 }
 
-// Estado de cada item: com um deck aberto, arquivo que nao esta nele fica esmaecido e em italico,
-// com o icone esmaecido; arquivo alterado e nao salvo ganha um ponto depois do titulo. O hidr.dat,
+// Estado de cada item: com um deck aberto, arquivo que nao esta nele fica esmaecido e em italico;
+// arquivo alterado e nao salvo ganha um ponto depois do titulo. O hidr.dat,
 // aberto pelo proprio editor, nunca aparece como ausente.
 void NavegadorDeck::atualizarItens() {
     const QStringList alterados = dados_->modificados();
@@ -141,11 +131,7 @@ void NavegadorDeck::atualizarItens() {
         fonte.setItalic(ausente);
         i.item->setFont(0, fonte);
         i.item->setForeground(0, cor);
-        i.item->setIcon(0, iconeArvore(i.icone, cor, devicePixelRatioF()));
-        for (int f = 0; f < i.item->childCount(); ++f) {
-            i.item->child(f)->setForeground(0, cor);
-            i.item->child(f)->setIcon(0, iconeArvore(IconeArvore::Tabela, cor, devicePixelRatioF()));
-        }
+        for (int f = 0; f < i.item->childCount(); ++f) i.item->child(f)->setForeground(0, cor);
         i.item->setText(0, alterados.contains(i.nome_padrao) ? i.titulo + QStringLiteral("  •") : i.titulo);
     }
 }
