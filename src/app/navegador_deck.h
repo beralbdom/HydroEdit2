@@ -1,8 +1,9 @@
 #pragma once
 #include <QTabWidget>
-#include <map>
 #include <vector>
+#include "estilo_arvore.h"
 
+class QTreeWidget;
 class QTreeWidgetItem;
 class DadosDeck;
 class ModeloHidr;
@@ -18,10 +19,18 @@ public:
     bool salvarTodos();
 
 private:
-    void marcarModificados();
+    struct ItemArquivo {
+        QTreeWidgetItem* item;
+        QString titulo;
+        QString nome_padrao;
+        IconeArvore icone;
+        PaginaArquivo* previa;
+    };
+
+    void atualizarItens();
 
     DadosDeck* dados_;
     std::vector<PaginaArquivo*> paginas_;
     PaginaModificacoes* modificacoes_;
-    std::multimap<QString, std::pair<QTreeWidgetItem*, QString>> itens_por_arquivo_;
+    std::vector<ItemArquivo> itens_;
 };

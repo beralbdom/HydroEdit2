@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 #include "catalogo_newave.h"
+#include "estilo_arvore.h"
 #include "modelo_hidr.h"
 
 namespace {
@@ -40,6 +41,7 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, QWidget* parent
     arvore_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     arvore_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     arvore_->header()->setStretchLastSection(false);
+    estilizarArvore(arvore_);
 
     auto* direita = new QWidget(this);
     auto* layout = new QVBoxLayout(direita);

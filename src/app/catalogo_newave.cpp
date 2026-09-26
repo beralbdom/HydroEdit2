@@ -1,4 +1,5 @@
 #include "catalogo_newave.h"
+#include <map>
 
 // Abas do editor, na ordem em que aparecem. O agrupamento dos arquivos em abas e proposta do app; os
 // arquivos e titulos vem do capitulo 3 do manual do NEWAVE 30.0.2.
@@ -90,4 +91,43 @@ const std::vector<PalavraChaveModif>& palavrasChaveModif() {
         {QStringLiteral("CDESVIO"), QStringLiteral("Operação e polinômios"), QStringLiteral("Canal de desvio: usina a jusante e vazão máxima")},
     };
     return chaves;
+}
+
+// Grupo de cada arquivo dentro da sua aba, para os cabecalhos da arvore; proposta do app, como as
+// abas. Arquivo sem grupo fica sem cabecalho.
+QString grupoNewave(const QString& nome_padrao) {
+    static const std::map<QString, QString> grupos = {
+        {QStringLiteral("hidr.dat"), QStringLiteral("Usinas")},
+        {QStringLiteral("term.dat"), QStringLiteral("Usinas")},
+        {QStringLiteral("clast.dat"), QStringLiteral("Referências")},
+        {QStringLiteral("postos.dat"), QStringLiteral("Referências")},
+        {QStringLiteral("ree.dat"), QStringLiteral("Referências")},
+        {QStringLiteral("tecno.dat"), QStringLiteral("Referências")},
+        {QStringLiteral("confhd.dat"), QStringLiteral("Hidroelétricas")},
+        {QStringLiteral("exph.dat"), QStringLiteral("Hidroelétricas")},
+        {QStringLiteral("conft.dat"), QStringLiteral("Termoelétricas")},
+        {QStringLiteral("expt.dat"), QStringLiteral("Termoelétricas")},
+        {QStringLiteral("manutt.dat"), QStringLiteral("Termoelétricas")},
+        {QStringLiteral("vazoes.dat"), QStringLiteral("Vazões")},
+        {QStringLiteral("vazpast.dat"), QStringLiteral("Vazões")},
+        {QStringLiteral("dsvagua.dat"), QStringLiteral("Operação hidráulica")},
+        {QStringLiteral("volref_saz.dat"), QStringLiteral("Operação hidráulica")},
+        {QStringLiteral("polinjus.csv"), QStringLiteral("Operação hidráulica")},
+        {QStringLiteral("sistema.dat"), QStringLiteral("Mercado")},
+        {QStringLiteral("patamar.dat"), QStringLiteral("Mercado")},
+        {QStringLiteral("c_adic.dat"), QStringLiteral("Mercado")},
+        {QStringLiteral("agrint.dat"), QStringLiteral("Interligações")},
+        {QStringLiteral("loss.dat"), QStringLiteral("Interligações")},
+        {QStringLiteral("gtminpat.dat"), QStringLiteral("Termoelétricas")},
+        {QStringLiteral("adterm.dat"), QStringLiteral("Termoelétricas")},
+        {QStringLiteral("penalid.dat"), QStringLiteral("Penalidades e risco")},
+        {QStringLiteral("curva.dat"), QStringLiteral("Penalidades e risco")},
+        {QStringLiteral("cvar.dat"), QStringLiteral("Penalidades e risco")},
+        {QStringLiteral("sar.dat"), QStringLiteral("Penalidades e risco")},
+        {QStringLiteral("ghmin.dat"), QStringLiteral("Operativas")},
+        {QStringLiteral("re.dat"), QStringLiteral("Operativas")},
+        {QStringLiteral("restricao-eletrica.csv"), QStringLiteral("Operativas")},
+    };
+    auto it = grupos.find(nome_padrao);
+    return it == grupos.end() ? QString() : it->second;
 }

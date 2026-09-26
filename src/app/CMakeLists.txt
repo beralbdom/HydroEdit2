@@ -25,6 +25,7 @@ qt_add_library(hydroedit_ui STATIC
     dados_deck.cpp dados_deck.h
     formulario_termica.cpp formulario_termica.h
     editor_termicas.cpp editor_termicas.h
+    estilo_arvore.cpp estilo_arvore.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts)

@@ -12,9 +12,11 @@ class PaginaArquivo : public QWidget {
 public:
     PaginaArquivo(const ArquivoNewave& arquivo, QWidget* parent = nullptr);
     void carregar(const QString& dir_deck, const std::map<std::string, std::string>& arquivos_dat);
+    bool encontrado() const { return encontrado_; }
 
 private:
     ArquivoNewave arquivo_;
     QLabel* detalhes_;
     QPlainTextEdit* texto_;
+    bool encontrado_ = true;
 };

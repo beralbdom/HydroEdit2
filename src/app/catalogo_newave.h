@@ -19,3 +19,4 @@ struct PalavraChaveModif {
 const std::vector<QString>& secoesNewave();
 const std::vector<ArquivoNewave>& catalogoNewave();
 const std::vector<PalavraChaveModif>& palavrasChaveModif();
+QString grupoNewave(const QString& nome_padrao);

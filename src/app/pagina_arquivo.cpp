@@ -44,6 +44,7 @@ PaginaArquivo::PaginaArquivo(const ArquivoNewave& arquivo, QWidget* parent) : QW
 // como Latin-1, a codificacao dos decks, ate 2 MB.
 void PaginaArquivo::carregar(const QString& dir_deck, const std::map<std::string, std::string>& arquivos_dat) {
     texto_->clear();
+    encontrado_ = true;
     const QString secao = QStringLiteral("manual do NEWAVE, seção %1").arg(arquivo_.secao_manual);
     if (dir_deck.isEmpty()) {
         detalhes_->setText(QStringLiteral("%1  ·  %2  ·  abra o hidr.dat de um deck para ver o arquivo")
@@ -57,6 +58,7 @@ void PaginaArquivo::carregar(const QString& dir_deck, const std::map<std::string
 
     QFile arquivo(QDir(dir_deck).filePath(nome));
     if (!arquivo.open(QIODevice::ReadOnly)) {
+        encontrado_ = false;
         detalhes_->setText(QStringLiteral("%1  ·  %2  ·  não encontrado no deck").arg(nome, secao));
         return;
     }
