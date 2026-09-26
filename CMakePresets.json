@@ -28,7 +28,7 @@
     {
       "name": "msvc-debug",
       "inherits": "msvc-base",
-      "binaryDir": "${sourceDir}/build-debug",
+      "binaryDir": "$env{LOCALAPPDATA}/HydroEdit/build-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       },
@@ -44,7 +44,7 @@
     {
       "name": "msvc-release",
       "inherits": "msvc-base",
-      "binaryDir": "${sourceDir}/build-release",
+      "binaryDir": "$env{LOCALAPPDATA}/HydroEdit/build-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       },
@@ -60,7 +60,7 @@
     {
       "name": "msvc-static",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-static",
+      "binaryDir": "$env{LOCALAPPDATA}/HydroEdit/build-static",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
