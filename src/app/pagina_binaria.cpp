@@ -185,11 +185,10 @@ private:
 };
 
 // Pagina de um arquivo binario do deck, no molde das paginas de colunas fixas: titulo, botao Salvar
-// habilitado so com alteracao pendente e linha de detalhes (arquivo, secao do manual, resumo do
+// habilitado so com alteracao pendente e linha de detalhes (arquivo, resumo do
 // conteudo e ultimo aviso). As subclasses poem o conteudo em layout_.
-PaginaBinaria::PaginaBinaria(const QString& titulo, const QString& nome_padrao, const QString& secao_manual, DadosDeck* dados,
-                             QWidget* parent)
-    : QWidget(parent), nome_(nome_padrao), dados_(dados), secao_manual_(secao_manual) {
+PaginaBinaria::PaginaBinaria(const QString& titulo, const QString& nome_padrao, DadosDeck* dados, QWidget* parent)
+    : QWidget(parent), nome_(nome_padrao), dados_(dados) {
     layout_ = new QVBoxLayout(this);
     layout_->setContentsMargins(6, 4, 6, 4);
     layout_->setSpacing(4);
@@ -231,14 +230,13 @@ QTableView* PaginaBinaria::novaTabela() {
 }
 
 void PaginaBinaria::atualizar(const QString& aviso) {
-    const QString secao = QStringLiteral("manual do NEWAVE, seção %1").arg(secao_manual_);
     const ArquivoBinario* arquivo = dados_->arquivoBinario(nome_);
     QString texto;
-    if (!dados_->carregado()) texto = QStringLiteral("%1  ·  %2  ·  abra o hidr.dat de um deck para editar").arg(nome_, secao);
-    else if (!arquivo) texto = QStringLiteral("%1  ·  %2  ·  %3").arg(nome_, secao, dados_->erro(nome_));
+    if (!dados_->carregado()) texto = QStringLiteral("%1  ·  abra o hidr.dat de um deck para editar").arg(nome_);
+    else if (!arquivo) texto = QStringLiteral("%1  ·  %2").arg(nome_, dados_->erro(nome_));
     else
-        texto = QStringLiteral("%1  ·  %2  ·  %3%4")
-                    .arg(nome_, secao, resumo(), arquivo->modificado() ? QStringLiteral("  ·  alterado, não salvo") : QString());
+        texto = QStringLiteral("%1  ·  %2%3")
+                    .arg(nome_, resumo(), arquivo->modificado() ? QStringLiteral("  ·  alterado, não salvo") : QString());
     if (!aviso.isEmpty()) texto += QStringLiteral("  ·  ") + aviso;
     detalhes_->setText(texto);
     botao_salvar_->setEnabled(arquivo && arquivo->modificado());
@@ -247,7 +245,7 @@ void PaginaBinaria::atualizar(const QString& aviso) {
 // Com Ver > Ocultar registros vazios, os postos sem nome somem da tabela; a lista se refaz quando o
 // deck muda ou um nome e editado.
 PaginaPostos::PaginaPostos(DadosDeck* dados, QWidget* parent)
-    : PaginaBinaria(QStringLiteral("Postos fluviométricos"), POSTOS, QStringLiteral("3.10"), dados, parent) {
+    : PaginaBinaria(QStringLiteral("Postos fluviométricos"), POSTOS, dados, parent) {
     modelo_ = new ModeloPostos(dados_, this);
     modelo_->recusado = [this](const QString& motivo) { atualizar(motivo); };
     tabela_ = novaTabela();
@@ -287,7 +285,7 @@ QString PaginaPostos::resumo() const {
 // com Ver > Ocultar registros vazios); a lista se refaz quando o deck muda, um nome e editado ou a
 // opcao muda, mantendo o posto escolhido se ele continuar nela.
 PaginaVazoes::PaginaVazoes(DadosDeck* dados, QWidget* parent)
-    : PaginaBinaria(QStringLiteral("Vazões históricas"), VAZOES, QStringLiteral("3.14"), dados, parent) {
+    : PaginaBinaria(QStringLiteral("Vazões históricas"), VAZOES, dados, parent) {
     auto* linha = new QHBoxLayout;
     linha->addWidget(new QLabel(QStringLiteral("Posto:"), this));
     postos_ = new QComboBox(this);

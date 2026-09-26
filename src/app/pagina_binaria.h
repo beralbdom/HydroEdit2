@@ -13,7 +13,7 @@ class ModeloVazoes;
 class PaginaBinaria : public QWidget {
     Q_OBJECT
 protected:
-    PaginaBinaria(const QString& titulo, const QString& nome_padrao, const QString& secao_manual, DadosDeck* dados, QWidget* parent);
+    PaginaBinaria(const QString& titulo, const QString& nome_padrao, DadosDeck* dados, QWidget* parent);
     void atualizar(const QString& aviso = {});
     virtual QString resumo() const = 0;
     QTableView* novaTabela();
@@ -23,7 +23,6 @@ protected:
     QVBoxLayout* layout_;
 
 private:
-    QString secao_manual_;
     QLabel* detalhes_;
     QPushButton* botao_salvar_;
 };

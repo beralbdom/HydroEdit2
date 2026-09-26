@@ -16,9 +16,8 @@ constexpr int ATRASO_MS = 500;
 // sem quebra automatica de linha, com o botao Salvar. O que se digita vai para o repositorio do deck
 // meio segundo depois da ultima tecla (ou na hora, ao salvar ou ao sair do modo textual), e as tabelas
 // do mesmo arquivo se refazem; uma edicao feita fora daqui recarrega o texto.
-EditorTextoArquivo::EditorTextoArquivo(const QString& titulo, const QString& nome_padrao, const QString& secao_manual,
-                                       DadosDeck* dados, QWidget* parent)
-    : QWidget(parent), nome_(nome_padrao), secao_manual_(secao_manual), dados_(dados) {
+EditorTextoArquivo::EditorTextoArquivo(const QString& titulo, const QString& nome_padrao, DadosDeck* dados, QWidget* parent)
+    : QWidget(parent), nome_(nome_padrao), dados_(dados) {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 4, 6, 4);
     layout->setSpacing(4);
@@ -88,15 +87,13 @@ void EditorTextoArquivo::aplicarPendente() {
 }
 
 void EditorTextoArquivo::atualizarDetalhes(const QString& aviso) {
-    const QString secao = QStringLiteral("manual do NEWAVE, seção %1").arg(secao_manual_);
     const ArquivoFixo* arquivo = dados_->arquivo(nome_);
     QString texto;
-    if (!dados_->carregado()) texto = QStringLiteral("%1  ·  %2  ·  abra o hidr.dat de um deck para editar").arg(nome_, secao);
-    else if (!arquivo) texto = QStringLiteral("%1  ·  %2  ·  %3").arg(dados_->nomeNoDeck(nome_), secao, dados_->erro(nome_));
+    if (!dados_->carregado()) texto = QStringLiteral("%1  ·  abra o hidr.dat de um deck para editar").arg(nome_);
+    else if (!arquivo) texto = QStringLiteral("%1  ·  %2").arg(dados_->nomeNoDeck(nome_), dados_->erro(nome_));
     else
-        texto = QStringLiteral("%1  ·  %2  ·  editor textual%3")
-                    .arg(dados_->nomeNoDeck(nome_), secao,
-                         arquivo->modificado() ? QStringLiteral("  ·  alterado, não salvo") : QString());
+        texto = QStringLiteral("%1  ·  editor textual%2")
+                    .arg(dados_->nomeNoDeck(nome_), arquivo->modificado() ? QStringLiteral("  ·  alterado, não salvo") : QString());
     if (!aviso.isEmpty()) texto += QStringLiteral("  ·  ") + aviso;
     detalhes_->setText(texto);
     botao_salvar_->setEnabled(arquivo && (arquivo->modificado() || atraso_->isActive()));

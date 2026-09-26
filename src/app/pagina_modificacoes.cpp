@@ -27,7 +27,7 @@ QString categoriaDa(const QString& chave) {
 QString descricaoDa(const QString& chave) {
     for (const PalavraChaveModif& p : palavrasChaveModif())
         if (p.chave == chave) return p.descricao;
-    return QStringLiteral("Palavra-chave fora da tabela do manual");
+    return QStringLiteral("Palavra-chave não reconhecida");
 }
 }  // namespace
 
@@ -173,8 +173,7 @@ void PaginaModificacoes::mostrar(const QModelIndex& item) {
         }
     }
 
-    const QString origem = QStringLiteral("%1  ·  manual do NEWAVE, seção 3.12")
-                               .arg(caminho_.isEmpty() ? QStringLiteral("modif.dat") : caminho_.section('/', -1).section('\\', -1));
+    const QString origem = caminho_.isEmpty() ? QStringLiteral("modif.dat") : caminho_.section('/', -1).section('\\', -1);
     if (caminho_.isEmpty()) detalhes_->setText(origem + QStringLiteral("  ·  abra o hidr.dat de um deck para ver as modificações"));
     else if (!dados_.erro.empty()) detalhes_->setText(origem + QStringLiteral("  ·  ") + QString::fromStdString(dados_.erro));
     else

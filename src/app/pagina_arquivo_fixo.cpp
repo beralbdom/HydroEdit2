@@ -11,7 +11,7 @@
 #include "modelo_secao_fixa.h"
 
 // Pagina de um arquivo de colunas fixas: titulo com a secao mostrada, linha de detalhes (arquivo,
-// secao do manual, registros, ultimo aviso), botao Salvar habilitado so com alteracao pendente e a
+// registros, ultimo aviso), botao Salvar habilitado so com alteracao pendente e a
 // tabela editavel da secao. A secao exibida e escolhida pela arvore do navegador; os dados sao os do
 // repositorio do deck, compartilhados com as outras vistas. Arquivo de parametros mostra todos os
 // parametros numa tabela so, um campo por linha.
@@ -82,15 +82,14 @@ void PaginaArquivoFixo::mostrarSecao(int secao) {
 }
 
 void PaginaArquivoFixo::atualizar(const QString& aviso) {
-    const QString secao = QStringLiteral("manual do NEWAVE, seção %1").arg(QString::fromStdString(layout_.secao_manual));
     const QString nome = dados_->nomeNoDeck(info_.nome_padrao);
     const ArquivoFixo* arquivo = dados_->arquivo(info_.nome_padrao);
     QString texto;
-    if (!dados_->carregado()) texto = QStringLiteral("%1  ·  %2  ·  abra o hidr.dat de um deck para editar").arg(nome, secao);
-    else if (!arquivo) texto = QStringLiteral("%1  ·  %2  ·  %3").arg(nome, secao, dados_->erro(info_.nome_padrao));
+    if (!dados_->carregado()) texto = QStringLiteral("%1  ·  abra o hidr.dat de um deck para editar").arg(nome);
+    else if (!arquivo) texto = QStringLiteral("%1  ·  %2").arg(nome, dados_->erro(info_.nome_padrao));
     else
-        texto = QStringLiteral("%1  ·  %2  ·  %3 %4%5")
-                    .arg(nome, secao)
+        texto = QStringLiteral("%1  ·  %2 %3%4")
+                    .arg(nome)
                     .arg(modelo_ ? modelo_->rowCount() : parametros_->parametros())
                     .arg(modelo_ ? QStringLiteral("registros") : QStringLiteral("parâmetros"))
                     .arg(arquivo->modificado() ? QStringLiteral("  ·  alterado, não salvo") : QString());

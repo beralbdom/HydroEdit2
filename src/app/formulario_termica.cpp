@@ -96,10 +96,10 @@ FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidge
     adicionar(criarPaginaCadastro(), QStringLiteral("Cadastro"));
     adicionar(criarPaginaConfiguracao(), QStringLiteral("Configuração"));
     abas_->addTab(criarPaginaRegistros(QStringLiteral("expt.dat"), 0, filtro_expansao_,
-                                       QStringLiteral("Modificações por período (expt.dat, seção 3.17)")),
+                                       QStringLiteral("Modificações por período (expt.dat)")),
                   QStringLiteral("Expansão"));
     abas_->addTab(criarPaginaRegistros(QStringLiteral("manutt.dat"), 0, filtro_manutencao_,
-                                       QStringLiteral("Manutenções programadas (manutt.dat, seção 3.19)")),
+                                       QStringLiteral("Manutenções programadas (manutt.dat)")),
                   QStringLiteral("Manutenções"));
     abas_->addTab(criarPaginaClasse(), QStringLiteral("Classe térmica"));
     botao_salvar_ = new QPushButton(QStringLiteral("Salvar"), this);
@@ -322,7 +322,7 @@ void FormularioTermica::atualizar(const QString& aviso) {
     const ArquivoFixo* clast = dados_->arquivo(QStringLiteral("clast.dat"));
     const int r_classe = classe.isEmpty() ? -1 : dados_->registroPorValor(QStringLiteral("clast.dat"), 0, 0, classe);
     classe_titulo_->setText(classe.isEmpty() ? QStringLiteral("Usina sem classe térmica no conft.dat")
-                                             : QStringLiteral("Classe %1  %2  ·  combustível: %3  ·  clast.dat, seção 3.18")
+                                             : QStringLiteral("Classe %1  %2  ·  combustível: %3  ·  clast.dat")
                                                    .arg(classe, valor(clast, r_classe, 1), valor(clast, r_classe, 2)));
 
     QStringList alterados;

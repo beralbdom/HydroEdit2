@@ -38,8 +38,8 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
         if (secao == QStringLiteral("Modificações")) {
             pilha_modificacoes_ = new QStackedWidget(this);
             modificacoes_ = new PaginaModificacoes(modelo, dados_, pilha_modificacoes_);
-            auto* texto_modif = new EditorTextoArquivo(QStringLiteral("Modificações"), QStringLiteral("modif.dat"),
-                                                       QStringLiteral("3.12"), dados_, pilha_modificacoes_);
+            auto* texto_modif = new EditorTextoArquivo(QStringLiteral("Modificações"), QStringLiteral("modif.dat"), dados_,
+                                                       pilha_modificacoes_);
             editores_texto_.push_back(texto_modif);
             pilha_modificacoes_->addWidget(modificacoes_);
             pilha_modificacoes_->addWidget(texto_modif);
@@ -78,7 +78,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 int indice = pagina ? paginas->addWidget(pagina) : -1;
                 int indice_texto = -1;
                 if (!DadosDeck::binario(arquivo.nome_padrao)) {
-                    auto* editor = new EditorTextoArquivo(arquivo.titulo, arquivo.nome_padrao, arquivo.secao_manual, dados_, paginas);
+                    auto* editor = new EditorTextoArquivo(arquivo.titulo, arquivo.nome_padrao, dados_, paginas);
                     editores_texto_.push_back(editor);
                     indice_texto = paginas->addWidget(editor);
                 }

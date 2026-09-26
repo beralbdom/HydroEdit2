@@ -10,8 +10,7 @@ class DadosDeck;
 class EditorTextoArquivo : public QWidget {
     Q_OBJECT
 public:
-    EditorTextoArquivo(const QString& titulo, const QString& nome_padrao, const QString& secao_manual, DadosDeck* dados,
-                       QWidget* parent = nullptr);
+    EditorTextoArquivo(const QString& titulo, const QString& nome_padrao, DadosDeck* dados, QWidget* parent = nullptr);
     void recarregar();
     void aplicarPendente();
 
@@ -19,7 +18,6 @@ private:
     void atualizarDetalhes(const QString& aviso = {});
 
     QString nome_;
-    QString secao_manual_;
     DadosDeck* dados_;
     QLabel* detalhes_;
     QPushButton* botao_salvar_;
