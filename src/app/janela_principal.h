@@ -2,7 +2,6 @@
 #include <QMainWindow>
 #include <vector>
 
-class QCheckBox;
 class QCloseEvent;
 class QLabel;
 class QLineEdit;
@@ -66,11 +65,11 @@ private:
     int primeiroCodigoLivre() const;
 
     QLineEdit* campo_filtro_;
-    QCheckBox* ocultar_vazias_;
+    QAction* ocultar_vazias_;
     QToolButton* ree_cascata_;
     QToolButton* submercado_cascata_;
-    QCheckBox* nomes_cascata_;
-    QCheckBox* ficticias_cascata_;
+    QAction* nomes_cascata_;
+    QAction* ficticias_cascata_;
     QMenu* menu_ree_;
     QMenu* menu_submercado_;
     QLabel* status_arquivo_;

@@ -8,6 +8,7 @@
 
 class QComboBox;
 class QFormLayout;
+class QHBoxLayout;
 class QGroupBox;
 class QLabel;
 class QLayout;
@@ -27,6 +28,7 @@ public:
     QTabWidget* abas() const { return abas_; }
     void focarCampo(std::string_view nome);
     void marcarProblemas(const std::vector<std::string>& campos_com_erro);
+    void adicionarAoCabecalho(QWidget* widget);
 
 private:
     enum Pagina { kCadastro = 0, kReservatorio, kPolinomios, kConjuntos, kJusante, kOperacao };
@@ -64,6 +66,7 @@ private:
     std::vector<GradeVetor*> grades_;
     std::map<std::string, int> pagina_do_campo_;
     QLabel* titulo_;
+    QHBoxLayout* cabecalho_;
     QTabWidget* abas_;
     GraficoPolinomio* grafico_cota_volume_ = nullptr;
     GraficoPolinomio* grafico_area_cota_ = nullptr;

@@ -32,6 +32,8 @@ signals:
 protected:
     void wheelEvent(QWheelEvent* ev) override;
     void mousePressEvent(QMouseEvent* ev) override;
+    void mouseMoveEvent(QMouseEvent* ev) override;
+    void mouseReleaseEvent(QMouseEvent* ev) override;
     void resizeEvent(QResizeEvent* ev) override;
     bool viewportEvent(QEvent* ev) override;
 
@@ -68,6 +70,8 @@ private:
     bool ajustando_ = false;
     bool mostrar_nomes_ = true;
     bool mostrar_ficticias_ = true;
+    bool arrastando_ = false;
+    QPoint ultimo_ponto_arraste_;
     std::set<int> rees_filtro_;
     std::set<int> submercados_filtro_;
 };

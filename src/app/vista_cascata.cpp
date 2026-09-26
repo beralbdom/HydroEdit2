@@ -35,7 +35,6 @@ QString paraTexto(const std::string& s) { return QString::fromLatin1(s.c_str());
 VistaCascata::VistaCascata(ModeloHidr* modelo, QWidget* parent) : QGraphicsView(parent), modelo_(modelo) {
     cena_ = new QGraphicsScene(this);
     setScene(cena_);
-    setDragMode(QGraphicsView::ScrollHandDrag);
     setRenderHint(QPainter::Antialiasing);
     setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
     // Filha da vista, e nao do viewport: arrastar a cena rola o viewport com QWidget::scroll(), que
@@ -413,10 +412,32 @@ int VistaCascata::codigoNoPonto(const QPoint& ponto) const {
     return dado.isValid() ? dado.toInt() : -1;
 }
 
+// O arraste com o botao esquerdo rola a cena, como no modo ScrollHandDrag do QGraphicsView, mas feito
+// aqui para o cursor continuar a seta padrao: aquele modo troca o cursor do viewport pela mao aberta e
+// fechada a cada evento.
 void VistaCascata::mousePressEvent(QMouseEvent* ev) {
     QGraphicsView::mousePressEvent(ev);
+    if (ev->button() == Qt::LeftButton) {
+        arrastando_ = true;
+        ultimo_ponto_arraste_ = ev->position().toPoint();
+    }
     int codigo = codigoNoPonto(ev->position().toPoint());
     if (codigo > 0) emit usinaEscolhida(codigo - 1);
+}
+
+void VistaCascata::mouseMoveEvent(QMouseEvent* ev) {
+    QGraphicsView::mouseMoveEvent(ev);
+    if (!arrastando_) return;
+    QPoint ponto = ev->position().toPoint();
+    QPoint delta = ponto - ultimo_ponto_arraste_;
+    ultimo_ponto_arraste_ = ponto;
+    horizontalScrollBar()->setValue(horizontalScrollBar()->value() - delta.x());
+    verticalScrollBar()->setValue(verticalScrollBar()->value() - delta.y());
+}
+
+void VistaCascata::mouseReleaseEvent(QMouseEvent* ev) {
+    QGraphicsView::mouseReleaseEvent(ev);
+    if (ev->button() == Qt::LeftButton) arrastando_ = false;
 }
 
 // So reenquadra sozinho enquanto o usuario nao tiver dado zoom: depois disso, redimensionar a

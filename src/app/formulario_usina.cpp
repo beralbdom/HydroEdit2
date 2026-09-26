@@ -25,7 +25,12 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     fonte.setPointSize(fonte.pointSize() + 1);
     fonte.setBold(true);
     titulo_->setFont(fonte);
-    externo->addWidget(titulo_);
+    cabecalho_ = new QHBoxLayout;
+    cabecalho_->setContentsMargins(0, 0, 0, 0);
+    cabecalho_->setSpacing(8);
+    cabecalho_->addWidget(titulo_);
+    cabecalho_->addStretch(1);
+    externo->addLayout(cabecalho_);
 
     abas_ = new QTabWidget(this);
     abas_->setTabPosition(QTabWidget::North);
@@ -63,6 +68,9 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     recarregarListas();
     definirLinha(-1);
 }
+
+// Widgets de fora do formulario que acompanham o titulo da usina, alinhados a direita dele.
+void FormularioUsina::adicionarAoCabecalho(QWidget* widget) { cabecalho_->addWidget(widget); }
 
 void FormularioUsina::configurarLayout(QLayout* l) {
     l->setContentsMargins(6, 4, 6, 4);

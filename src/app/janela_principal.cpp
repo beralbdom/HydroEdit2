@@ -1,6 +1,5 @@
 #include "janela_principal.h"
 #include <QApplication>
-#include <QCheckBox>
 #include <QCloseEvent>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -66,6 +65,14 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     criarTabela();
     formulario_ = new FormularioUsina(modelo_, splitter_);
     splitter_->addWidget(formulario_);
+    campo_filtro_ = new QLineEdit(formulario_);
+    campo_filtro_->setPlaceholderText(QStringLiteral("Filtrar por código ou nome"));
+    campo_filtro_->setClearButtonEnabled(true);
+    campo_filtro_->setMinimumWidth(160);
+    campo_filtro_->setMaximumWidth(260);
+    formulario_->adicionarAoCabecalho(campo_filtro_);
+    connect(campo_filtro_, &QLineEdit::textChanged, filtro_, &FiltroUsinas::definirTexto);
+    connect(campo_filtro_, &QLineEdit::textChanged, vista_cascata_, &VistaCascata::definirFiltro);
     splitter_->setStretchFactor(0, 1);
     splitter_->setStretchFactor(1, 1);
     splitter_->setSizes({360, 480});
@@ -122,16 +129,6 @@ void JanelaPrincipal::criarTabela() {
     auto* layout = new QVBoxLayout(painel);
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
-    auto* linha_filtro = new QHBoxLayout;
-    campo_filtro_ = new QLineEdit(painel);
-    campo_filtro_->setPlaceholderText(QStringLiteral("Filtrar por código ou nome"));
-    campo_filtro_->setClearButtonEnabled(true);
-    ocultar_vazias_ = new QCheckBox(QStringLiteral("Ocultar vazias"), painel);
-    ocultar_vazias_->setChecked(true);
-    linha_filtro->addWidget(campo_filtro_, 1);
-    linha_filtro->addWidget(ocultar_vazias_);
-    layout->addLayout(linha_filtro);
-
     auto* abas_esquerda = new QTabWidget(painel);
 
     tabela_ = new QTableView(abas_esquerda);
@@ -169,30 +166,19 @@ void JanelaPrincipal::criarTabela() {
     int largura_filtro = ree_cascata_->fontMetrics().horizontalAdvance(QStringLiteral("Submercado: 99 de 99")) + 28;
     ree_cascata_->setMinimumWidth(largura_filtro);
     submercado_cascata_->setMinimumWidth(largura_filtro);
-    nomes_cascata_ = new QCheckBox(QStringLiteral("Nomes"), painel_cascata);
-    nomes_cascata_->setChecked(true);
-    ficticias_cascata_ = new QCheckBox(QStringLiteral("Fictícias"), painel_cascata);
-    ficticias_cascata_->setChecked(true);
     barra_cascata->addWidget(submercado_cascata_);
     barra_cascata->addWidget(ree_cascata_);
-    barra_cascata->addWidget(nomes_cascata_);
-    barra_cascata->addWidget(ficticias_cascata_);
     barra_cascata->addWidget(botao_ajustar);
     barra_cascata->addStretch(1);
     layout_cascata->addLayout(barra_cascata);
     vista_cascata_ = new VistaCascata(modelo_, painel_cascata);
     layout_cascata->addWidget(vista_cascata_, 1);
     connect(botao_ajustar, &QPushButton::clicked, vista_cascata_, &VistaCascata::ajustar);
-    connect(nomes_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirMostrarNomes);
-    connect(ficticias_cascata_, &QCheckBox::toggled, vista_cascata_, &VistaCascata::definirMostrarFicticias);
     repovoarFiltrosCascata();
     abas_esquerda->addTab(painel_cascata, QStringLiteral("Cascata"));
 
     layout->addWidget(abas_esquerda, 1);
 
-    connect(campo_filtro_, &QLineEdit::textChanged, filtro_, &FiltroUsinas::definirTexto);
-    connect(campo_filtro_, &QLineEdit::textChanged, vista_cascata_, &VistaCascata::definirFiltro);
-    connect(ocultar_vazias_, &QCheckBox::toggled, filtro_, &FiltroUsinas::definirOcultarVazias);
     splitter_->addWidget(painel);
 }
 
@@ -258,24 +244,34 @@ void JanelaPrincipal::aplicarFiltrosCascata() {
     vista_cascata_->definirFiltros(rees, submercados);
 }
 
-// Na primeira exibicao, dimensiona a janela e o splitter pela barra de abas do formulario, para
-// nenhuma aba do painel da direita ficar escondida atras das setas de rolagem. So na primeira: depois
+// Na primeira exibicao, dimensiona a janela e o splitter para a ultima aba do formulario terminar
+// exatamente na borda direita do painel das abas, sem aba escondida atras das setas de rolagem nem
+// sobra depois dela. A primeira estimativa e a largura da barra de abas mais as margens do layout do
+// formulario; como o estilo ainda desloca a barra e reserva alguns pixels, a janela aplica a
+// estimativa, mede onde a barra terminaria (x da barra mais a largura que ela pede) contra a largura
+// do QTabWidget e corrige a diferenca, para mais ou para menos. O layout principal e ativado depois
+// de cada resize para splitter_->width() ja valer o tamanho novo. So na primeira exibicao: depois
 // disso o tamanho e do usuario.
 void JanelaPrincipal::showEvent(QShowEvent* ev) {
     QMainWindow::showEvent(ev);
     if (dimensionado_) return;
     dimensionado_ = true;
 
-    int largura_direita = formulario_->abas()->tabBar()->sizeHint().width() + 48;
-    resize(std::max(width(), LARGURA_MINIMA_ESQUERDA + largura_direita + splitter_->handleWidth()),
-           std::max(height(), 640));
+    QTabWidget* abas = formulario_->abas();
+    QTabBar* barra = abas->tabBar();
+    auto aplicar = [&](int largura_direita) {
+        resize(std::max(width(), LARGURA_MINIMA_ESQUERDA + largura_direita + splitter_->handleWidth()),
+               std::max(height(), 640));
+        if (QLayout* layout_principal = layout()) layout_principal->activate();
+        splitter_->setSizes(
+            {std::max(LARGURA_MINIMA_ESQUERDA, splitter_->width() - largura_direita), largura_direita});
+    };
 
-    // O resize ja atualizou o retangulo da janela, mas os filhos so acompanham quando o layout roda;
-    // ativa-lo aqui faz splitter_->width() valer o tamanho novo, e nao o anterior, que deixaria a
-    // soma das duas partes errada e o Qt redistribuindo por conta propria.
-    if (QLayout* layout_principal = layout()) layout_principal->activate();
-    splitter_->setSizes(
-        {std::max(LARGURA_MINIMA_ESQUERDA, splitter_->width() - largura_direita), largura_direita});
+    const QMargins margens = formulario_->layout()->contentsMargins();
+    int largura_direita = barra->sizeHint().width() + margens.left() + margens.right();
+    aplicar(largura_direita);
+    int diferenca = barra->x() + barra->sizeHint().width() - abas->width();
+    if (diferenca != 0) aplicar(largura_direita + diferenca);
 }
 
 void JanelaPrincipal::criarMenus() {
@@ -299,6 +295,21 @@ void JanelaPrincipal::criarMenus() {
     refazer->setShortcut(QKeySequence::Redo);
     editar->addAction(desfazer);
     editar->addAction(refazer);
+
+    QMenu* ver = menuBar()->addMenu(QStringLiteral("&Ver"));
+    ocultar_vazias_ = ver->addAction(QStringLiteral("Ocultar registros &vazios"));
+    ocultar_vazias_->setCheckable(true);
+    ocultar_vazias_->setChecked(true);
+    connect(ocultar_vazias_, &QAction::toggled, filtro_, &FiltroUsinas::definirOcultarVazias);
+    ver->addSeparator();
+    nomes_cascata_ = ver->addAction(QStringLiteral("&Nomes na cascata"));
+    nomes_cascata_->setCheckable(true);
+    nomes_cascata_->setChecked(true);
+    connect(nomes_cascata_, &QAction::toggled, vista_cascata_, &VistaCascata::definirMostrarNomes);
+    ficticias_cascata_ = ver->addAction(QStringLiteral("Usinas &fictícias na cascata"));
+    ficticias_cascata_->setCheckable(true);
+    ficticias_cascata_->setChecked(true);
+    connect(ficticias_cascata_, &QAction::toggled, vista_cascata_, &VistaCascata::definirMostrarFicticias);
 
     menu_usina_ = menuBar()->addMenu(QStringLiteral("&Usina"));
     menu_usina_->addAction(QStringLiteral("&Nova no primeiro código livre"), QKeySequence(Qt::CTRL | Qt::Key_N), this, &JanelaPrincipal::novaUsina);
