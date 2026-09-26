@@ -18,17 +18,17 @@ const std::vector<QString>& secoesNewave() {
 // modif.dat nao entra aqui: a aba Modificacoes tem pagina propria.
 const std::vector<ArquivoNewave>& catalogoNewave() {
     static const std::vector<ArquivoNewave> arquivos = {
-        {QStringLiteral("Cadastro"), QStringLiteral("Usinas hidroelétricas"), QStringLiteral("hidr.dat"), {}, QStringLiteral("3.11")},
-        {QStringLiteral("Cadastro"), QStringLiteral("Usinas termoelétricas"), QStringLiteral("term.dat"), QStringLiteral("DADOS DAS USINAS TERMICAS"), QStringLiteral("3.16")},
+        {QStringLiteral("Cadastro"), QStringLiteral("Usinas hidráulicas"), QStringLiteral("hidr.dat"), {}, QStringLiteral("3.11")},
+        {QStringLiteral("Cadastro"), QStringLiteral("Usinas térmicas"), QStringLiteral("term.dat"), QStringLiteral("DADOS DAS USINAS TERMICAS"), QStringLiteral("3.16")},
         {QStringLiteral("Cadastro"), QStringLiteral("Classes térmicas"), QStringLiteral("clast.dat"), QStringLiteral("DADOS DAS CLASSES TERMICAS"), QStringLiteral("3.18")},
         {QStringLiteral("Cadastro"), QStringLiteral("Postos fluviométricos"), QStringLiteral("postos.dat"), {}, QStringLiteral("3.10")},
-        {QStringLiteral("Cadastro"), QStringLiteral("Reservatórios equivalentes de energia"), QStringLiteral("ree.dat"), QStringLiteral("DADOS DOS RESER.EQ.ENERGIA"), QStringLiteral("3.32")},
+        {QStringLiteral("Cadastro"), QStringLiteral("REEs"), QStringLiteral("ree.dat"), QStringLiteral("DADOS DOS RESER.EQ.ENERGIA"), QStringLiteral("3.32")},
         {QStringLiteral("Cadastro"), QStringLiteral("Tecnologias"), QStringLiteral("tecno.dat"), QStringLiteral("ARQUIVO DE TECNOLOGIAS"), QStringLiteral("3.35")},
 
-        {QStringLiteral("Configuração"), QStringLiteral("Configuração hidroelétrica"), QStringLiteral("confhd.dat"), QStringLiteral("CONFIGURACAO HIDRAULICA"), QStringLiteral("3.9")},
-        {QStringLiteral("Configuração"), QStringLiteral("Configuração termoelétrica"), QStringLiteral("conft.dat"), QStringLiteral("CONFIGURACAO TERMICA"), QStringLiteral("3.15")},
-        {QStringLiteral("Configuração"), QStringLiteral("Expansão hidroelétrica"), QStringLiteral("exph.dat"), QStringLiteral("DADOS DE EXPANSAO HIDRAULICA"), QStringLiteral("3.13")},
-        {QStringLiteral("Configuração"), QStringLiteral("Expansão termoelétrica"), QStringLiteral("expt.dat"), QStringLiteral("ARQUIVO DE EXPANSAO TERMICA"), QStringLiteral("3.17")},
+        {QStringLiteral("Configuração"), QStringLiteral("Configuração hidráulica"), QStringLiteral("confhd.dat"), QStringLiteral("CONFIGURACAO HIDRAULICA"), QStringLiteral("3.9")},
+        {QStringLiteral("Configuração"), QStringLiteral("Configuração térmica"), QStringLiteral("conft.dat"), QStringLiteral("CONFIGURACAO TERMICA"), QStringLiteral("3.15")},
+        {QStringLiteral("Configuração"), QStringLiteral("Expansão hidráulica"), QStringLiteral("exph.dat"), QStringLiteral("DADOS DE EXPANSAO HIDRAULICA"), QStringLiteral("3.13")},
+        {QStringLiteral("Configuração"), QStringLiteral("Expansão térmica"), QStringLiteral("expt.dat"), QStringLiteral("ARQUIVO DE EXPANSAO TERMICA"), QStringLiteral("3.17")},
         {QStringLiteral("Configuração"), QStringLiteral("Manutenções programadas"), QStringLiteral("manutt.dat"), QStringLiteral("ARQUIVO DE MANUT.PROG. UTE'S"), QStringLiteral("3.19")},
 
         {QStringLiteral("Hidrologia"), QStringLiteral("Vazões históricas"), QStringLiteral("vazoes.dat"), {}, QStringLiteral("3.14")},
