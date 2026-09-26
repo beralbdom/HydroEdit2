@@ -40,7 +40,8 @@ bool postoVazio(const ArquivoBinario* postos, int registro) {
 }  // namespace
 
 // Tabela do postos.dat, um posto por linha: codigo (a posicao do registro), nome e anos inicial e
-// final do historico de vazoes.
+// final do historico de vazoes. Os numeros saem como texto para a edicao usar um campo de texto, como
+// nas outras tabelas, e nao a caixa numerica com setas que o Qt poe para inteiros.
 class ModeloPostos : public QAbstractTableModel {
 public:
     enum Coluna { POSTO, NOME, ANO_INICIAL, ANO_FINAL, COLUNAS };
@@ -70,8 +71,8 @@ public:
             switch (ix.column()) {
             case POSTO: return ix.row() + 1;
             case NOME: return QString::fromLatin1(a->texto(ix.row(), postos_dat::NOME, postos_dat::TAMANHO_NOME).c_str());
-            case ANO_INICIAL: return a->inteiro(ix.row(), postos_dat::ANO_INICIAL);
-            default: return a->inteiro(ix.row(), postos_dat::ANO_FINAL);
+            case ANO_INICIAL: return QString::number(a->inteiro(ix.row(), postos_dat::ANO_INICIAL));
+            default: return QString::number(a->inteiro(ix.row(), postos_dat::ANO_FINAL));
             }
         }
         if (role == Qt::TextAlignmentRole)
@@ -113,7 +114,7 @@ private:
 
 // Vazoes de um posto do vazoes.dat, uma linha por ano e uma coluna por mes, em m3/s. O registro k do
 // arquivo e o mes k a partir de janeiro do primeiro ano do historico; meses depois do ultimo registro
-// ficam vazios e nao se editam.
+// ficam vazios e nao se editam. As vazoes saem como texto, pelo mesmo motivo da tabela de postos.
 class ModeloVazoes : public QAbstractTableModel {
 public:
     ModeloVazoes(DadosDeck* dados, QObject* parent) : QAbstractTableModel(parent), dados_(dados) {
@@ -153,7 +154,7 @@ public:
             return ano > 0 ? QVariant(ano + ix.row()) : QVariant(QStringLiteral("%1º").arg(ix.row() + 1));
         }
         const int mes = mesDoArquivo(ix);
-        return mes < a->registros() ? QVariant(a->inteiro(mes, 4 * (posto_ - 1))) : QVariant();
+        return mes < a->registros() ? QVariant(QString::number(a->inteiro(mes, 4 * (posto_ - 1)))) : QVariant();
     }
 
     bool setData(const QModelIndex& ix, const QVariant& valor, int role) override {
