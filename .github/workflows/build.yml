@@ -1,4 +1,4 @@
-name: Build estatico
+name: Build release
 
 on:
   push:
