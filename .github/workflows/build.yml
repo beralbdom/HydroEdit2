@@ -3,7 +3,7 @@ name: Build release
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', 'docs/**', '.vscode/**', 'scripts/**']
+    paths-ignore: ['**.md', 'docs/**', '.vscode/**']
   workflow_dispatch:
 
 permissions:
