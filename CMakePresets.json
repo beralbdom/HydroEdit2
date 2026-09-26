@@ -66,7 +66,7 @@
         "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
         "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows-static",
-        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg-triplets",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/.github/vcpkg-triplets",
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded",
         "CMAKE_EXE_LINKER_FLAGS_RELEASE": "/OPT:REF /OPT:ICF /LTCG",
         "HYDROEDIT_SEM_TESTES": "ON",

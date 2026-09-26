@@ -66,21 +66,21 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg-triplets/**') }}
+          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-triplets/**') }}
 
       - name: Qt estatico pelo vcpkg
         run: >
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install
           "qtbase[core,gui,widgets,harfbuzz,png]:x64-windows-static"
           "qtcharts[core]:x64-windows-static"
-          --overlay-triplets=vcpkg-triplets --clean-after-build
+          --overlay-triplets=.github/vcpkg-triplets --clean-after-build
 
       - name: Guardar pacotes compilados do vcpkg
         if: steps.cache-vcpkg.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg-triplets/**') }}
+          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-triplets/**') }}
 
       - name: Compilar
         run: |
