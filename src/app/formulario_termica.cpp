@@ -86,7 +86,7 @@ FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidge
     aviso_->setEnabled(false);
     externo->addWidget(aviso_);
 
-    abas_ = new QTabWidget(this);
+    abas_ = FormularioUsina::novasAbas(this);
     auto adicionar = [this](QWidget* pagina, const QString& titulo) {
         abas_->addTab(FormularioUsina::paginaRolavel(pagina, abas_), titulo);
     };

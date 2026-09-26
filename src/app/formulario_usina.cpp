@@ -32,9 +32,7 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     cabecalho_->addStretch(1);
     externo->addLayout(cabecalho_);
 
-    abas_ = new QTabWidget(this);
-    abas_->setTabPosition(QTabWidget::North);
-    abas_->setDocumentMode(false);
+    abas_ = novasAbas(this);
 
     auto adicionarPagina = [this](QWidget* conteudo, const QString& titulo) { abas_->addTab(paginaRolavel(conteudo, abas_), titulo); };
     adicionarPagina(criarPaginaCadastro(), QStringLiteral("Cadastro"));
@@ -90,6 +88,18 @@ void FormularioUsina::alinharRotulos(QWidget* pagina) {
 // Pagina de aba com rolagem vertical, rotulos alinhados e fundo transparente: o QScrollArea pinta o
 // viewport e o conteudo com a cor da janela, mais escura que o painel das abas, e as paginas sem
 // rolagem mostram o painel; desligar o preenchimento dos dois deixa todas as abas com o mesmo fundo.
+// Abas do formulario sem as setas de rolagem e sem abreviar os titulos: assim a largura minima da
+// barra passa a ser a soma das abas, e ela sobe pelo layout ate o divisor e a janela, que nao deixam
+// o formulario ficar mais estreito que todas as abas.
+QTabWidget* FormularioUsina::novasAbas(QWidget* pai) {
+    auto* abas = new QTabWidget(pai);
+    abas->setTabPosition(QTabWidget::North);
+    abas->setDocumentMode(false);
+    abas->setUsesScrollButtons(false);
+    abas->setElideMode(Qt::ElideNone);
+    return abas;
+}
+
 QWidget* FormularioUsina::paginaRolavel(QWidget* conteudo, QWidget* pai) {
     alinharRotulos(conteudo);
     auto* rolagem = new QScrollArea(pai);

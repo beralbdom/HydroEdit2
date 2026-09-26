@@ -31,6 +31,7 @@ public:
     void adicionarAoCabecalho(QWidget* widget);
     static void alinharRotulos(QWidget* pagina);
     static QWidget* paginaRolavel(QWidget* conteudo, QWidget* pai);
+    static QTabWidget* novasAbas(QWidget* pai);
 
 private:
     enum Pagina { kCadastro = 0, kReservatorio, kPolinomios, kConjuntos, kJusante, kOperacao };
