@@ -33,7 +33,7 @@ scripts\compilar.bat
 
 ### Build automático
 
-O workflow `.github/workflows/build.yml` compila o executável único (Qt estático pelo vcpkg, no mesmo commit do vcpkg usado localmente) a cada push na `main` e deixa o `HydroEdit2.exe` como artefato do run. Ao enviar uma tag de versão igual à de `src/app/main.cpp` (por exemplo `0.3`), ele publica o executável na release dessa tag. O primeiro run compila o Qt e leva mais de uma hora; os seguintes usam o cache.
+O workflow `.github/workflows/build.yml` compila o executável único (Qt estático pelo vcpkg, no mesmo commit do vcpkg usado localmente) a cada push na `main` e deixa o `HydroEdit2.exe` como artefato do run. Se a versão de `src/app/main.cpp` ainda não tem release, o mesmo run cria a tag no commit compilado e publica a release com o executável: para lançar uma versão, basta mudar o número no `main.cpp`. O Qt compilado fica em cache entre os runs.
 
 ### Visual Studio
 
