@@ -34,6 +34,7 @@
 #include "filtro_usinas.h"
 #include "formulario_usina.h"
 #include "modelo_hidr.h"
+#include "navegador_deck.h"
 #include "painel_problemas.h"
 #include "regras_gevazp.h"
 #include "validacao.h"
@@ -61,7 +62,6 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
 
     splitter_ = new QSplitter(Qt::Horizontal, this);
     splitter_->setHandleWidth(4);
-    setCentralWidget(splitter_);
     criarTabela();
     formulario_ = new FormularioUsina(modelo_, splitter_);
     splitter_->addWidget(formulario_);
@@ -76,6 +76,8 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
     splitter_->setStretchFactor(0, 1);
     splitter_->setStretchFactor(1, 1);
     splitter_->setSizes({360, 480});
+    navegador_ = new NavegadorDeck(splitter_, modelo_, this);
+    setCentralWidget(navegador_);
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { formulario_->definirLinha(linhaSelecionada()); });
 
@@ -260,8 +262,9 @@ void JanelaPrincipal::showEvent(QShowEvent* ev) {
     QTabWidget* abas = formulario_->abas();
     QTabBar* barra = abas->tabBar();
     auto aplicar = [&](int largura_direita) {
-        resize(std::max(width(), LARGURA_MINIMA_ESQUERDA + largura_direita + splitter_->handleWidth()),
-               std::max(height(), 640));
+        if (QLayout* layout_principal = layout()) layout_principal->activate();
+        int falta = LARGURA_MINIMA_ESQUERDA + largura_direita + splitter_->handleWidth() - splitter_->width();
+        resize(width() + std::max(0, falta), std::max(height(), 640));
         if (QLayout* layout_principal = layout()) layout_principal->activate();
         splitter_->setSizes(
             {std::max(LARGURA_MINIMA_ESQUERDA, splitter_->width() - largura_direita), largura_direita});
@@ -392,6 +395,7 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     modelo_->definirLookup(lookup);
     repovoarFiltrosCascata();
     modelo_->definirArquivo(std::move(a), caminho);
+    navegador_->carregarDeck(QFileInfo(caminho).absolutePath());
     tabela_->resizeColumnsToContents();
     acao_salvar_->setEnabled(true);
     acao_salvar_como_->setEnabled(true);

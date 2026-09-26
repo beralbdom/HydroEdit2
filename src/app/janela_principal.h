@@ -13,6 +13,7 @@ class QToolButton;
 class ModeloHidr;
 class FiltroUsinas;
 class FormularioUsina;
+class NavegadorDeck;
 class PainelProblemas;
 class VistaCascata;
 struct ProblemaUsina;
@@ -42,6 +43,7 @@ protected:
     FiltroUsinas* filtro_;
     QTableView* tabela_;
     QSplitter* splitter_;
+    NavegadorDeck* navegador_;
     FormularioUsina* formulario_;
     PainelProblemas* painel_problemas_;
     VistaCascata* vista_cascata_;

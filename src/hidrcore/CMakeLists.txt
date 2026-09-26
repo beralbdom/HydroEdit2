@@ -10,5 +10,6 @@ add_library(hidrcore STATIC
     cascata.cpp
     vazoes.cpp
     regras_gevazp.cpp
+    deck_newave.cpp
 )
 target_include_directories(hidrcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
