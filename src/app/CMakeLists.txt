@@ -20,6 +20,8 @@ qt_add_library(hydroedit_ui STATIC
     pagina_arquivo.cpp pagina_arquivo.h
     pagina_modificacoes.cpp pagina_modificacoes.h
     navegador_deck.cpp navegador_deck.h
+    modelo_secao_fixa.cpp modelo_secao_fixa.h
+    pagina_arquivo_fixo.cpp pagina_arquivo_fixo.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts)

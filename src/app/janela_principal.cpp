@@ -679,16 +679,26 @@ void JanelaPrincipal::excluirUsina() {
     modelo_->substituirUsina(linha, UsinaHidr{}, QStringLiteral("Excluir usina %1").arg(linha + 1));
 }
 
+// Pergunta primeiro pelo hidr.dat e depois, numa pergunta so, pelos arquivos do deck editados nas
+// abas; Cancelar em qualquer uma interrompe, e uma falha ao salvar tambem.
 bool JanelaPrincipal::confirmarDescarte() {
-    if (modelo_->pilhaUndo()->isClean()) return true;
+    if (!modelo_->pilhaUndo()->isClean()) {
+        auto r = QMessageBox::question(this, QStringLiteral("Alterações não salvas"),
+                                       QStringLiteral("Salvar as alterações em %1?").arg(QFileInfo(modelo_->caminho()).fileName()),
+                                       QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
+        if (r == QMessageBox::Cancel) return false;
+        if (r == QMessageBox::Save) {
+            salvar();
+            if (!modelo_->pilhaUndo()->isClean()) return false;
+        }
+    }
+    const QStringList outros = navegador_->arquivosModificados();
+    if (outros.isEmpty()) return true;
     auto r = QMessageBox::question(this, QStringLiteral("Alterações não salvas"),
-                                   QStringLiteral("Salvar as alterações em %1?").arg(QFileInfo(modelo_->caminho()).fileName()),
+                                   QStringLiteral("Salvar as alterações em %1?").arg(outros.join(QStringLiteral(", "))),
                                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
     if (r == QMessageBox::Cancel) return false;
-    if (r == QMessageBox::Save) {
-        salvar();
-        return modelo_->pilhaUndo()->isClean();
-    }
+    if (r == QMessageBox::Save) return navegador_->salvarTodos();
     return true;
 }
 
