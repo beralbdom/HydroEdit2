@@ -36,14 +36,7 @@ FormularioUsina::FormularioUsina(ModeloHidr* modelo, QWidget* parent) : QWidget(
     abas_->setTabPosition(QTabWidget::North);
     abas_->setDocumentMode(false);
 
-    auto adicionarPagina = [this](QWidget* conteudo, const QString& titulo) {
-        alinharRotulos(conteudo);
-        auto* scroll = new QScrollArea(abas_);
-        scroll->setWidgetResizable(true);
-        scroll->setFrameShape(QFrame::NoFrame);
-        scroll->setWidget(conteudo);
-        abas_->addTab(scroll, titulo);
-    };
+    auto adicionarPagina = [this](QWidget* conteudo, const QString& titulo) { abas_->addTab(paginaRolavel(conteudo, abas_), titulo); };
     adicionarPagina(criarPaginaCadastro(), QStringLiteral("Cadastro"));
     adicionarPagina(criarPaginaReservatorio(), QStringLiteral("Reservatório"));
     adicionarPagina(criarPaginaPolinomios(), QStringLiteral("Polinômios"));
@@ -92,6 +85,20 @@ void FormularioUsina::alinharRotulos(QWidget* pagina) {
         }
     }
     for (QWidget* rotulo : rotulos) rotulo->setMinimumWidth(largura);
+}
+
+// Pagina de aba com rolagem vertical, rotulos alinhados e fundo transparente: o QScrollArea pinta o
+// viewport e o conteudo com a cor da janela, mais escura que o painel das abas, e as paginas sem
+// rolagem mostram o painel; desligar o preenchimento dos dois deixa todas as abas com o mesmo fundo.
+QWidget* FormularioUsina::paginaRolavel(QWidget* conteudo, QWidget* pai) {
+    alinharRotulos(conteudo);
+    auto* rolagem = new QScrollArea(pai);
+    rolagem->setWidgetResizable(true);
+    rolagem->setFrameShape(QFrame::NoFrame);
+    rolagem->setWidget(conteudo);
+    rolagem->viewport()->setAutoFillBackground(false);
+    conteudo->setAutoFillBackground(false);
+    return rolagem;
 }
 
 QVBoxLayout* FormularioUsina::novaPagina(QWidget* pai) {

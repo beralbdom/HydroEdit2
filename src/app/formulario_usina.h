@@ -30,6 +30,7 @@ public:
     void marcarProblemas(const std::vector<std::string>& campos_com_erro);
     void adicionarAoCabecalho(QWidget* widget);
     static void alinharRotulos(QWidget* pagina);
+    static QWidget* paginaRolavel(QWidget* conteudo, QWidget* pai);
 
 private:
     enum Pagina { kCadastro = 0, kReservatorio, kPolinomios, kConjuntos, kJusante, kOperacao };

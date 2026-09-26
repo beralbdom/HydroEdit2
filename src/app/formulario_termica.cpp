@@ -8,7 +8,6 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
-#include <QScrollArea>
 #include <QSortFilterProxyModel>
 #include <QTabWidget>
 #include <QTableView>
@@ -89,12 +88,7 @@ FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidge
 
     abas_ = new QTabWidget(this);
     auto adicionar = [this](QWidget* pagina, const QString& titulo) {
-        FormularioUsina::alinharRotulos(pagina);
-        auto* rolagem = new QScrollArea(abas_);
-        rolagem->setWidgetResizable(true);
-        rolagem->setFrameShape(QFrame::NoFrame);
-        rolagem->setWidget(pagina);
-        abas_->addTab(rolagem, titulo);
+        abas_->addTab(FormularioUsina::paginaRolavel(pagina, abas_), titulo);
     };
     adicionar(criarPaginaCadastro(), QStringLiteral("Cadastro"));
     adicionar(criarPaginaConfiguracao(), QStringLiteral("Configuração"));
