@@ -38,6 +38,8 @@ public:
     Resultado interpretar(const std::string& conteudo, const LayoutArquivoFixo& layout);
     Resultado salvar(const std::filesystem::path& caminho);
     std::string conteudo() const;
+    std::string textoLf() const;
+    void substituirTexto(const std::string& texto_lf, const LayoutArquivoFixo& layout);
 
     const std::vector<SecaoLida>& secoes() const { return secoes_; }
     std::string valor(int secao, int registro, int coluna) const;

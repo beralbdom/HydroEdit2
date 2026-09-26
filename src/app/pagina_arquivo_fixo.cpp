@@ -55,6 +55,11 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         tabela_->resizeColumnsToContents();
         atualizar();
     });
+    connect(dados_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
+        if (nome != info_.nome_padrao) return;
+        tabela_->resizeColumnsToContents();
+        atualizar();
+    });
     mostrarSecao(0);
 }
 

@@ -96,6 +96,30 @@ private slots:
         QCOMPARE(a.secoes()[0].linhas.size(), static_cast<size_t>(2));
         QCOMPARE(a.conteudo(), lf);
     }
+    void textoLfESubstituicaoMantemAQuebraOriginal() {
+        ArquivoFixo a;
+        a.interpretar(conteudoDeTeste(), layoutDeTeste());
+        std::string lf = a.textoLf();
+        QVERIFY(lf.find('\r') == std::string::npos);
+        a.substituirTexto(lf, layoutDeTeste());
+        QVERIFY(!a.modificado());
+        QCOMPARE(a.conteudo(), conteudoDeTeste());
+        lf.replace(lf.find("ANGRA"), 5, "BRAVA");
+        lf += "    9 nova\n";
+        a.substituirTexto(lf, layoutDeTeste());
+        QVERIFY(a.modificado());
+        QCOMPARE(a.valor(0, 0, 1), std::string("BRAVA"));
+        QCOMPARE(a.secoes()[1].linhas.size(), static_cast<size_t>(2));
+        QVERIFY(a.conteudo().find("BRAVA") != std::string::npos);
+        QVERIFY(a.conteudo().find("    9 nova\r\n") != std::string::npos);
+    }
+    void layoutVazioGuardaOTextoIgual() {
+        ArquivoFixo a;
+        const std::string texto = "linha 1\r\nlinha 2\r\n";
+        a.interpretar(texto, {"3.3", {}});
+        QVERIFY(a.secoes().empty());
+        QCOMPARE(a.conteudo(), texto);
+    }
     void salvaEReabre() {
         QTemporaryDir dir;
         fs::path p = fs::path(dir.path().toStdWString()) / "teste.dat";

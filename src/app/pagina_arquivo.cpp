@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QVBoxLayout>
+#include "dados_deck.h"
 
 namespace {
 constexpr qint64 LIMITE_PREVIA = 2 * 1024 * 1024;
@@ -13,8 +14,10 @@ constexpr qint64 AMOSTRA_BINARIO = 4096;
 }  // namespace
 
 // Pagina provisoria de um arquivo do deck que ainda nao tem editor: titulo, nome real no deck, secao
-// do manual e o conteudo em texto, somente leitura.
-PaginaArquivo::PaginaArquivo(const ArquivoNewave& arquivo, QWidget* parent) : QWidget(parent), arquivo_(arquivo) {
+// do manual e o conteudo em texto, somente leitura. Arquivo de texto vem do repositorio do deck, e a
+// previa acompanha o que for editado no editor textual; binario e lido do disco.
+PaginaArquivo::PaginaArquivo(const ArquivoNewave& arquivo, DadosDeck* dados, QWidget* parent)
+    : QWidget(parent), arquivo_(arquivo), dados_(dados) {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 4, 6, 4);
     layout->setSpacing(4);
@@ -36,7 +39,17 @@ PaginaArquivo::PaginaArquivo(const ArquivoNewave& arquivo, QWidget* parent) : QW
     texto_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
     layout->addWidget(texto_, 1);
 
+    connect(dados_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
+        if (nome == arquivo_.nome_padrao) mostrarDoRepositorio();
+    });
     carregar({}, {});
+}
+
+void PaginaArquivo::mostrarDoRepositorio() {
+    const QString secao = QStringLiteral("manual do NEWAVE, seção %1").arg(arquivo_.secao_manual);
+    detalhes_->setText(QStringLiteral("%1  ·  %2  ·  somente leitura; ative Ver > Editor textual para editar")
+                           .arg(dados_->nomeNoDeck(arquivo_.nome_padrao), secao));
+    texto_->setPlainText(dados_->texto(arquivo_.nome_padrao));
 }
 
 // O nome real vem do arquivos.dat quando o arquivo tem rotulo la; senao e o nome padrao. Arquivos com
@@ -52,6 +65,10 @@ void PaginaArquivo::carregar(const QString& dir_deck, const std::map<std::string
         return;
     }
 
+    if (dados_->arquivo(arquivo_.nome_padrao)) {
+        mostrarDoRepositorio();
+        return;
+    }
     QString nome = arquivo_.nome_padrao;
     auto it = arquivos_dat.find(arquivo_.rotulo_arquivos.toStdString());
     if (!arquivo_.rotulo_arquivos.isEmpty() && it != arquivos_dat.end()) nome = QString::fromStdString(it->second);

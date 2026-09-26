@@ -113,6 +113,9 @@ FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidge
         if (arquivosTermicos().contains(nome)) atualizar();
     });
     connect(dados_, &DadosDeck::recarregado, this, [this] { definirUsina({}); });
+    connect(dados_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
+        if (arquivosTermicos().contains(nome)) atualizar();
+    });
     definirUsina({});
 }
 

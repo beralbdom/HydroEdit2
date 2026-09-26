@@ -2,12 +2,17 @@
 #include <limits>
 #include "dados_deck.h"
 
-// Tabela de uma secao de um arquivo do repositorio do deck. Recarregar o deck refaz o modelo; uma
-// edicao no mesmo arquivo, feita aqui ou em outra vista, so repinta as celulas, porque o numero de
-// linhas e colunas nao muda.
+// Tabela de uma secao de um arquivo do repositorio do deck. Recarregar o deck ou reler o arquivo a
+// partir do editor textual refaz o modelo, porque o numero de registros pode mudar; uma edicao de
+// campo, feita aqui ou em outra vista, so repinta as celulas.
 ModeloSecaoFixa::ModeloSecaoFixa(DadosDeck* dados, const QString& nome_padrao, int secao, QObject* parent)
     : QAbstractTableModel(parent), dados_(dados), nome_(nome_padrao), secao_(secao) {
     connect(dados_, &DadosDeck::recarregado, this, [this] {
+        beginResetModel();
+        endResetModel();
+    });
+    connect(dados_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
+        if (nome != nome_) return;
         beginResetModel();
         endResetModel();
     });

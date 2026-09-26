@@ -6,16 +6,20 @@
 
 class QLabel;
 class QPlainTextEdit;
+class DadosDeck;
 
 class PaginaArquivo : public QWidget {
     Q_OBJECT
 public:
-    PaginaArquivo(const ArquivoNewave& arquivo, QWidget* parent = nullptr);
+    PaginaArquivo(const ArquivoNewave& arquivo, DadosDeck* dados, QWidget* parent = nullptr);
     void carregar(const QString& dir_deck, const std::map<std::string, std::string>& arquivos_dat);
     bool encontrado() const { return encontrado_; }
 
 private:
+    void mostrarDoRepositorio();
+
     ArquivoNewave arquivo_;
+    DadosDeck* dados_;
     QLabel* detalhes_;
     QPlainTextEdit* texto_;
     bool encontrado_ = true;

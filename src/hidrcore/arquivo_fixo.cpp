@@ -92,6 +92,29 @@ std::string ArquivoFixo::conteudo() const {
     return texto;
 }
 
+// Texto do arquivo com quebra LF, o formato de um editor de texto; termina com quebra se o arquivo
+// terminava.
+std::string ArquivoFixo::textoLf() const {
+    std::string texto;
+    for (size_t i = 0; i < linhas_.size(); ++i) {
+        texto += linhas_[i];
+        if (i + 1 < linhas_.size() || quebra_final_) texto += '\n';
+    }
+    return texto;
+}
+
+// Troca o arquivo inteiro pelo texto editado, relendo as secoes pelo layout. O tipo de quebra
+// original (CRLF ou LF) continua valendo para salvar, e o arquivo passa a contar como alterado se o
+// texto for diferente do que havia.
+void ArquivoFixo::substituirTexto(const std::string& texto_lf, const LayoutArquivoFixo& layout) {
+    const std::string anterior = textoLf();
+    const std::string quebra = quebra_;
+    const bool ja_modificado = modificado_;
+    interpretar(texto_lf, layout);
+    quebra_ = quebra;
+    modificado_ = ja_modificado || texto_lf != anterior;
+}
+
 // Grava num temporario ao lado e so entao substitui o original, como o hidr.dat.
 Resultado ArquivoFixo::salvar(const fs::path& caminho) {
     fs::path temporario = caminho;

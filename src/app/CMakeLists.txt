@@ -23,6 +23,7 @@ qt_add_library(hydroedit_ui STATIC
     modelo_secao_fixa.cpp modelo_secao_fixa.h
     pagina_arquivo_fixo.cpp pagina_arquivo_fixo.h
     dados_deck.cpp dados_deck.h
+    editor_texto_arquivo.cpp editor_texto_arquivo.h
     formulario_termica.cpp formulario_termica.h
     editor_termicas.cpp editor_termicas.h
     estilo_arvore.cpp estilo_arvore.h

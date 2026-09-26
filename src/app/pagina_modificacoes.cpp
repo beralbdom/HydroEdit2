@@ -7,6 +7,7 @@
 #include <map>
 #include <set>
 #include "catalogo_newave.h"
+#include "dados_deck.h"
 #include "estilo_arvore.h"
 #include "modelo_hidr.h"
 
@@ -32,8 +33,8 @@ QString descricaoDa(const QString& chave) {
 // Aba Modificacoes: arvore com todas as modificacoes, as categorias e as palavras-chave do modif.dat
 // com a contagem de registros de cada uma, e ao lado a tabela dos registros do item escolhido. As
 // palavras-chave que o deck nao usa aparecem desabilitadas, para mostrar o que o arquivo admite.
-PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, QWidget* parent)
-    : QSplitter(Qt::Horizontal, parent), modelo_(modelo) {
+PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck, QWidget* parent)
+    : QSplitter(Qt::Horizontal, parent), modelo_(modelo), deck_(deck) {
     setHandleWidth(4);
     arvore_ = new QTreeWidget(this);
     arvore_->setColumnCount(2);
@@ -79,12 +80,20 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, QWidget* parent
         const QList<QTreeWidgetItem*> selecionados = arvore_->selectedItems();
         if (!selecionados.isEmpty()) mostrar(selecionados.first());
     });
-    carregar({});
+    connect(deck_, &DadosDeck::recarregado, this, &PaginaModificacoes::recarregar);
+    connect(deck_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
+        if (nome == QStringLiteral("modif.dat")) recarregar();
+    });
+    recarregar();
 }
 
-void PaginaModificacoes::carregar(const QString& caminho_modif) {
-    caminho_ = caminho_modif;
-    dados_ = caminho_modif.isEmpty() ? ResultadoModif{} : lerModif(std::filesystem::path(caminho_modif.toStdWString()));
+// O modif.dat vem do repositorio do deck, e a arvore se refaz quando o texto dele e editado no
+// editor textual.
+void PaginaModificacoes::recarregar() {
+    const ArquivoFixo* modif = deck_->arquivo(QStringLiteral("modif.dat"));
+    caminho_ = deck_->carregado() ? deck_->nomeNoDeck(QStringLiteral("modif.dat")) : QString();
+    dados_ = modif ? interpretarModif(modif->conteudo()) : ResultadoModif{};
+    if (deck_->carregado() && !modif) dados_.erro = deck_->erro(QStringLiteral("modif.dat")).toStdString();
     montarArvore();
 }
 

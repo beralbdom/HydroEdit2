@@ -313,6 +313,10 @@ void JanelaPrincipal::criarMenus() {
     ficticias_cascata_->setCheckable(true);
     ficticias_cascata_->setChecked(true);
     connect(ficticias_cascata_, &QAction::toggled, vista_cascata_, &VistaCascata::definirMostrarFicticias);
+    ver->addSeparator();
+    QAction* editor_textual = ver->addAction(QStringLiteral("Editor &textual"));
+    editor_textual->setCheckable(true);
+    connect(editor_textual, &QAction::toggled, navegador_, &NavegadorDeck::definirModoTexto);
 
     menu_usina_ = menuBar()->addMenu(QStringLiteral("&Usina"));
     menu_usina_->addAction(QStringLiteral("&Nova no primeiro código livre"), QKeySequence(Qt::CTRL | Qt::Key_N), this, &JanelaPrincipal::novaUsina);
@@ -692,6 +696,7 @@ bool JanelaPrincipal::confirmarDescarte() {
             if (!modelo_->pilhaUndo()->isClean()) return false;
         }
     }
+    navegador_->aplicarEdicoesPendentes();
     const QStringList outros = navegador_->arquivosModificados();
     if (outros.isEmpty()) return true;
     auto r = QMessageBox::question(this, QStringLiteral("Alterações não salvas"),

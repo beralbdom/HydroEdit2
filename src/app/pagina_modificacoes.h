@@ -6,19 +6,21 @@ class QLabel;
 class QTableWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
+class DadosDeck;
 class ModeloHidr;
 
 class PaginaModificacoes : public QSplitter {
     Q_OBJECT
 public:
-    explicit PaginaModificacoes(const ModeloHidr* modelo, QWidget* parent = nullptr);
-    void carregar(const QString& caminho_modif);
+    PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck, QWidget* parent = nullptr);
 
 private:
+    void recarregar();
     void montarArvore();
     void mostrar(QTreeWidgetItem* item);
 
     const ModeloHidr* modelo_;
+    DadosDeck* deck_;
     QTreeWidget* arvore_;
     QLabel* cabecalho_;
     QLabel* detalhes_;
