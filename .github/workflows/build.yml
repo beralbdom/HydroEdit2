@@ -26,6 +26,8 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Versao e release
         id: versao
@@ -103,5 +105,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSAO: ${{ steps.versao.outputs.versao }}
         run: |
+          $anterior = gh release view --json tagName -q .tagName 2>$null
+          if ($LASTEXITCODE -ne 0) { $anterior = '' }
           $PSNativeCommandUseErrorActionPreference = $true
-          gh release create $env:VERSAO dist/HydroEdit2.exe --target $env:GITHUB_SHA --title $env:VERSAO --generate-notes
+          & .github/scripts/notas_release.ps1 -Anterior $anterior -Alvo $env:GITHUB_SHA -Versao $env:VERSAO -Repositorio $env:GH_REPO -Saida notas.md
+          Get-Content notas.md
+          gh release create $env:VERSAO dist/HydroEdit2.exe --target $env:GITHUB_SHA --title $env:VERSAO --notes-file notas.md

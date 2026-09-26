@@ -12,7 +12,7 @@ rev/dfm/*.bin
 .vs/
 CMakeUserPresets.json
 .superpowers/
-scripts/
+/scripts/
 .*
 !.vscode/
 !.github/

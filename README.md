@@ -31,6 +31,8 @@ ctest --preset msvc-debug
 
 O workflow `.github/workflows/build.yml` compila o executável único (Qt estático pelo vcpkg, no mesmo commit do vcpkg usado localmente) a cada push na `main` e deixa o `HydroEdit2.exe` como artefato do run. Se a versão de `src/app/main.cpp` ainda não tem release, o mesmo run cria a tag no commit compilado e publica a release com o executável: para lançar uma versão, basta mudar o número no `main.cpp`. O Qt compilado fica em cache entre os runs.
 
+As notas da release saem dos commits desde a release anterior (`.github/scripts/notas_release.ps1`), agrupadas pela área escrita antes dos dois-pontos. Por isso a primeira linha de cada commit segue o formato `Área: descrição para quem usa o programa`, por exemplo `Cascata: legenda explica o triângulo e o círculo`. A área tem até três palavras (Cascata, Tabela, Formulário, Ferramentas, Vazões...). Commits de build, CI, testes, refatoração ou troca de versão usam a área `Interno` e ficam fora das notas; commits sem área entram em "Outras mudanças".
+
 ### Visual Studio
 
 Abra a pasta do repositório (Arquivo > Abrir > Pasta). O Visual Studio lê o `CMakePresets.json` e mostra os presets na barra de ferramentas (`msvc-debug`, `msvc-release`, `msvc-static`). Escolha `HydroEdit2.exe` como item de inicialização; a configuração de depuração em `.vs/launch.vs.json` já passa o deck de exemplo como argumento e coloca o Qt no PATH. Os testes aparecem no Gerenciador de Testes via CTest.
