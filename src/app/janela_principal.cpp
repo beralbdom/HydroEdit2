@@ -358,8 +358,8 @@ void JanelaPrincipal::criarMenus() {
         const QString cor_esmaecida = palette().color(QPalette::Disabled, QPalette::WindowText).name();
         const double tamanho_credito = QFontInfo(sobre.font()).pointSizeF() - 1.0;
         sobre.setText(QStringLiteral("<b>%1 (%2)</b><br>Editor dos dados de entrada do NEWAVE<br>"
-                                     "Também abre o cadastro de usinas hidráulicas (hidr.dat) do DESSEM<br>"
-                                     "Licença: GNU GPL v3<br><br>"
+                                     "Licença: GNU GPL v3<br>"
+                                     "NEWAVE © CEPEL, Centro de Pesquisas de Energia Elétrica<br><br>"
                                      "<span style=\"font-size:%3pt; color:%4;\">Desenvolvido por Bernardo Albuquerque Domingues<br>"
                                      "<a href=\"https://github.com/beralbdom\" style=\"color:%4;\">github.com/beralbdom</a></span>")
                           .arg(QApplication::applicationName(), QApplication::applicationVersion())
