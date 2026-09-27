@@ -357,11 +357,11 @@ void JanelaPrincipal::criarMenus() {
         sobre.setTextFormat(Qt::RichText);
         const QString cor_esmaecida = palette().color(QPalette::Disabled, QPalette::WindowText).name();
         const double tamanho_credito = QFontInfo(sobre.font()).pointSizeF() - 1.0;
-        sobre.setText(QStringLiteral("<b>%1 (%2)</b><br>Editor dos dados de entrada do NEWAVE<br>"
+        sobre.setText(QStringLiteral("<b>%1</b> <span style=\"font-size:%3pt; color:%4;\">v%2</span><br>Editor dos dados de entrada do NEWAVE<br>"
                                      "Licença: GNU GPL v3<br><br>"
-                                     "<span style=\"font-size:%3pt; color:%4;\">NEWAVE © CEPEL, Centro de Pesquisas de Energia Elétrica<br><br>"
-                                     "Desenvolvido por Bernardo Albuquerque Domingues<br>"
-                                     "<a href=\"https://github.com/beralbdom\" style=\"color:%4;\">github.com/beralbdom</a></span>")
+                                     "<span style=\"font-size:%3pt; color:%4;\">NEWAVE © CEPEL, Centro de Pesquisas de Energia Elétrica<br>"
+                                     "<a href=\"https://github.com/beralbdom/HydroEdit2\" style=\"color:%4;\">%1</a>"
+                                     " © 2026 Bernardo Albuquerque Domingues</span>")
                           .arg(QApplication::applicationName(), QApplication::applicationVersion())
                           .arg(tamanho_credito, 0, 'f', 1)
                           .arg(cor_esmaecida));
