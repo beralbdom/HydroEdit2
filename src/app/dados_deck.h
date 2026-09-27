@@ -5,6 +5,7 @@
 #include <string>
 #include "arquivo_binario.h"
 #include "arquivo_fixo.h"
+#include "layouts_newave.h"
 
 class DadosDeck : public QObject {
     Q_OBJECT
@@ -39,6 +40,7 @@ private:
         ArquivoFixo arquivo;
         ArquivoBinario binario;
         bool eh_binario = false;
+        LayoutArquivoFixo base;
         LayoutArquivoFixo layout;
         QString caminho;
         QString erro;
@@ -48,7 +50,9 @@ private:
                          const std::map<std::string, std::string>& arquivos_dat);
     void carregarBinario(const QString& nome_padrao, int tamanho_registro);
     Entrada* binarioLido(const QString& nome_padrao);
+    void aplicarPatamares(bool avisar);
 
     std::map<QString, Entrada> arquivos_;
     QString dir_;
+    NumeroPatamares patamares_;
 };

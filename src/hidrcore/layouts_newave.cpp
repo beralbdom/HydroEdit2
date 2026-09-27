@@ -1,5 +1,6 @@
 #include "layouts_newave.h"
 #include <map>
+#include <string>
 
 namespace {
 using T = TipoColunaFixa;
@@ -14,6 +15,16 @@ ColunaFixa deContexto(ColunaFixa coluna, int contexto) {
     coluna.contexto = contexto;
     return coluna;
 }
+
+// Coluna do patamar k de carga (numero de patamares no bloco 1 do patamar.dat) ou de deficit (bloco 1
+// do sistema.dat): some da tabela quando o deck tem menos patamares que k.
+ColunaFixa doPatamar(ColunaFixa coluna, Patamares tipo, int k) {
+    coluna.patamares = tipo;
+    coluna.patamar = k;
+    return coluna;
+}
+ColunaFixa deCarga(ColunaFixa coluna, int k) { return doPatamar(std::move(coluna), Patamares::Carga, k); }
+ColunaFixa deDeficit(ColunaFixa coluna, int k) { return doPatamar(std::move(coluna), Patamares::Deficit, k); }
 
 FiltroLinha preenchido(int inicio, int fim) { return {inicio, fim, TesteFiltro::Preenchido, {}}; }
 FiltroLinha vazio(int inicio, int fim) { return {inicio, fim, TesteFiltro::Vazio, {}}; }
@@ -277,10 +288,10 @@ LayoutArquivoFixo sistema() {
               .linhas_cabecalho = 3,
               .terminador = "999",
               .colunas = {inteiro("Submercado", 2, 4), texto("Nome", 6, 15), inteiro("Fictício", 18, 18),
-                          real("Custo pat. 1 ($/MWh)", 20, 26, 2), real("Custo pat. 2 ($/MWh)", 28, 34, 2),
-                          real("Custo pat. 3 ($/MWh)", 36, 42, 2), real("Custo pat. 4 ($/MWh)", 44, 50, 2),
-                          real("Profund. pat. 1 (p.u.)", 52, 56, 3), real("Profund. pat. 2 (p.u.)", 58, 62, 3),
-                          real("Profund. pat. 3 (p.u.)", 64, 68, 3), real("Profund. pat. 4 (p.u.)", 70, 74, 3)}},
+                          deDeficit(real("Custo pat. 1 ($/MWh)", 20, 26, 2), 1), deDeficit(real("Custo pat. 2 ($/MWh)", 28, 34, 2), 2),
+                          deDeficit(real("Custo pat. 3 ($/MWh)", 36, 42, 2), 3), deDeficit(real("Custo pat. 4 ($/MWh)", 44, 50, 2), 4),
+                          deDeficit(real("Profund. pat. 1 (p.u.)", 52, 56, 3), 1), deDeficit(real("Profund. pat. 2 (p.u.)", 58, 62, 3), 2),
+                          deDeficit(real("Profund. pat. 3 (p.u.)", 64, 68, 3), 3), deDeficit(real("Profund. pat. 4 (p.u.)", 70, 74, 3), 4)}},
              {.titulo = "Limites de intercâmbio",
               .linhas_cabecalho = 3,
               .terminador = "999",
@@ -358,9 +369,9 @@ LayoutArquivoFixo patamar() {
           .contextos = {{{preenchido(1, 4), preenchido(95, 100)}}},
           .contigua = true},
          {.titulo = "Duração sazonal dos patamares",
-          .colunas = {texto("Mês", 2, 4), real("Patamar 1 (p.u.)", 7, 12, 4), real("Patamar 2 (p.u.)", 15, 20, 4),
-                      real("Patamar 3 (p.u.)", 23, 28, 4), real("Patamar 4 (p.u.)", 31, 36, 4),
-                      real("Patamar 5 (p.u.)", 39, 44, 4)},
+          .colunas = {texto("Mês", 2, 4), deCarga(real("Patamar 1 (p.u.)", 7, 12, 4), 1), deCarga(real("Patamar 2 (p.u.)", 15, 20, 4), 2),
+                      deCarga(real("Patamar 3 (p.u.)", 23, 28, 4), 3), deCarga(real("Patamar 4 (p.u.)", 31, 36, 4), 4),
+                      deCarga(real("Patamar 5 (p.u.)", 39, 44, 4), 5)},
           .filtro = {preenchido(2, 4), vazio(5, 6), preenchido(7, 12), vazio(95, 100)},
           .contigua = true},
          {.titulo = "Carga por patamar e ano",
@@ -661,9 +672,9 @@ LayoutArquivoFixo agrint() {
               .linhas_cabecalho = 3,
               .terminador = "999",
               .colunas = {inteiro("Agrupamento", 2, 4), inteiro("Mês início", 7, 8), inteiro("Ano início", 10, 13),
-                          inteiro("Mês fim", 15, 16), inteiro("Ano fim", 18, 21), real("Limite pat. 1 (MWmédio)", 23, 29, 0),
-                          real("Limite pat. 2 (MWmédio)", 31, 37, 0), real("Limite pat. 3 (MWmédio)", 39, 45, 0),
-                          real("Limite pat. 4 (MWmédio)", 47, 53, 0), real("Limite pat. 5 (MWmédio)", 55, 61, 0)}}}};
+                          inteiro("Mês fim", 15, 16), inteiro("Ano fim", 18, 21), deCarga(real("Limite pat. 1 (MWmédio)", 23, 29, 0), 1),
+                          deCarga(real("Limite pat. 2 (MWmédio)", 31, 37, 0), 2), deCarga(real("Limite pat. 3 (MWmédio)", 39, 45, 0), 3),
+                          deCarga(real("Limite pat. 4 (MWmédio)", 47, 53, 0), 4), deCarga(real("Limite pat. 5 (MWmédio)", 55, 61, 0), 5)}}}};
 }
 
 // c_adic.dat, manual do NEWAVE 30.0.2, secao 3.27: dois registros de comentario e um bloco de
@@ -689,15 +700,17 @@ LayoutArquivoFixo c_adic() {
 
 // adterm.dat, manual do NEWAVE 30.0.2, secao 3.28: dois registros de comentario e, para cada usina
 // GNL, um registro tipo 1 (usina e lag de antecipacao) seguido de um registro tipo 2 por lag
-// (geracao antecipada por patamar a cada 12 colunas a partir da 25), ate o 9999 no campo 1.
+// (geracao antecipada de cada patamar de carga, ate cinco, a cada 12 colunas a partir da 25), ate o
+// 9999 no campo 1.
 LayoutArquivoFixo adterm() {
     return {"3.28",
             {{.titulo = "Geração antecipada por lag",
               .linhas_cabecalho = 2,
               .terminador = "9999",
               .colunas = {deContexto(inteiro("Usina", 2, 5), 0), deContexto(texto("Nome", 8, 19), 0), ordinal("Lag", 0),
-                          real("GT antecipada (MW) pat.", 25, 34, 2)},
-              .passo_repeticao = 12,
+                          deCarga(real("GT antecipada pat. 1 (MW)", 25, 34, 2), 1), deCarga(real("GT antecipada pat. 2 (MW)", 37, 46, 2), 2),
+                          deCarga(real("GT antecipada pat. 3 (MW)", 49, 58, 2), 3), deCarga(real("GT antecipada pat. 4 (MW)", 61, 70, 2), 4),
+                          deCarga(real("GT antecipada pat. 5 (MW)", 73, 82, 2), 5)},
               .filtro = {vazio(2, 5)},
               .contextos = {{{preenchido(2, 5)}}}},
              {.titulo = "Usinas GNL",
@@ -938,4 +951,46 @@ const LayoutArquivoFixo* layoutNewave(const std::string& nome_padrao) {
     };
     auto it = layouts.find(nome_padrao);
     return it == layouts.end() ? nullptr : &it->second;
+}
+
+namespace {
+int primeiroInteiroPositivo(const ArquivoFixo& arquivo) {
+    if (arquivo.secoes().empty() || arquivo.secoes()[0].linhas.empty()) return 0;
+    const std::string valor = arquivo.valor(0, 0, 0);
+    try {
+        size_t lidos = 0;
+        const int n = std::stoi(valor, &lidos);
+        return lidos == valor.size() && n > 0 ? n : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+}  // namespace
+
+// Numero de patamares de carga do deck: o registro do bloco 1 do patamar.dat (manual, secao 3.8),
+// lido pelo layout dele; 0 se o arquivo nao traz um numero valido.
+int patamaresDeCarga(const ArquivoFixo& patamar) { return primeiroInteiroPositivo(patamar); }
+
+// Numero de patamares de deficit: o registro do bloco 1 do sistema.dat (manual, secao 3.7), lido
+// pelo layout dele; 0 se o arquivo nao traz um numero valido.
+int patamaresDeDeficit(const ArquivoFixo& sistema) { return primeiroInteiroPositivo(sistema); }
+
+bool dependeDePatamares(const LayoutArquivoFixo& layout) {
+    for (const SecaoFixa& secao : layout.secoes)
+        for (const ColunaFixa& coluna : secao.colunas)
+            if (coluna.patamares != Patamares::Nenhum) return true;
+    return false;
+}
+
+// Copia do layout sem as colunas de patamares que o deck nao tem: coluna do patamar k de carga (ou de
+// deficit) sai quando o numero de patamares desse tipo e conhecido e menor que k. Numero 0
+// (desconhecido) mantem todas as colunas.
+LayoutArquivoFixo ajustarPatamares(const LayoutArquivoFixo& layout, NumeroPatamares numero) {
+    LayoutArquivoFixo ajustado = layout;
+    for (SecaoFixa& secao : ajustado.secoes)
+        std::erase_if(secao.colunas, [&](const ColunaFixa& c) {
+            const int limite = c.patamares == Patamares::Carga ? numero.carga : c.patamares == Patamares::Deficit ? numero.deficit : 0;
+            return limite > 0 && c.patamar > limite;
+        });
+    return ajustado;
 }

@@ -18,6 +18,7 @@ bool DadosDeck::binario(const QString& nome_padrao) {
 void DadosDeck::carregarArquivo(const QString& nome_padrao, const QString& rotulo, const LayoutArquivoFixo& layout,
                                 const std::map<std::string, std::string>& arquivos_dat) {
     Entrada& entrada = arquivos_[nome_padrao];
+    entrada.base = layout;
     entrada.layout = layout;
     QString nome = nome_padrao;
     auto it = arquivos_dat.find(rotulo.toStdString());
@@ -64,6 +65,7 @@ void DadosDeck::carregar(const QString& dir_deck, const std::map<std::string, st
     carregarBinario(QStringLiteral("postos.dat"), postos_dat::REGISTRO);
     const ArquivoBinario* postos = arquivoBinario(QStringLiteral("postos.dat"));
     carregarBinario(QStringLiteral("vazoes.dat"), postos ? 4 * postos->registros() : 0);
+    aplicarPatamares(false);
     emit recarregado();
 }
 
@@ -114,8 +116,31 @@ Resultado DadosDeck::definir(const QString& nome_padrao, int secao, int registro
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido) return Resultado::erro("Arquivo nao carregado");
     Resultado r = it->second.arquivo.definir(secao, registro, coluna, texto.toLatin1().toStdString());
-    if (r.ok) emit alterado(nome_padrao);
+    if (r.ok) {
+        emit alterado(nome_padrao);
+        aplicarPatamares(true);
+    }
     return r;
+}
+
+// O numero de patamares de carga (patamar.dat) e de deficit (sistema.dat) decide quantas colunas de
+// patamar as tabelas mostram: limites do agrint.dat, geracao do adterm.dat, custos e profundidades
+// do deficit no sistema.dat e duracao sazonal no patamar.dat. Na carga do deck, e sempre que uma
+// edicao muda um desses numeros, os arquivos que dependem deles sao relidos pelo layout ajustado,
+// sem mudar o texto nem a marca de alterado, e avisados por reinterpretado.
+void DadosDeck::aplicarPatamares(bool avisar) {
+    NumeroPatamares numero;
+    if (const ArquivoFixo* patamar = arquivo(QStringLiteral("patamar.dat"))) numero.carga = patamaresDeCarga(*patamar);
+    if (const ArquivoFixo* sistema = arquivo(QStringLiteral("sistema.dat"))) numero.deficit = patamaresDeDeficit(*sistema);
+    if (avisar && numero == patamares_) return;
+    patamares_ = numero;
+    for (auto& [nome, entrada] : arquivos_) {
+        if (entrada.eh_binario || !dependeDePatamares(entrada.base)) continue;
+        entrada.layout = ajustarPatamares(entrada.base, numero);
+        if (!entrada.lido) continue;
+        entrada.arquivo.substituirTexto(entrada.arquivo.textoLf(), entrada.layout);
+        if (avisar) emit reinterpretado(nome);
+    }
 }
 
 // Campo de texto de um registro binario, gravado em Latin-1.
@@ -154,6 +179,7 @@ void DadosDeck::substituirTexto(const QString& nome_padrao, const QString& texto
     it->second.arquivo.substituirTexto(texto.toLatin1().toStdString(), it->second.layout);
     emit reinterpretado(nome_padrao);
     emit alterado(nome_padrao);
+    aplicarPatamares(true);
 }
 
 bool DadosDeck::salvar(const QString& nome_padrao, QString* motivo) {

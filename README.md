@@ -20,7 +20,7 @@ Abra o `hidr.dat` do deck pelo menu Arquivo > Abrir. O programa lê o `arquivos.
 | Dados gerais | `dger.dat`, `arquivos.dat`, `shist.dat`, `selcor.dat` |
 
 - Usinas hidráulicas e térmicas abrem num editor com a tabela das usinas e o formulário da usina selecionada; o das térmicas reúne `term.dat`, `conft.dat`, `expt.dat`, `manutt.dat` e `clast.dat`. As hidráulicas têm também a vista da cascata.
-- Os demais arquivos abrem como tabela editável. Arquivos com mais de um tipo de registro mostram cada seção na árvore; em blocos (por submercado, ano ou patamar), cada linha traz o bloco a que pertence. `dger.dat` e `selcor.dat` aparecem como lista de parâmetros. `postos.dat` e `vazoes.dat`, binários, também são editáveis.
+- Os demais arquivos abrem como tabela editável. Arquivos com mais de um tipo de registro mostram cada seção na árvore; em blocos (por submercado, ano ou patamar), cada linha traz o bloco a que pertence. Colunas por patamar seguem o número de patamares de carga do `patamar.dat` e de déficit do `sistema.dat`. `dger.dat` e `selcor.dat` aparecem como lista de parâmetros. `postos.dat` e `vazoes.dat`, binários, também são editáveis.
 - A aba Modificações agrupa os registros do `modif.dat` por categoria e palavra-chave.
 - Ver > Editor textual troca as tabelas pelo texto de cada arquivo.
 - Editar troca só as colunas do campo; o resto do arquivo é regravado igual, byte a byte. Arquivo alterado e não salvo ganha um ponto na árvore, e o programa pergunta antes de fechar.

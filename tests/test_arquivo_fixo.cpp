@@ -295,12 +295,23 @@ private slots:
         const Caso casos[] = {{"arquivos.dat", 0, 45},  {"dger.dat", 0, 101},   {"shist.dat", 0, 1},       {"sistema.dat", 0, 292},
                               {"patamar.dat", 0, 784},  {"confhd.dat", 0, 171}, {"exph.dat", 0, 20},       {"loss.dat", 0, 0},
                               {"dsvagua.dat", 0, 1065}, {"vazpast.dat", 0, 223}, {"gtminpat.dat", 0, 0},   {"penalid.dat", 0, 72},
-                              {"curva.dat", 0, 54},     {"agrint.dat", 60, 39}, {"c_adic.dat", 0, 42},     {"adterm.dat", 0, 6},
+                              {"curva.dat", 0, 54},     {"agrint.dat", 0, 39}, {"c_adic.dat", 0, 42},     {"adterm.dat", 0, 6},
                               {"ghmin.dat", 0, 91},     {"cvar.dat", 0, 13},    {"ree.dat", 0, 13},        {"re.dat", 0, 0},
                               {"selcor.dat", 0, 7},     {"tecno.dat", 0, 0},    {"polinjus.csv", 0, 1826}, {"volref_saz.dat", 0, 149},
                               {"restricao-eletrica.csv", 0, 60}};
+        NumeroPatamares patamares;
+        ArquivoFixo patamar;
+        ArquivoFixo sistema;
+        QVERIFY(patamar.carregar(deck / "patamar.dat", *layoutNewave("patamar.dat")).ok);
+        QVERIFY(sistema.carregar(deck / "sistema.dat", *layoutNewave("sistema.dat")).ok);
+        patamares.carga = patamaresDeCarga(patamar);
+        patamares.deficit = patamaresDeDeficit(sistema);
+        QCOMPARE(patamares.carga, 3);
+        QCOMPARE(patamares.deficit, 1);
         for (const Caso& caso : casos) {
-            const LayoutArquivoFixo* layout = layoutNewave(caso.nome);
+            QVERIFY2(layoutNewave(caso.nome), caso.nome);
+            const LayoutArquivoFixo ajustado = ajustarPatamares(*layoutNewave(caso.nome), patamares);
+            const LayoutArquivoFixo* layout = &ajustado;
             QVERIFY2(layout, caso.nome);
             fs::path caminho;
             for (const auto& entrada : fs::directory_iterator(deck)) {
@@ -325,6 +336,23 @@ private slots:
             QVERIFY2(invalidos == caso.invalidos, caso.nome);
             QVERIFY2(registros == caso.registros, (std::string(caso.nome) + ": " + std::to_string(registros)).c_str());
         }
+    }
+    void colunasSeguemONumeroDePatamares() {
+        fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "agrint.dat")) QSKIP("deck ausente");
+        auto colunas = [&](const char* nome, NumeroPatamares n, int secao) {
+            ArquivoFixo a;
+            a.carregar(deck / nome, ajustarPatamares(*layoutNewave(nome), n));
+            return static_cast<int>(a.secoes()[static_cast<size_t>(secao)].definicao.colunas.size());
+        };
+        QCOMPARE(colunas("agrint.dat", {}, 1), 5 + 5);
+        QCOMPARE(colunas("agrint.dat", {3, 1}, 1), 5 + 3);
+        QCOMPARE(colunas("adterm.dat", {3, 1}, 0), 3 + 3);
+        QCOMPARE(colunas("sistema.dat", {3, 1}, 1), 3 + 2);
+        QCOMPARE(colunas("sistema.dat", {3, 0}, 1), 3 + 8);
+        QCOMPARE(colunas("patamar.dat", {3, 1}, 2), 1 + 3);
+        QVERIFY(dependeDePatamares(*layoutNewave("agrint.dat")));
+        QVERIFY(!dependeDePatamares(*layoutNewave("confhd.dat")));
     }
     void arquivosTermicosDoDeckReal() {
         fs::path deck(DIR_DECK);

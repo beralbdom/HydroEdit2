@@ -5,6 +5,7 @@
 #include "resultado.h"
 
 enum class TipoColunaFixa { Inteiro, Real, Texto, Ordinal, Grupo };
+enum class Patamares { Nenhum, Carga, Deficit };
 
 struct ColunaFixa {
     std::string nome;
@@ -13,6 +14,8 @@ struct ColunaFixa {
     TipoColunaFixa tipo = TipoColunaFixa::Texto;
     int decimais = 0;
     int contexto = -1;
+    Patamares patamares = Patamares::Nenhum;
+    int patamar = 0;
 };
 
 enum class TesteFiltro { Vazio, Preenchido, Igual, Diferente };
