@@ -15,7 +15,7 @@ Abra o `hidr.dat` do deck pelo menu Arquivo > Abrir. O programa lê o `arquivos.
 | Configuração | `confhd.dat`, `conft.dat`, `exph.dat`, `expt.dat`, `manutt.dat` |
 | Modificações | `modif.dat` |
 | Hidrologia | `vazoes.dat`, `vazpast.dat`, `dsvagua.dat`, `volref_saz.dat`, `polinjus.csv` |
-| Sistema e mercado | `sistema.dat`, `patamar.dat`, `c_adic.dat`, `agrint.dat`, `loss.dat`, `gtminpat.dat`, `adterm.dat` |
+| Sistema e carga | `sistema.dat`, `patamar.dat`, `c_adic.dat`, `agrint.dat`, `loss.dat`, `gtminpat.dat`, `adterm.dat` |
 | Restrições | `penalid.dat`, `curva.dat`, `cvar.dat`, `sar.dat`, `ghmin.dat`, `re.dat`, `restricao-eletrica.csv` |
 | Dados gerais | `dger.dat`, `arquivos.dat`, `shist.dat`, `selcor.dat` |
 

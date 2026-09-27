@@ -6,7 +6,7 @@
 const std::vector<QString>& secoesNewave() {
     static const std::vector<QString> secoes = {
         QStringLiteral("Cadastro"),          QStringLiteral("Configuração"), QStringLiteral("Modificações"),
-        QStringLiteral("Hidrologia"),        QStringLiteral("Sistema e mercado"), QStringLiteral("Restrições"),
+        QStringLiteral("Hidrologia"),        QStringLiteral("Sistema e carga"), QStringLiteral("Restrições"),
         QStringLiteral("Dados gerais"),
     };
     return secoes;
@@ -37,13 +37,13 @@ const std::vector<ArquivoNewave>& catalogoNewave() {
         {QStringLiteral("Hidrologia"), QStringLiteral("Volume de referência sazonal"), QStringLiteral("volref_saz.dat"), QStringLiteral("ARQ. C/ VOLUME REF. SAZONAL"), QStringLiteral("3.42")},
         {QStringLiteral("Hidrologia"), QStringLiteral("Polinômios de jusante por partes"), QStringLiteral("polinjus.csv"), {}, QStringLiteral("3.41.3")},
 
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Subsistemas/submercados"), QStringLiteral("sistema.dat"), QStringLiteral("DADOS DOS SUBSISTEMAS"), QStringLiteral("3.7")},
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Patamares de mercado"), QStringLiteral("patamar.dat"), QStringLiteral("ARQUIVO DE PATAMARES MERCADO"), QStringLiteral("3.8")},
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Carga e oferta adicionais"), QStringLiteral("c_adic.dat"), QStringLiteral("ARQUIVO C/CARGAS ADICIONAIS"), QStringLiteral("3.27")},
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Agrupamento livre de interligações"), QStringLiteral("agrint.dat"), QStringLiteral("ARQUIVO AGRUPAMENTO LIVRE"), QStringLiteral("3.26")},
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Perdas na rede de transmissão"), QStringLiteral("loss.dat"), QStringLiteral("ARQUIVO C/FATORES DE PERDAS"), QStringLiteral("3.20")},
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Patamares de geração térmica mínima"), QStringLiteral("gtminpat.dat"), QStringLiteral("ARQUIVO C/PATAMARES GTMIN"), QStringLiteral("3.23")},
-        {QStringLiteral("Sistema e mercado"), QStringLiteral("Despacho antecipado de térmicas GNL"), QStringLiteral("adterm.dat"), QStringLiteral("ARQUIVO DESP. ANTEC. GNL"), QStringLiteral("3.28")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Subsistemas/submercados"), QStringLiteral("sistema.dat"), QStringLiteral("DADOS DOS SUBSISTEMAS"), QStringLiteral("3.7")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Patamares de carga"), QStringLiteral("patamar.dat"), QStringLiteral("ARQUIVO DE PATAMARES MERCADO"), QStringLiteral("3.8")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Carga e oferta adicionais"), QStringLiteral("c_adic.dat"), QStringLiteral("ARQUIVO C/CARGAS ADICIONAIS"), QStringLiteral("3.27")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Agrupamento livre de interligações"), QStringLiteral("agrint.dat"), QStringLiteral("ARQUIVO AGRUPAMENTO LIVRE"), QStringLiteral("3.26")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Perdas na rede de transmissão"), QStringLiteral("loss.dat"), QStringLiteral("ARQUIVO C/FATORES DE PERDAS"), QStringLiteral("3.20")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Patamares de geração térmica mínima"), QStringLiteral("gtminpat.dat"), QStringLiteral("ARQUIVO C/PATAMARES GTMIN"), QStringLiteral("3.23")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Despacho antecipado de térmicas GNL"), QStringLiteral("adterm.dat"), QStringLiteral("ARQUIVO DESP. ANTEC. GNL"), QStringLiteral("3.28")},
 
         {QStringLiteral("Restrições"), QStringLiteral("Penalidades"), QStringLiteral("penalid.dat"), QStringLiteral("ARQUIVO P/PENALID. POR DESV."), QStringLiteral("3.24")},
         {QStringLiteral("Restrições"), QStringLiteral("Curva de aversão a risco"), QStringLiteral("curva.dat"), QStringLiteral("ARQUIVO C.GUIA / PENAL.VMINT"), QStringLiteral("3.25")},
@@ -113,9 +113,9 @@ QString grupoNewave(const QString& nome_padrao) {
         {QStringLiteral("dsvagua.dat"), QStringLiteral("Operação hidráulica")},
         {QStringLiteral("volref_saz.dat"), QStringLiteral("Operação hidráulica")},
         {QStringLiteral("polinjus.csv"), QStringLiteral("Operação hidráulica")},
-        {QStringLiteral("sistema.dat"), QStringLiteral("Mercado")},
-        {QStringLiteral("patamar.dat"), QStringLiteral("Mercado")},
-        {QStringLiteral("c_adic.dat"), QStringLiteral("Mercado")},
+        {QStringLiteral("sistema.dat"), QStringLiteral("Carga")},
+        {QStringLiteral("patamar.dat"), QStringLiteral("Carga")},
+        {QStringLiteral("c_adic.dat"), QStringLiteral("Carga")},
         {QStringLiteral("agrint.dat"), QStringLiteral("Interligações")},
         {QStringLiteral("loss.dat"), QStringLiteral("Interligações")},
         {QStringLiteral("gtminpat.dat"), QStringLiteral("Termoelétricas")},
