@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(HydroEdit2 VERSION 0.3 LANGUAGES CXX)
+project(HydroEdit2 VERSION 0.5 LANGUAGES CXX)
 if(WIN32)
     enable_language(RC)
 endif()
