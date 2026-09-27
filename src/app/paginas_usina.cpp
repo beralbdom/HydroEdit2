@@ -94,8 +94,8 @@ QWidget* FormularioUsina::criarPaginaPolinomios() {
 
     QGroupBox* curvas = novoGrupo(pagina, QStringLiteral("Curvas"));
     auto* vc = novoConteudo(curvas);
-    grafico_cota_volume_ = new GraficoPolinomio(QStringLiteral("Cota x Volume"), QStringLiteral("Volume (hm³)"), QStringLiteral("Cota (m)"), curvas);
-    grafico_area_cota_ = new GraficoPolinomio(QStringLiteral("Área x Cota"), QStringLiteral("Cota (m)"), QStringLiteral("Área (km²)"), curvas);
+    grafico_cota_volume_ = new GraficoPolinomio(QStringLiteral("Cota x Volume"), QStringLiteral("Volume (hm³)"), QStringLiteral("Cota (m)"), 0, curvas);
+    grafico_area_cota_ = new GraficoPolinomio(QStringLiteral("Área x Cota"), QStringLiteral("Cota (m)"), QStringLiteral("Área (km²)"), 1, curvas);
     vc->addWidget(grafico_cota_volume_);
     vc->addWidget(grafico_area_cota_);
     v->addWidget(curvas);
@@ -187,7 +187,7 @@ QWidget* FormularioUsina::criarPaginaJusante() {
 
     QGroupBox* curvasJusante = novoGrupo(pagina, QStringLiteral("Curvas de jusante"));
     auto* vcj = novoConteudo(curvasJusante);
-    grafico_jusante_ = new GraficoPolinomio(QStringLiteral("Jusante"), QStringLiteral("Vazão (m³/s)"), QStringLiteral("Cota (m)"), curvasJusante);
+    grafico_jusante_ = new GraficoPolinomio(QStringLiteral("Jusante"), QStringLiteral("Vazão (m³/s)"), QStringLiteral("Cota (m)"), 2, curvasJusante);
     vcj->addWidget(grafico_jusante_);
     v->addWidget(curvasJusante);
 

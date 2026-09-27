@@ -1,10 +1,12 @@
 #include "grafico_polinomio.h"
+#include <QAreaSeries>
 #include <QBrush>
 #include <QChart>
 #include <QFont>
 #include <QGraphicsLayout>
 #include <QLegend>
 #include <QLegendMarker>
+#include <QLinearGradient>
 #include <QLineSeries>
 #include <QPainter>
 #include <QPen>
@@ -19,8 +21,30 @@ double avaliarPolinomio(const std::array<float, 5>& coef, double x) {
 }
 
 namespace {
-constexpr std::array<const char*, 6> kCoresCascata = {"#4a6fa5", "#4f8a5b", "#b0743a", "#7a5ea8", "#a84f5e", "#5a8f9e"};
+// Paleta do SINview (a do Plotly): uma cor por curva.
+constexpr std::array<const char*, 10> kCores = {"#636efa", "#ef553b", "#00cc96", "#ab63fa", "#ffa15a",
+                                                "#19d3f3", "#ff6692", "#b6e880", "#ff97ff", "#fecb52"};
 constexpr int kNumPontos = 100;
+constexpr double kLarguraTraco = 2.0;
+constexpr int kAltura = 180;
+
+QColor comAlfa(QColor cor, double alfa) {
+    cor.setAlphaF(static_cast<float>(alfa));
+    return cor;
+}
+
+// Degrade vertical sob a curva, como no SINview: 36% de opacidade junto da linha e transparente na
+// base. As coordenadas sao relativas a area preenchida.
+QBrush preenchimento(const QColor& cor) {
+    QLinearGradient degrade(0, 0, 0, 1);
+    degrade.setCoordinateMode(QGradient::ObjectBoundingMode);
+    degrade.setColorAt(0.00, comAlfa(cor, 0.36));
+    degrade.setColorAt(0.25, comAlfa(cor, 0.18));
+    degrade.setColorAt(0.50, comAlfa(cor, 0.12));
+    degrade.setColorAt(0.75, comAlfa(cor, 0.04));
+    degrade.setColorAt(1.00, comAlfa(cor, 0.0));
+    return QBrush(degrade);
+}
 
 // A folga antes do menor valor nao atravessa o zero: vazao, volume e area comecam em zero e um eixo
 // que abre em -16 sugere valores negativos que a curva nao tem.
@@ -47,10 +71,11 @@ void marcarValoresRedondos(QValueAxis* eixo) {
 }
 }  // namespace
 
-GraficoPolinomio::GraficoPolinomio(const QString& titulo, const QString& rotulo_x, const QString& rotulo_y, QWidget* parent)
-    : QChartView(new QChart(), parent), titulo_(titulo), rotulo_x_(rotulo_x), rotulo_y_(rotulo_y) {
+GraficoPolinomio::GraficoPolinomio(const QString& titulo, const QString& rotulo_x, const QString& rotulo_y, int cor_inicial,
+                                   QWidget* parent)
+    : QChartView(new QChart(), parent), titulo_(titulo), rotulo_x_(rotulo_x), rotulo_y_(rotulo_y), cor_inicial_(cor_inicial) {
     setRenderHint(QPainter::Antialiasing);
-    setFixedHeight(220);
+    setFixedHeight(kAltura);
     chart()->setBackgroundBrush(Qt::NoBrush);
     chart()->setPlotAreaBackgroundVisible(false);
     chart()->setBackgroundRoundness(0);
@@ -59,6 +84,10 @@ GraficoPolinomio::GraficoPolinomio(const QString& titulo, const QString& rotulo_
     definirCurvas({}, {});
 }
 
+// Desenha as curvas validas (coeficientes nao todos nulos e faixa de x nao vazia), cada uma com a
+// sua cor, linha de 2 px e degrade ate a base do eixo y, como no SINview; grade pontilhada e eixos
+// esmaecidos a partir da cor do texto, legenda so com mais de uma curva e fontes um ponto menores
+// para o grafico caber compacto no formulario. As marcas verticais saem tracejadas e esmaecidas.
 void GraficoPolinomio::definirCurvas(const std::vector<Curva>& curvas, const std::vector<double>& marcas_x) {
     QChart* graf = chart();
     graf->removeAllSeries();
@@ -69,9 +98,10 @@ void GraficoPolinomio::definirCurvas(const std::vector<Curva>& curvas, const std
     }
 
     const QColor cor_texto = palette().text().color();
-    const QColor cor_grade = palette().mid().color();
+    QFont fonte_pequena = font();
+    fonte_pequena.setPointSizeF(fonte_pequena.pointSizeF() - 1.0);
 
-    QFont fonte_titulo = graf->titleFont();
+    QFont fonte_titulo = font();
     fonte_titulo.setBold(true);
     graf->setTitleFont(fonte_titulo);
     graf->setTitleBrush(cor_texto);
@@ -96,16 +126,15 @@ void GraficoPolinomio::definirCurvas(const std::vector<Curva>& curvas, const std
     double y_max_global = 0.0;
     bool primeiro_ponto = true;
 
-    std::vector<QLineSeries*> series_curvas;
+    std::vector<QList<QPointF>> pontos;
     for (const Curva& cv : validas) {
         x_min_global = std::min(x_min_global, cv.x_min);
         x_max_global = std::max(x_max_global, cv.x_max);
-        auto* serie = new QLineSeries(graf);
-        serie->setName(cv.nome);
+        QList<QPointF> curva;
         for (int i = 0; i < kNumPontos; ++i) {
             double x = cv.x_min + (cv.x_max - cv.x_min) * static_cast<double>(i) / static_cast<double>(kNumPontos - 1);
             double y = avaliarPolinomio(cv.coef, x);
-            serie->append(x, y);
+            curva.append(QPointF(x, y));
             if (primeiro_ponto) {
                 y_min_global = y;
                 y_max_global = y;
@@ -115,13 +144,7 @@ void GraficoPolinomio::definirCurvas(const std::vector<Curva>& curvas, const std
                 y_max_global = std::max(y_max_global, y);
             }
         }
-        series_curvas.push_back(serie);
-    }
-
-    for (size_t i = 0; i < series_curvas.size(); ++i) {
-        QColor cor = i == 0 ? palette().highlight().color() : QColor(QString::fromLatin1(kCoresCascata[(i - 1) % kCoresCascata.size()]));
-        series_curvas[i]->setPen(QPen(cor));
-        graf->addSeries(series_curvas[i]);
+        pontos.push_back(std::move(curva));
     }
 
     double margem_x = (x_max_global - x_min_global) * 0.05;
@@ -136,32 +159,62 @@ void GraficoPolinomio::definirCurvas(const std::vector<Curva>& curvas, const std
     eixo_y->setRange(inicioDoEixo(y_min_global, margem_y), y_max_global + margem_y);
     for (QValueAxis* eixo : {eixo_x, eixo_y}) {
         eixo->setLabelsColor(cor_texto);
+        eixo->setLabelsFont(fonte_pequena);
         eixo->setTitleBrush(QBrush(cor_texto));
-        eixo->setLinePen(QPen(cor_grade));
-        eixo->setGridLineColor(cor_grade);
+        eixo->setTitleFont(fonte_pequena);
+        eixo->setLinePen(QPen(comAlfa(cor_texto, 0.5)));
+        eixo->setGridLinePen(QPen(comAlfa(cor_texto, 0.18), 1, Qt::DotLine));
+        eixo->setMinorGridLineVisible(false);
         marcarValoresRedondos(eixo);
     }
     graf->addAxis(eixo_x, Qt::AlignBottom);
     graf->addAxis(eixo_y, Qt::AlignLeft);
-    for (QLineSeries* serie : series_curvas) {
+
+    auto adicionar = [&](QAbstractSeries* serie, bool na_legenda) {
+        graf->addSeries(serie);
         serie->attachAxis(eixo_x);
         serie->attachAxis(eixo_y);
+        if (!na_legenda)
+            for (QLegendMarker* m : graf->legend()->markers(serie)) m->setVisible(false);
+    };
+
+    std::vector<QColor> cores;
+    for (size_t i = 0; i < validas.size(); ++i)
+        cores.emplace_back(QString::fromLatin1(kCores[(static_cast<size_t>(cor_inicial_) + i) % kCores.size()]));
+
+    for (size_t i = 0; i < validas.size(); ++i) {
+        auto* topo = new QLineSeries(graf);
+        topo->append(pontos[i]);
+        auto* base = new QLineSeries(graf);
+        base->append(pontos[i].front().x(), eixo_y->min());
+        base->append(pontos[i].back().x(), eixo_y->min());
+        auto* area = new QAreaSeries(topo, base);
+        area->setPen(Qt::NoPen);
+        area->setBrush(preenchimento(cores[i]));
+        adicionar(area, false);
+    }
+
+    for (size_t i = 0; i < validas.size(); ++i) {
+        auto* linha = new QLineSeries(graf);
+        linha->setName(validas[i].nome);
+        linha->append(pontos[i]);
+        QPen caneta(cores[i], kLarguraTraco);
+        caneta.setCapStyle(Qt::RoundCap);
+        caneta.setJoinStyle(Qt::RoundJoin);
+        linha->setPen(caneta);
+        adicionar(linha, true);
     }
 
     for (double marca : marcas_x) {
         auto* linha = new QLineSeries(graf);
         linha->append(marca, eixo_y->min());
         linha->append(marca, eixo_y->max());
-        QPen caneta(cor_texto);
-        caneta.setStyle(Qt::DashLine);
-        linha->setPen(caneta);
-        graf->addSeries(linha);
-        linha->attachAxis(eixo_x);
-        linha->attachAxis(eixo_y);
-        const QList<QLegendMarker*> marcadores = graf->legend()->markers(linha);
-        for (QLegendMarker* m : marcadores) m->setVisible(false);
+        linha->setPen(QPen(comAlfa(cor_texto, 0.5), 1, Qt::DashLine));
+        adicionar(linha, false);
     }
 
     graf->legend()->setVisible(validas.size() > 1);
     graf->legend()->setLabelColor(cor_texto);
+    graf->legend()->setFont(fonte_pequena);
+    graf->legend()->setMarkerShape(QLegend::MarkerShapeFromSeries);
 }
