@@ -1,6 +1,17 @@
 # <img width="32" height="32" alt="icon 32" src="https://github.com/user-attachments/assets/1d07387a-4f5b-4e74-9625-746050b05244"/> HydroEdit 2
 
-Editor dos dados de entrada do modelo NEWAVE. Inspirado no HydroEdit clássico.
+<div align="center">
+  
+Editor dos dados de entrada do modelo NEWAVE, escrito em C++/Qt 6. Inspirado no HydroEdit clássico.
+  
+[![Build](https://github.com/beralbdom/HydroEdit2/actions/workflows/build.yml/badge.svg)](https://github.com/beralbdom/HydroEdit2/actions/workflows/build.yml)
+[![Versão](https://img.shields.io/github/v/release/beralbdom/HydroEdit2?label=Vers%C3%A3o)](https://github.com/beralbdom/HydroEdit2/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/beralbdom/HydroEdit2/total?label=Downloads)](https://github.com/beralbdom/HydroEdit2/releases)
+[![Licença](https://img.shields.io/github/license/beralbdom/HydroEdit2?label=Licen%C3%A7a)](LICENSE)
+![Windows](https://img.shields.io/badge/Windows-x64-0078D6?logo=windows)
+![Qt](https://img.shields.io/badge/Qt-6.11-41CD52?logo=qt)
+
+</div>
 
 <img width="1211" height="706" alt="image" src="https://github.com/user-attachments/assets/b2b1c369-494d-41c1-803f-bf9a679f39f8"/>
 
