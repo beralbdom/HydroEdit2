@@ -152,6 +152,18 @@ private slots:
         QCOMPARE(b.data(Qt::DisplayRole).toString(), QStringLiteral("SUL (2)"));
         QCOMPARE(interligacoes.index(0, 2).data(Qt::DisplayRole).toString(), QStringLiteral("Limite de intercâmbio (0)"));
         QCOMPARE(interligacoes.index(0, 2).data(PAPEL_OPCOES).toList().size(), qsizetype(2));
+
+        ModeloSecaoFixa execucao(&dados, QStringLiteral("dger.dat"), 1);
+        QCOMPARE(execucao.index(0, 0).data(Qt::DisplayRole).toString(), QStringLiteral("Rodada completa (1)"));
+        const ArquivoFixo* curva = dados.arquivo(QStringLiteral("curva.dat"));
+        QVERIFY(curva);
+        int penalizacao = -1;
+        for (size_t s = 0; s < curva->secoes().size(); ++s)
+            if (curva->secoes()[s].definicao.titulo == "Penalização da curva") penalizacao = static_cast<int>(s);
+        QVERIFY(penalizacao >= 0);
+        ModeloSecaoFixa tipo(&dados, QStringLiteral("curva.dat"), penalizacao);
+        QCOMPARE(tipo.index(0, 0).data(Qt::EditRole).toString().trimmed(), QStringLiteral("001"));
+        QCOMPARE(tipo.index(0, 0).data(Qt::DisplayRole).toString(), QStringLiteral("Máxima violação (1)"));
         tabela.edit(b);
         auto* lista = tabela.findChild<QComboBox*>();
         QVERIFY(lista);

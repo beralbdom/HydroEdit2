@@ -33,7 +33,8 @@ void DelegateReferencia::preencher(QComboBox* lista, const std::vector<OpcaoRefe
 }
 
 // Editor das colunas com lista (outro cadastro do deck ou valores fixos do manual): os itens como
-// "NOME (codigo)", gravando e fechando ao escolher um; as demais colunas usam o editor comum.
+// "NOME (codigo)", gravando e fechando ao escolher um; o mesmo codigo nao e regravado, para nao
+// mudar a forma como o arquivo o escreve ("0001"). As demais colunas usam o editor comum.
 QWidget* DelegateReferencia::createEditor(QWidget* parent, const QStyleOptionViewItem& opcao, const QModelIndex& ix) const {
     if (!temLista(ix)) return QStyledItemDelegate::createEditor(parent, opcao, ix);
     auto* lista = new QComboBox(parent);
@@ -62,5 +63,6 @@ void DelegateReferencia::setModelData(QWidget* editor, QAbstractItemModel* model
         QStyledItemDelegate::setModelData(editor, modelo, ix);
         return;
     }
-    modelo->setData(ix, lista->currentData().toString(), Qt::EditRole);
+    const QString codigo = lista->currentData().toString();
+    if (codigo != DadosDeck::normalizarCodigo(ix.data(Qt::EditRole).toString())) modelo->setData(ix, codigo, Qt::EditRole);
 }
