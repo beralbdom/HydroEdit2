@@ -279,7 +279,8 @@ Resultado DadosDeck::mudarPatamares(Patamares tipo, int delta, QStringList* avis
     }
     aplicarPatamares(true);
     if (avisos) {
-        *avisos << QStringLiteral("Arquivos alterados: %1.").arg(alterados.join(QStringLiteral(", ")));
+        *avisos << QStringLiteral("Arquivos alterados: %1. Salve todos eles, para o deck não ficar inconsistente.")
+                       .arg(alterados.join(QStringLiteral(", ")));
         for (const std::string& aviso : mudanca.avisos) *avisos << QString::fromUtf8(aviso);
     }
     return r;
