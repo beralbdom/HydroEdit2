@@ -58,6 +58,7 @@ struct SecaoFixa {
 struct GrupoFormulario {
     std::string titulo;
     std::vector<std::string> secoes;
+    bool area_por_parametro = false;
 };
 
 struct AbaFormulario {

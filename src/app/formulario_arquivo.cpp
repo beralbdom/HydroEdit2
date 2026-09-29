@@ -101,7 +101,7 @@ private:
             std::vector<QWidget*> rotulos;
             int largura = 0;
             for (size_t i = static_cast<size_t>(coluna); i < forms_.size(); i += static_cast<size_t>(colunas_))
-                for (int r = 0; r < forms_[i]->rowCount(); ++r)
+                for (int r = 0; forms_[i] && r < forms_[i]->rowCount(); ++r)
                     if (QLayoutItem* item = forms_[i]->itemAt(r, QFormLayout::LabelRole); item && item->widget()) {
                         rotulos.push_back(item->widget());
                         largura = std::max(largura, item->widget()->sizeHint().width());
@@ -346,10 +346,29 @@ QWidget* FormularioArquivo::linhaParametro(const ArquivoFixo& arquivo, int s, QW
     return linha;
 }
 
+// Quadro proprio de um parametro de varios campos, com o nome dele no titulo e um campo por linha,
+// cada um com o nome da coluna.
+QGroupBox* FormularioArquivo::areaParametro(const ArquivoFixo& arquivo, int s, QWidget* pai) {
+    const SecaoLida& secao = arquivo.secoes()[static_cast<size_t>(s)];
+    auto* area = new QGroupBox(QString::fromStdString(secao.definicao.titulo), pai);
+    QFormLayout* f = novoForm(area);
+    if (secao.linhas.empty()) {
+        auto* ausente = new QLabel(QStringLiteral("ausente no arquivo"), area);
+        ausente->setEnabled(false);
+        f->addRow(ausente);
+        return area;
+    }
+    const auto& colunas = secao.definicao.colunas;
+    for (int c = 0; c < static_cast<int>(colunas.size()); ++c)
+        f->addRow(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), novoCampo(arquivo, s, 0, c, area));
+    return area;
+}
+
 // Parametros agrupados por tema (LayoutArquivoFixo::abas): uma pagina por tema, escolhida pela
 // arvore do navegador (mostrarTema), com os grupos lado a lado quando cabem (GradeGrupos), a altura
 // da linha igualada e os rotulos alinhados em cada coluna. Parametro que nenhum grupo cita vai para o
-// tema Outros, para nada sumir do formulario.
+// tema Outros, para nada sumir do formulario. Grupo com area_por_parametro poe cada parametro de
+// varios campos num quadro proprio dentro dele; os de um campo ficam como linhas comuns.
 QWidget* FormularioArquivo::novosTemas(const ArquivoFixo& arquivo) {
     std::map<std::string, int> por_titulo;
     for (int s = 0; s < static_cast<int>(arquivo.secoes().size()); ++s) por_titulo[arquivo.secoes()[static_cast<size_t>(s)].definicao.titulo] = s;
@@ -367,6 +386,31 @@ QWidget* FormularioArquivo::novosTemas(const ArquivoFixo& arquivo) {
         auto* pagina = new GradeGrupos;
         for (const GrupoFormulario& g : aba.grupos) {
             auto* grupo = new QGroupBox(QString::fromStdString(g.titulo), pagina);
+            if (g.area_por_parametro) {
+                auto* areas = new QVBoxLayout(grupo);
+                areas->setContentsMargins(8, 6, 8, 6);
+                areas->setSpacing(6);
+                QFormLayout* avulsos = nullptr;
+                for (const std::string& titulo : g.secoes) {
+                    const auto it = por_titulo.find(titulo);
+                    if (it == por_titulo.end()) continue;
+                    if (arquivo.secoes()[static_cast<size_t>(it->second)].definicao.colunas.size() > 1) {
+                        areas->addWidget(areaParametro(arquivo, it->second, grupo));
+                        avulsos = nullptr;
+                        continue;
+                    }
+                    if (!avulsos) {
+                        auto* linhas = new QWidget(grupo);
+                        avulsos = novoForm(linhas);
+                        avulsos->setContentsMargins(0, 0, 0, 0);
+                        areas->addWidget(linhas);
+                    }
+                    avulsos->addRow(QString::fromStdString(titulo), linhaParametro(arquivo, it->second, grupo));
+                }
+                areas->addStretch(1);
+                pagina->adicionar(grupo, nullptr);
+                continue;
+            }
             QFormLayout* f = novoForm(grupo);
             for (const std::string& titulo : g.secoes) {
                 const auto it = por_titulo.find(titulo);

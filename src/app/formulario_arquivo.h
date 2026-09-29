@@ -33,6 +33,7 @@ private:
     void editarRegistros(int secao, int registro, bool adicionar);
     QGroupBox* novoGrupo(const ArquivoFixo& arquivo, int secao, QWidget* pai);
     QWidget* linhaParametro(const ArquivoFixo& arquivo, int secao, QWidget* pai);
+    QGroupBox* areaParametro(const ArquivoFixo& arquivo, int secao, QWidget* pai);
     QWidget* novosTemas(const ArquivoFixo& arquivo);
     QWidget* campoComPatamares(QWidget* campo, Patamares tipo, QWidget* pai);
     void mudarPatamares(Patamares tipo, int delta);

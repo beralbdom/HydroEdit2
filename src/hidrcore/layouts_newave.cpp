@@ -427,7 +427,7 @@ LayoutArquivoFixo dger() {
              "Mês de início do período pré", "Anos de estabilização iniciais", "Anos de estabilização finais na política",
              "Anos de estabilização finais na simulação final", "Duração dos patamares", "Anos de manutenção térmica"}},
            {"Estado inicial", {"Cálculo do armazenamento inicial", "Volume inicial por REE (%)"}},
-           {"Execução", {"Processamento paralelo", "Arquivos de cortes", "Mantém arquivos de ENA"}}}},
+           {"Execução", {"Processamento paralelo", "Arquivos de cortes", "Mantém arquivos de ENA"}, true}}},
          {"Política",
           {{"Iterações e convergência",
             {"Número máximo de iterações", "Número mínimo de iterações", "Probabilidade do intervalo de confiança (%)",
