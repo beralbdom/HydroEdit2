@@ -6,6 +6,7 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include "ajuste_colunas.h"
+#include "recursos_tabela.h"
 #include "dados_deck.h"
 #include "formulario_termica.h"
 #include "modelo_secao_fixa.h"
@@ -54,16 +55,16 @@ EditorTermicas::EditorTermicas(DadosDeck* dados, QWidget* parent) : QSplitter(Qt
     auto* abas = new QTabWidget(painel);
     tabela_ = new QTableView(abas);
     tabela_->setModel(ordenacao_);
-    tabela_->setSortingEnabled(true);
     tabela_->sortByColumn(0, Qt::AscendingOrder);
     tabela_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    tabela_->setSelectionMode(QAbstractItemView::SingleSelection);
+    tabela_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     tabela_->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela_->setAlternatingRowColors(true);
     tabela_->verticalHeader()->setVisible(false);
     tabela_->verticalHeader()->setDefaultSectionSize(20);
     tabela_->horizontalHeader()->setFixedHeight(22);
     preencherLargura(tabela_);
+    habilitarRecursos(tabela_, true);
 
     formulario_ = new FormularioTermica(dados, this);
     auto* busca = new QLineEdit(formulario_);

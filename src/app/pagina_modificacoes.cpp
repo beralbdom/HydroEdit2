@@ -10,6 +10,7 @@
 #include "catalogo_newave.h"
 #include "dados_deck.h"
 #include "estilo_arvore.h"
+#include "recursos_tabela.h"
 #include "modelo_hidr.h"
 
 namespace {
@@ -70,6 +71,7 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck
     tabela_->horizontalHeader()->setFixedHeight(22);
     tabela_->horizontalHeader()->setStretchLastSection(false);
     tabela_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    habilitarRecursos(tabela_, true);
     layout->addWidget(cabecalho_);
     layout->addWidget(detalhes_);
     layout->addWidget(tabela_, 1);
@@ -182,7 +184,7 @@ void PaginaModificacoes::mostrar(const QModelIndex& item) {
                                .arg(linhas.size())
                                .arg(usinas.size()));
 
-    tabela_->setSortingEnabled(false);
+    limparFiltros(tabela_);
     tabela_->setRowCount(static_cast<int>(linhas.size()));
     for (int i = 0; i < static_cast<int>(linhas.size()); ++i) {
         const BlocoModif& bloco = *linhas[static_cast<size_t>(i)].bloco;
@@ -207,6 +209,5 @@ void PaginaModificacoes::mostrar(const QModelIndex& item) {
         tabela_->setItem(i, 3, new QTableWidgetItem(valores.join(QStringLiteral("  "))));
         tabela_->setItem(i, 4, linha);
     }
-    tabela_->setSortingEnabled(true);
     for (int c : {0, 1, 2, 4}) tabela_->resizeColumnToContents(c);
 }

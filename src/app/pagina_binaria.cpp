@@ -13,6 +13,7 @@
 #include <functional>
 #include "ajuste_colunas.h"
 #include "dados_deck.h"
+#include "recursos_tabela.h"
 #include "layouts_newave.h"
 
 namespace {
@@ -251,6 +252,7 @@ PaginaPostos::PaginaPostos(DadosDeck* dados, QWidget* parent)
     tabela_ = novaTabela();
     tabela_->setModel(modelo_);
     preencherLargura(tabela_);
+    habilitarRecursos(tabela_);
     connect(dados_, &DadosDeck::recarregado, this, [this] {
         ajustarColunas(tabela_);
         aplicarOcultos();
@@ -269,8 +271,10 @@ void PaginaPostos::definirOcultarVazios(bool ocultar) {
 }
 
 void PaginaPostos::aplicarOcultos() {
-    const ArquivoBinario* postos = dados_->arquivoBinario(POSTOS);
-    for (int r = 0; r < modelo_->rowCount(); ++r) tabela_->setRowHidden(r, ocultar_vazios_ && postos && postoVazio(postos, r));
+    definirLinhasOcultas(tabela_, [this](int r) {
+        const ArquivoBinario* postos = dados_->arquivoBinario(POSTOS);
+        return ocultar_vazios_ && postos && r < postos->registros() && postoVazio(postos, r);
+    });
 }
 
 QString PaginaPostos::resumo() const {
@@ -299,6 +303,7 @@ PaginaVazoes::PaginaVazoes(DadosDeck* dados, QWidget* parent)
     tabela_ = novaTabela();
     tabela_->setModel(modelo_);
     preencherLargura(tabela_);
+    habilitarRecursos(tabela_);
 
     connect(postos_, &QComboBox::currentIndexChanged, this, [this](int i) {
         modelo_->definirPosto(i >= 0 ? postos_->itemData(i).toInt() : 0);

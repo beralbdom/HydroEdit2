@@ -5,15 +5,19 @@
 
 class QLabel;
 class QPushButton;
+class QStackedWidget;
+class QTabWidget;
 class QTableView;
 class DadosDeck;
-class ModeloParametros;
+class FormularioArquivo;
 class ModeloSecaoFixa;
 
 class PaginaArquivoFixo : public QWidget {
     Q_OBJECT
 public:
     PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutArquivoFixo& layout, DadosDeck* dados, QWidget* parent = nullptr);
+    static bool temFormulario(const LayoutArquivoFixo& layout);
+    static bool secaoEmTabela(const LayoutArquivoFixo& layout, int secao);
     void mostrarSecao(int secao);
 
 private:
@@ -25,7 +29,10 @@ private:
     QLabel* titulo_;
     QLabel* detalhes_;
     QPushButton* botao_salvar_;
-    QTableView* tabela_;
+    QStackedWidget* pilha_;
+    FormularioArquivo* formulario_ = nullptr;
+    QTabWidget* painel_formulario_ = nullptr;
+    QTableView* tabela_ = nullptr;
     ModeloSecaoFixa* modelo_ = nullptr;
-    ModeloParametros* parametros_ = nullptr;
+    bool mostrando_formulario_ = false;
 };

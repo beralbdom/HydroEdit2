@@ -42,6 +42,7 @@ struct SecaoFixa {
     bool mesma_regiao = false;
     int max_registros = 0;
     bool contigua = false;
+    bool formulario = false;
 };
 
 struct LayoutArquivoFixo {

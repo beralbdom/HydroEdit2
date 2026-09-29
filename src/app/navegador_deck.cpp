@@ -25,12 +25,12 @@ constexpr int PAPEL_TEXTO = Qt::UserRole + 2;
 
 // Uma aba por secao do catalogo, cada uma com a arvore dos arquivos a esquerda e a pagina do item
 // selecionado a direita. Na arvore, os arquivos ficam sob cabecalhos de grupo colapsaveis (na ordem
-// em que o grupo aparece no catalogo), e arquivo de colunas fixas com mais de uma secao ganha um
-// filho por secao. Cada arquivo de texto tem duas paginas: a normal (editor ou tabela) e a do editor
+// em que o grupo aparece no catalogo). O item de um arquivo de colunas fixas abre o formulario das
+// secoes curtas dele, quando ha, e cada secao que e tabela vira um filho (se houver formulario ou mais
+// de uma tabela). Cada arquivo de texto tem duas paginas: a normal (editor ou tabela) e a do editor
 // textual, mostrada quando o modo textual esta ligado; os binarios so tem a normal, e um arquivo de
-// texto sem layout so tem a do editor textual. A aba
-// Modificacoes alterna do mesmo jeito entre a arvore do modif.dat e o texto dele. Todas as vistas
-// editaveis usam o mesmo repositorio.
+// texto sem layout so tem a do editor textual. A aba Modificacoes alterna do mesmo jeito entre a
+// arvore do modif.dat e o texto dele. Todas as vistas editaveis usam o mesmo repositorio.
 NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWidget* parent) : QTabWidget(parent) {
     setDocumentMode(true);
     dados_ = new DadosDeck(this);
@@ -86,19 +86,24 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 auto* item = new QStandardItem(arquivo.titulo);
                 cabecalho->appendRow(item);
                 item->setToolTip(arquivo.nome_padrao);
+                std::vector<int> tabelas;
+                if (layout && !termicas)
+                    for (int s = 0; s < static_cast<int>(layout->secoes.size()); ++s)
+                        if (PaginaArquivoFixo::secaoEmTabela(*layout, s)) tabelas.push_back(s);
+                const bool com_formulario = layout && !termicas && PaginaArquivoFixo::temFormulario(*layout);
                 item->setData(indice, PAPEL_PAGINA);
-                item->setData(0, PAPEL_SECAO);
+                item->setData(com_formulario || tabelas.empty() ? -1 : tabelas.front(), PAPEL_SECAO);
                 item->setData(indice_texto, PAPEL_TEXTO);
                 itens_.push_back({lista, item, arquivo.titulo, arquivo.nome_padrao});
                 if (!primeiro) primeiro = item;
                 largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
-                if (layout && !termicas && !layout->parametros && layout->secoes.size() > 1) {
-                    for (size_t s = 0; s < layout->secoes.size(); ++s) {
-                        const QString titulo = QString::fromStdString(layout->secoes[s].titulo);
+                if (com_formulario ? !tabelas.empty() : tabelas.size() > 1) {
+                    for (int s : tabelas) {
+                        const QString titulo = QString::fromStdString(layout->secoes[static_cast<size_t>(s)].titulo);
                         auto* filho = new QStandardItem(titulo);
                         item->appendRow(filho);
                         filho->setData(indice, PAPEL_PAGINA);
-                        filho->setData(static_cast<int>(s), PAPEL_SECAO);
+                        filho->setData(s, PAPEL_SECAO);
                         filho->setData(indice_texto, PAPEL_TEXTO);
                         largura = std::max(largura, recuo + lista->indentation() + lista->fontMetrics().horizontalAdvance(titulo));
                     }

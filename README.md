@@ -30,10 +30,11 @@ Abra o `hidr.dat` do deck pelo menu Arquivo > Abrir. O programa lê o `arquivos.
 | Dados gerais | `dger.dat`, `arquivos.dat`, `shist.dat`, `selcor.dat` |
 
 - Usinas hidráulicas e térmicas abrem num editor com a tabela das usinas e dados cadastrais da usina selecionada; o das térmicas reúne `term.dat`, `conft.dat`, `expt.dat`, `manutt.dat` e `clast.dat`. As hidráulicas têm também a vista da cascata.
-- Os demais arquivos abrem como tabela editável. Arquivos com mais de um tipo de registro mostram cada seção na árvore; em blocos (por submercado, ano ou patamar), cada linha traz o bloco a que pertence. Colunas por patamar seguem o número de patamares de carga do `patamar.dat` e de déficit do `sistema.dat`. `dger.dat` e `selcor.dat` aparecem como lista de parâmetros. `postos.dat` e `vazoes.dat` também são editáveis.
+- Nos demais arquivos, o que tem poucas linhas (parâmetros, listas de submercados, interligações e blocos) abre como formulário ao clicar no arquivo, e o que é série ou cadastro extenso abre como tabela editável, uma por seção na árvore. Em blocos (por submercado, ano ou patamar), cada linha da tabela traz o bloco a que pertence. Colunas por patamar seguem o número de patamares de carga do `patamar.dat` e de déficit do `sistema.dat`. `dger.dat` e `selcor.dat` são formulários de parâmetros. `postos.dat` e `vazoes.dat` também são editáveis.
 - A aba Modificações agrupa os registros do `modif.dat` por categoria e palavra-chave.
 
 ### Funções especiais
+- Clicar no cabeçalho de uma coluna abre o filtro por valores, como nas planilhas (e a ordenação, nas tabelas de usinas). O conteúdo das tabelas pode ser copiado e colado com Ctrl+C e Ctrl+V, inclusive de e para o Excel.
 - Ver > Editor textual troca as tabelas pelo texto de cada arquivo.
 - Ferramentas > Exportar vazões incrementais gera um CSV com a vazão de cada usina menos a dos postos imediatamente a montante, com opção de aplicar as regras do `REGRAS.DAT` do GEVAZP.
 - Os arquivos `empresas.csv` e `turbinas.csv`, se colocados ao lado do executável, são opcionais e usados para resolver nomes de agentes e turbinas; o formato de cada linha é `codigo;nome`.

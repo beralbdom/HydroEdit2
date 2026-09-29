@@ -14,6 +14,7 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include "ajuste_colunas.h"
+#include "recursos_tabela.h"
 #include "dados_deck.h"
 #include "formulario_usina.h"
 #include "modelo_secao_fixa.h"
@@ -211,6 +212,7 @@ QTableView* FormularioTermica::novaTabela(QSortFilterProxyModel* filtro, QWidget
     tabela->verticalHeader()->setDefaultSectionSize(20);
     tabela->horizontalHeader()->setFixedHeight(22);
     preencherLargura(tabela);
+    habilitarRecursos(tabela);
     return tabela;
 }
 

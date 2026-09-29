@@ -29,6 +29,7 @@
 #include <map>
 #include <set>
 #include "ajuste_colunas.h"
+#include "recursos_tabela.h"
 #include "botao_combo.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
@@ -141,10 +142,9 @@ void JanelaPrincipal::criarTabela() {
     tabela_ = new QTableView(abas_esquerda);
     tabela_->setModel(filtro_);
     tabela_->setItemDelegate(new DelegateNumerico(modelo_, tabela_));
-    tabela_->setSortingEnabled(true);
     tabela_->sortByColumn(0, Qt::AscendingOrder);
     tabela_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    tabela_->setSelectionMode(QAbstractItemView::SingleSelection);
+    tabela_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     tabela_->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela_->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     tabela_->horizontalHeader()->setDefaultSectionSize(90);
@@ -152,6 +152,7 @@ void JanelaPrincipal::criarTabela() {
     tabela_->verticalHeader()->setVisible(false);
     tabela_->verticalHeader()->setDefaultSectionSize(20);
     preencherLargura(tabela_);
+    habilitarRecursos(tabela_, true);
     tabela_->setAlternatingRowColors(true);
     abas_esquerda->addTab(tabela_, QStringLiteral("Tabela"));
 
