@@ -134,7 +134,8 @@ LayoutArquivoFixo arquivos() {
 // ignorado pelo programa e os valores comecam na coluna 22. O registro 23 e comentario obrigatorio
 // que orienta o registro 24 (volume inicial por REE, um valor a cada 7 colunas); o registro 58 traz
 // mes, ano e um volume por REE a cada 7 colunas a partir da 33. Cada parametro e uma secao de um
-// registro, lida pela posicao da linha, como o programa le.
+// registro, lida pela posicao da linha, como o programa le. No formulario, os parametros aparecem
+// agrupados por tema em abas; o agrupamento e so de apresentacao.
 LayoutArquivoFixo dger() {
     return {
         "3.5",
@@ -417,7 +418,62 @@ LayoutArquivoFixo dger() {
                                                                        {"3", "Mantém 3 arquivos"}}),
                       inteiro("Período 1", 32, 35), inteiro("Período 2", 37, 40), inteiro("Período 3", 42, 45)},
           .max_registros = 1}},
-        true};
+        true,
+        0,
+        {{"Caso",
+          {{"Identificação", {"Nome do caso", "Tipo de execução"}},
+           {"Horizonte",
+            {"Mês de início do estudo", "Ano de início do estudo", "Número de anos do estudo", "Duração do período (meses)",
+             "Mês de início do período pré", "Anos de estabilização iniciais", "Anos de estabilização finais na política",
+             "Anos de estabilização finais na simulação final", "Duração dos patamares", "Anos de manutenção térmica"}},
+           {"Estado inicial", {"Cálculo do armazenamento inicial", "Volume inicial por REE (%)"}},
+           {"Execução", {"Processamento paralelo", "Arquivos de cortes", "Mantém arquivos de ENA"}}}},
+         {"Política",
+          {{"Iterações e convergência",
+            {"Número máximo de iterações", "Número mínimo de iterações", "Probabilidade do intervalo de confiança (%)",
+             "Delta de ZSUP (%)", "Delta de ZINF (%)", "Deltas de ZINF consecutivos", "Mínimo ZSUP na convergência",
+             "Nó zero no cálculo de ZINF", "Teste de convergência a partir da iteração mínima"}},
+           {"Forward e backward",
+            {"Número de simulações forward", "Aberturas da backward", "Base dos subproblemas da backward",
+             "Taxa de desconto anual (%)"}},
+           {"Cortes", {"Seleção de cortes", "Janela de cortes", "Consulta à FCF", "FCF do pós-estudo"}},
+           {"Aversão a risco", {"Curva de segurança", "Aversão a risco SAR", "Aversão a risco CVaR"}}}},
+         {"Cenários e simulação final",
+          {{"Modelo estocástico",
+            {"Ordem máxima do PAR(p)", "Afluência anual no PAR(p)", "Arquivo de vazões históricas", "Tendência hidrológica",
+             "Matriz de correlação espacial", "Desconsidera critério estatístico", "El Niño", "Índice ENSO"}},
+           {"Geração de cenários",
+            {"Número de séries sintéticas", "Geração de cenários de afluências", "Reamostragem de cenários",
+             "Momento da reamostragem", "Representante da agregação", "Incerteza na produção eólica"}},
+           {"Simulação final",
+            {"Simulação final", "Iterações para a simulação final", "Simulação final com data",
+             "Intervalo de séries com relatório detalhado", "Profundidades do risco de déficit", "Corte de carga preventivo"}}}},
+         {"Representação",
+          {{"Usinas hidroelétricas",
+            {"Função de produção hidroelétrica", "Representação da submotorização", "Ordenação automática",
+             "Geração hidráulica mínima", "Desconsidera vazão mínima", "Desvio de água", "Energia de desvio de água",
+             "Estações de bombeamento", "Canais de desvio"}},
+           {"Restrições hidráulicas",
+            {"Restrição de turbinamento", "Restrição de defluência máxima", "LPP de turbinamento máximo por REE",
+             "LPP de defluência máxima por REE", "LPP de turbinamento máximo por usina", "LPP de defluência máxima por usina",
+             "Restrições hidráulicas de vazão (RHQ)", "Restrições hidráulicas de volume (RHV)"}},
+           {"Rede elétrica e intercâmbio",
+            {"Restrições elétricas especiais", "Restrições elétricas internas aos REEs", "Restrições de Itaipu",
+             "Agrupamento livre de intercâmbios", "Equalização de penalidades de intercâmbio",
+             "Perdas na geração e transmissão"}},
+           {"Carga e térmicas",
+            {"Cargas adicionais", "Bid de demanda", "Despacho antecipado de GNL", "Modificação automática da antecipação GNL",
+             "Restrições de fornecimento de gás", "Restrições de emissão de GEE"}},
+           {"Períodos estáticos",
+            {"VMINT sazonal nos períodos estáticos", "VMAXT sazonal nos períodos estáticos",
+             "VMINP sazonal nos períodos estáticos", "CFUGA e CMONT sazonais nos períodos estáticos"}}}},
+         {"Relatórios",
+          {{"Dados de entrada",
+            {"Imprime características das usinas", "Imprime dados de carga", "Imprime energias afluentes históricas",
+             "Imprime parâmetros do modelo estocástico", "Imprime parâmetros dos REEs"}},
+           {"Resultados",
+            {"Impressão dos resultados", "Impressão dos riscos de déficit", "Impressão de cenários de ENA e ventos",
+             "Impressão dos cortes ativos", "Impressão do cortese.dat", "Memória de cálculo dos cortes"}}}}}};
 }
 
 // shist.dat, manual do NEWAVE 30.0.2, secao 3.6: dois registros de comentario e o registro tipo 1

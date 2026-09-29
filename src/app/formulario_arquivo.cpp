@@ -1,5 +1,6 @@
 #include "formulario_arquivo.h"
 #include <QComboBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -7,11 +8,14 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QAbstractItemView>
 #include <QPushButton>
 #include <QStyle>
+#include <QStackedWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <map>
 #include <set>
 #include "dados_deck.h"
 #include "delegate_referencia.h"
@@ -29,6 +33,88 @@ QFormLayout* novoForm(QWidget* pai) {
     f->setRowWrapPolicy(QFormLayout::DontWrapRows);
     return f;
 }
+
+constexpr int LARGURA_MAXIMA_LISTA = 280;
+
+// Grupos de um formulario em duas colunas quando cabem lado a lado, na largura natural, dentro da
+// largura disponivel (a da area de rolagem); senao, um embaixo do outro. A largura minima pedida e a
+// do grupo mais largo, para a area de rolagem poder estreitar a pagina e a grade trocar para uma
+// coluna. A escolha e refeita quando a largura muda e quando o conteudo muda de tamanho (as listas
+// crescem ao receber os itens). Os rotulos ficam com a mesma largura em cada coluna.
+class GradeGrupos : public QWidget {
+public:
+    GradeGrupos() : grade_(new QGridLayout(this)) {
+        grade_->setContentsMargins(6, 4, 6, 4);
+        grade_->setSpacing(6);
+    }
+
+    void adicionar(QGroupBox* grupo, QFormLayout* form) {
+        grupos_.push_back(grupo);
+        forms_.push_back(form);
+        colunas_ = 0;
+        distribuir(2);
+    }
+
+    QSize minimumSizeHint() const override {
+        int largura = 0;
+        for (QGroupBox* g : grupos_) largura = std::max(largura, g->minimumSizeHint().width());
+        const QMargins m = grade_->contentsMargins();
+        return {largura + m.left() + m.right(), grade_->minimumSize().height()};
+    }
+
+protected:
+    void resizeEvent(QResizeEvent* evento) override {
+        QWidget::resizeEvent(evento);
+        decidir();
+    }
+
+    bool event(QEvent* evento) override {
+        const bool tratado = QWidget::event(evento);
+        if (evento->type() == QEvent::LayoutRequest) decidir();
+        return tratado;
+    }
+
+private:
+    void decidir() {
+        int esquerda = 0;
+        int direita = 0;
+        for (size_t i = 0; i < grupos_.size(); ++i) (i % 2 ? direita : esquerda) = std::max(i % 2 ? direita : esquerda, grupos_[i]->sizeHint().width());
+        const QMargins m = grade_->contentsMargins();
+        distribuir(width() >= esquerda + direita + grade_->horizontalSpacing() + m.left() + m.right() ? 2 : 1);
+        alinhar();
+    }
+
+    void distribuir(int colunas) {
+        if (colunas == colunas_) return;
+        colunas_ = colunas;
+        for (int r = 0; r < grade_->rowCount(); ++r) grade_->setRowStretch(r, 0);
+        for (QGroupBox* g : grupos_) grade_->removeWidget(g);
+        for (size_t i = 0; i < grupos_.size(); ++i) grade_->addWidget(grupos_[i], static_cast<int>(i) / colunas, static_cast<int>(i) % colunas);
+        grade_->setColumnStretch(0, 1);
+        grade_->setColumnStretch(1, colunas == 2 ? 1 : 0);
+        grade_->setRowStretch((static_cast<int>(grupos_.size()) + colunas - 1) / colunas, 1);
+        updateGeometry();
+    }
+
+    void alinhar() {
+        for (int coluna = 0; coluna < colunas_; ++coluna) {
+            std::vector<QWidget*> rotulos;
+            int largura = 0;
+            for (size_t i = static_cast<size_t>(coluna); i < forms_.size(); i += static_cast<size_t>(colunas_))
+                for (int r = 0; r < forms_[i]->rowCount(); ++r)
+                    if (QLayoutItem* item = forms_[i]->itemAt(r, QFormLayout::LabelRole); item && item->widget()) {
+                        rotulos.push_back(item->widget());
+                        largura = std::max(largura, item->widget()->sizeHint().width());
+                    }
+            for (QWidget* rotulo : rotulos) rotulo->setMinimumWidth(largura);
+        }
+    }
+
+    QGridLayout* grade_;
+    std::vector<QGroupBox*> grupos_;
+    std::vector<QFormLayout*> forms_;
+    int colunas_ = 0;
+};
 
 bool numerica(const ColunaFixa& c) { return c.tipo != TipoColunaFixa::Texto && !DadosDeck::temOpcoes(c); }
 
@@ -157,6 +243,13 @@ void FormularioArquivo::montar() {
         conteudo_ = nullptr;
     }
     const ArquivoFixo* arquivo = dados_->arquivo(nome_);
+    if (arquivo && layout_.parametros && !layout_.abas.empty()) {
+        conteudo_ = novosTemas(*arquivo);
+        layout()->addWidget(conteudo_);
+        atualizando_ = false;
+        atualizarValores();
+        return;
+    }
     auto* interno = new QWidget;
     auto* v = new QVBoxLayout(interno);
     v->setContentsMargins(6, 4, 6, 4);
@@ -169,27 +262,8 @@ void FormularioArquivo::montar() {
     } else if (layout_.parametros) {
         auto* grupo = new QGroupBox(QStringLiteral("Parâmetros"), interno);
         QFormLayout* f = novoForm(grupo);
-        for (int s = 0; s < static_cast<int>(arquivo->secoes().size()); ++s) {
-            const SecaoLida& secao = arquivo->secoes()[static_cast<size_t>(s)];
-            const QString titulo = QString::fromStdString(secao.definicao.titulo);
-            if (secao.linhas.empty()) {
-                auto* ausente = new QLabel(QStringLiteral("ausente no arquivo"), grupo);
-                ausente->setEnabled(false);
-                f->addRow(titulo, ausente);
-                continue;
-            }
-            auto* linha = new QWidget(grupo);
-            auto* h = new QHBoxLayout(linha);
-            h->setContentsMargins(0, 0, 0, 0);
-            h->setSpacing(6);
-            const auto& colunas = secao.definicao.colunas;
-            for (int c = 0; c < static_cast<int>(colunas.size()); ++c) {
-                if (colunas.size() > 1) h->addWidget(new QLabel(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), linha));
-                h->addWidget(novoCampo(*arquivo, s, 0, c, linha));
-            }
-            h->addStretch(1);
-            f->addRow(titulo, linha);
-        }
+        for (int s = 0; s < static_cast<int>(arquivo->secoes().size()); ++s)
+            f->addRow(QString::fromStdString(arquivo->secoes()[static_cast<size_t>(s)].definicao.titulo), linhaParametro(*arquivo, s, grupo));
         v->addWidget(grupo);
     } else {
         QGroupBox* parametros = nullptr;
@@ -241,6 +315,76 @@ void FormularioArquivo::montar() {
     layout()->addWidget(conteudo_);
     atualizando_ = false;
     atualizarValores();
+}
+
+// Campo de um parametro (secao de um registro) ou, com varias colunas, os campos com o nome de cada
+// coluna antes, um por linha quando algum tem lista e quatro por linha quando sao so numeros (o
+// volume inicial por REE tem um campo por REE); parametro que o arquivo nao tem aparece como ausente.
+QWidget* FormularioArquivo::linhaParametro(const ArquivoFixo& arquivo, int s, QWidget* pai) {
+    const SecaoLida& secao = arquivo.secoes()[static_cast<size_t>(s)];
+    if (secao.linhas.empty()) {
+        auto* ausente = new QLabel(QStringLiteral("ausente no arquivo"), pai);
+        ausente->setEnabled(false);
+        return ausente;
+    }
+    auto* linha = new QWidget(pai);
+    auto* g = new QGridLayout(linha);
+    g->setContentsMargins(0, 0, 0, 0);
+    g->setHorizontalSpacing(6);
+    g->setVerticalSpacing(4);
+    const auto& colunas = secao.definicao.colunas;
+    const int n = static_cast<int>(colunas.size());
+    const bool listas = std::any_of(colunas.begin(), colunas.end(), [](const ColunaFixa& c) { return DadosDeck::temOpcoes(c); });
+    const int por_linha = listas ? 1 : std::min(n, 4);
+    for (int c = 0; c < n; ++c) {
+        const int r = c / por_linha;
+        const int k = (c % por_linha) * 2;
+        if (n > 1) g->addWidget(new QLabel(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), linha), r, k);
+        g->addWidget(novoCampo(arquivo, s, 0, c, linha), r, k + 1, Qt::AlignLeft);
+    }
+    g->setColumnStretch(por_linha * 2, 1);
+    return linha;
+}
+
+// Parametros agrupados por tema (LayoutArquivoFixo::abas): uma pagina por tema, escolhida pela
+// arvore do navegador (mostrarTema), com os grupos lado a lado quando cabem (GradeGrupos), a altura
+// da linha igualada e os rotulos alinhados em cada coluna. Parametro que nenhum grupo cita vai para o
+// tema Outros, para nada sumir do formulario.
+QWidget* FormularioArquivo::novosTemas(const ArquivoFixo& arquivo) {
+    std::map<std::string, int> por_titulo;
+    for (int s = 0; s < static_cast<int>(arquivo.secoes().size()); ++s) por_titulo[arquivo.secoes()[static_cast<size_t>(s)].definicao.titulo] = s;
+    std::vector<AbaFormulario> abas = layout_.abas;
+    std::set<std::string> citados;
+    for (const AbaFormulario& aba : abas)
+        for (const GrupoFormulario& g : aba.grupos) citados.insert(g.secoes.begin(), g.secoes.end());
+    GrupoFormulario outros{"Outros parâmetros", {}};
+    for (const SecaoLida& secao : arquivo.secoes())
+        if (!citados.count(secao.definicao.titulo)) outros.secoes.push_back(secao.definicao.titulo);
+    if (!outros.secoes.empty()) abas.push_back({"Outros", {outros}});
+
+    auto* painel = new QStackedWidget(this);
+    for (const AbaFormulario& aba : abas) {
+        auto* pagina = new GradeGrupos;
+        for (const GrupoFormulario& g : aba.grupos) {
+            auto* grupo = new QGroupBox(QString::fromStdString(g.titulo), pagina);
+            QFormLayout* f = novoForm(grupo);
+            for (const std::string& titulo : g.secoes) {
+                const auto it = por_titulo.find(titulo);
+                if (it != por_titulo.end()) f->addRow(QString::fromStdString(titulo), linhaParametro(arquivo, it->second, grupo));
+            }
+            pagina->adicionar(grupo, f);
+        }
+        painel->addWidget(FormularioUsina::paginaRolavel(pagina, painel));
+    }
+    painel->setCurrentIndex(std::min(tema_, painel->count() - 1));
+    return painel;
+}
+
+// Pagina do tema (indice em LayoutArquivoFixo::abas) no formulario de parametros agrupados; o tema
+// escolhido continua o mesmo quando o formulario e refeito.
+void FormularioArquivo::mostrarTema(int tema) {
+    tema_ = tema;
+    if (auto* painel = qobject_cast<QStackedWidget*>(conteudo_)) painel->setCurrentIndex(std::min(tema_, painel->count() - 1));
 }
 
 // Grupo de uma secao do formulario: aviso se o arquivo nao tem registros dela, pares rotulo e campo
@@ -308,6 +452,9 @@ void FormularioArquivo::atualizarValores() {
         if (c.lista) {
             const ColunaFixa& coluna = arquivo->secoes()[static_cast<size_t>(c.secao)].definicao.colunas[static_cast<size_t>(c.coluna)];
             DelegateReferencia::preencher(c.lista, dados_->opcoes(coluna), valor);
+            c.lista->setMinimumWidth(std::min(c.lista->sizeHint().width(), LARGURA_MAXIMA_LISTA));
+            c.lista->view()->setMinimumWidth(c.lista->view()->sizeHintForColumn(0) + 24);
+            c.lista->setToolTip(c.lista->currentText());
             continue;
         }
         if (c.edit->hasFocus() && c.edit->isModified()) continue;

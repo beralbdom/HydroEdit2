@@ -13,6 +13,7 @@ class FormularioArquivo : public QWidget {
 public:
     FormularioArquivo(const QString& nome_padrao, const LayoutArquivoFixo& layout, DadosDeck* dados, QWidget* parent = nullptr);
     int campos() const { return static_cast<int>(campos_.size()); }
+    void mostrarTema(int tema);
 
 signals:
     void valorRecusado(const QString& motivo);
@@ -31,6 +32,8 @@ private:
     QWidget* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
     void editarRegistros(int secao, int registro, bool adicionar);
     QGroupBox* novoGrupo(const ArquivoFixo& arquivo, int secao, QWidget* pai);
+    QWidget* linhaParametro(const ArquivoFixo& arquivo, int secao, QWidget* pai);
+    QWidget* novosTemas(const ArquivoFixo& arquivo);
     QWidget* campoComPatamares(QWidget* campo, Patamares tipo, QWidget* pai);
     void mudarPatamares(Patamares tipo, int delta);
 
@@ -40,4 +43,5 @@ private:
     QWidget* conteudo_ = nullptr;
     std::vector<Campo> campos_;
     bool atualizando_ = false;
+    int tema_ = 0;
 };

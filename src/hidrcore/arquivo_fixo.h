@@ -55,11 +55,22 @@ struct SecaoFixa {
     std::string formulario_ao_lado;
 };
 
+struct GrupoFormulario {
+    std::string titulo;
+    std::vector<std::string> secoes;
+};
+
+struct AbaFormulario {
+    std::string titulo;
+    std::vector<GrupoFormulario> grupos;
+};
+
 struct LayoutArquivoFixo {
     std::string secao_manual;
     std::vector<SecaoFixa> secoes;
     bool parametros = false;
     char separador = 0;
+    std::vector<AbaFormulario> abas;
 };
 
 struct SecaoLida {

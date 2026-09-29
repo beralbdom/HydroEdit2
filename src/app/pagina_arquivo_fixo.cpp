@@ -135,7 +135,8 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
 }
 
 // Secao -1 (ou secao que nao e de tabela) mostra o formulario; as demais, a tabela da secao. Na
-// pagina unica, formulario e tabela aparecem sempre juntos.
+// pagina unica, formulario e tabela aparecem sempre juntos. No formulario de parametros agrupados
+// por tema, secao -2 - k mostra o tema k (a secao -1, o primeiro).
 void PaginaArquivoFixo::mostrarSecao(int secao) {
     if (divisor_) {
         mostrando_formulario_ = false;
@@ -154,6 +155,12 @@ void PaginaArquivoFixo::mostrarSecao(int secao) {
     if (mostrando_formulario_ || !tabela_) {
         pilha_->setCurrentWidget(formulario_ ? static_cast<QWidget*>(painel_formulario_) : static_cast<QWidget*>(tabela_));
         titulo_->setText(info_.titulo);
+        if (formulario_ && !layout_.abas.empty()) {
+            const int tema = secao <= -2 ? -2 - secao : 0;
+            formulario_->mostrarTema(tema);
+            if (tema < static_cast<int>(layout_.abas.size()))
+                titulo_->setText(QStringLiteral("%1  ·  %2").arg(info_.titulo, QString::fromStdString(layout_.abas[static_cast<size_t>(tema)].titulo)));
+        }
     } else {
         modelo_->definirSecao(secao);
         pilha_->setCurrentWidget(tabela_);

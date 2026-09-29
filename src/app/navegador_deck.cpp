@@ -97,7 +97,17 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 itens_.push_back({lista, item, arquivo.titulo, arquivo.nome_padrao});
                 if (!primeiro) primeiro = item;
                 largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
-                if (com_formulario ? !tabelas.empty() && !PaginaArquivoFixo::paginaUnica(*layout) : tabelas.size() > 1) {
+                if (com_formulario && !layout->abas.empty()) {
+                    for (int k = 0; k < static_cast<int>(layout->abas.size()); ++k) {
+                        const QString titulo = QString::fromStdString(layout->abas[static_cast<size_t>(k)].titulo);
+                        auto* filho = new QStandardItem(titulo);
+                        item->appendRow(filho);
+                        filho->setData(indice, PAPEL_PAGINA);
+                        filho->setData(-2 - k, PAPEL_SECAO);
+                        filho->setData(indice_texto, PAPEL_TEXTO);
+                        largura = std::max(largura, recuo + lista->indentation() + lista->fontMetrics().horizontalAdvance(titulo));
+                    }
+                } else if (com_formulario ? !tabelas.empty() && !PaginaArquivoFixo::paginaUnica(*layout) : tabelas.size() > 1) {
                     for (int s : tabelas) {
                         const QString titulo = QString::fromStdString(layout->secoes[static_cast<size_t>(s)].titulo);
                         auto* filho = new QStandardItem(titulo);

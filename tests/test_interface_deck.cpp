@@ -3,6 +3,7 @@
 #include <QComboBox>
 #include <QGroupBox>
 #include <QPushButton>
+#include <QStackedWidget>
 #include <QToolButton>
 #include <QStandardItemModel>
 #include <QHeaderView>
@@ -117,6 +118,11 @@ private slots:
         QCOMPARE(patamar.campos(), 1 + 4 + 12 * 2);
         FormularioArquivo dger(QStringLiteral("dger.dat"), *layoutNewave("dger.dat"), &dados);
         QVERIFY(dger.campos() >= 101);
+        QStackedWidget* temas = dger.findChild<QStackedWidget*>();
+        QVERIFY(temas);
+        QCOMPARE(temas->count(), 5);
+        dger.mostrarTema(3);
+        QCOMPARE(temas->currentIndex(), 3);
         QVERIFY(!PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 0));
         QVERIFY(PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 1));
         QVERIFY(PaginaArquivoFixo::paginaUnica(*layoutNewave("ree.dat")));
