@@ -653,7 +653,7 @@ LayoutArquivoFixo confhd() {
               comOpcoes(
                   texto("Situação", 45, 46),
                   {{"EX", "Existente"}, {"EE", "Existente, com expansão"}, {"NE", "Não existente"}, {"NC", "Não considerada"}}),
-              comOpcoes(inteiro("Modifica cadastro", 50, 53), {{"0", "Não modifica o cadastro"}, {"1", "Modifica o cadastro"}}),
+              comOpcoes(inteiro("Modifica cadastro", 50, 53), NAO_SIM),
               inteiro("Ano início histórico", 59, 62), inteiro("Ano fim histórico", 68, 71),
               ref(inteiro("Tecnologia", 74, 76), Referencia::Tecnologia)}}}};
 }
