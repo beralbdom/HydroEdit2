@@ -25,7 +25,7 @@ set(VCPKG_CMAKE_CONFIGURE_OPTIONS
     "-DFEATURE_imageformat_bmp:BOOL=OFF"
     "-DFEATURE_imageformat_ppm:BOOL=OFF"
     "-DFEATURE_imageformat_xbm:BOOL=OFF"
-    "-DFEATURE_imageformat_xpm:BOOL=OFF"
+    "-DFEATURE_draganddrop:BOOL=ON"
     "-DFEATURE_systemtrayicon:BOOL=OFF"
     "-DFEATURE_whatsthis:BOOL=OFF"
     "-DFEATURE_accessibility:BOOL=OFF"
