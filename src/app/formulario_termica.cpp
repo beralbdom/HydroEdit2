@@ -71,8 +71,8 @@ QVBoxLayout* novaColuna(QWidget* pai) {
 // Painel da usina termoeletrica selecionada, no mesmo desenho do formulario das hidroeletricas:
 // titulo com codigo e nome, linha de avisos e abas com os dados dos cinco arquivos ligados pelo
 // numero da usina (term.dat e conft.dat, campo 1; expt.dat e manutt.dat, campo 1) e pelo numero da
-// classe (conft.dat campo 5 e clast.dat campo 1). O botao Salvar dos arquivos termicos fica no canto
-// direito da barra de abas.
+// classe (conft.dat campo 5 e clast.dat campo 1). O botao Salvar dos arquivos termicos fica no fim do
+// cabecalho, depois do que for acrescentado a ele (o campo de busca).
 FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidget(parent), dados_(dados) {
     auto* externo = new QVBoxLayout(this);
     externo->setContentsMargins(6, 4, 6, 4);
@@ -107,7 +107,7 @@ FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidge
                   QStringLiteral("Manutenções"));
     abas_->addTab(criarPaginaClasse(), QStringLiteral("Classe térmica"));
     botao_salvar_ = new QPushButton(QStringLiteral("Salvar"), this);
-    abas_->setCornerWidget(botao_salvar_, Qt::TopRightCorner);
+    cabecalho_->addWidget(botao_salvar_);
     externo->addWidget(abas_, 1);
 
     connect(botao_salvar_, &QPushButton::clicked, this, [this] {
@@ -128,7 +128,7 @@ FormularioTermica::FormularioTermica(DadosDeck* dados, QWidget* parent) : QWidge
     definirUsina({});
 }
 
-void FormularioTermica::adicionarAoCabecalho(QWidget* widget) { cabecalho_->addWidget(widget); }
+void FormularioTermica::adicionarAoCabecalho(QWidget* widget) { cabecalho_->insertWidget(cabecalho_->indexOf(botao_salvar_), widget); }
 
 QLineEdit* FormularioTermica::ligarEdit(QFormLayout* form, const QString& rotulo, const QString& arquivo, int coluna, bool texto) {
     auto* edit = new QLineEdit(form->parentWidget());

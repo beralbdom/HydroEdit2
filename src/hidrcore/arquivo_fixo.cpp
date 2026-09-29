@@ -426,9 +426,12 @@ int ArquivoFixo::registroNaLinha(int secao, int linha) const {
 // registro (uma interligacao com todos os anos, um ano com todos os patamares). Nivel -1 copia o
 // registro: se a linha dele abre o proprio contexto, so a linha, com as colunas do contexto em
 // branco, para continuar o mesmo bloco; se abre bloco de outra secao, o bloco inteiro; senao a
-// linha. A copia de um registro que deixaria de ser registro da secao e recusada, e o arquivo fica
+// linha. Em branco (so para registro avulso que nao abre bloco) a copia fica so com os campos que o
+// filtro da secao exige preenchidos ou iguais a um valor, os que a fazem ser lida como registro da
+// secao. A copia de um registro que deixaria de ser registro da secao e recusada, e o arquivo fica
 // como estava.
-Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const LayoutArquivoFixo& layout, int* primeira_linha_nova) {
+Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const LayoutArquivoFixo& layout, int* primeira_linha_nova,
+                                bool em_branco) {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
     if (s.definicao.max_registros > 0) return Resultado::erro("A seção tem número fixo de registros");
     TrechoLinhas origem;
@@ -441,6 +444,7 @@ Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const Layout
         if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta seção acompanham os patamares; duplique o bloco");
         const int linha = s.linhas[static_cast<size_t>(registro)];
         if (nivelProprio(secao, registro) < 0) origem = blocoAberto(secao, linha);
+        if (em_branco && !origem.vazio()) return Resultado::erro("O registro abre um bloco; adicione uma cópia dele");
         if (origem.vazio()) {
             origem = {linha, linha + 1};
             avulso = true;
@@ -448,6 +452,15 @@ Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const Layout
             const std::vector<int>& contexto = s.linhas_contexto[static_cast<size_t>(registro)];
             for (const ColunaFixa& c : s.definicao.colunas)
                 if (c.contexto >= 0 && contexto[static_cast<size_t>(c.contexto)] == linha && editavel(c)) apagarCampo(texto, c);
+            if (em_branco) {
+                const auto exigido = [&](const ColunaFixa& c) {
+                    return std::any_of(s.definicao.filtro.begin(), s.definicao.filtro.end(), [&](const FiltroLinha& f) {
+                        return (f.teste == TesteFiltro::Preenchido || f.teste == TesteFiltro::Igual) && f.inicio <= c.fim && c.inicio <= f.fim;
+                    });
+                };
+                for (const ColunaFixa& c : s.definicao.colunas)
+                    if (c.contexto < 0 && editavel(c) && !exigido(c)) apagarCampo(texto, c);
+            }
             copia.push_back(texto);
         }
     }

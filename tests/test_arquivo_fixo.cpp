@@ -432,6 +432,15 @@ private slots:
         QVERIFY(sistema.remover(limites, 1, -1, layout_sistema).ok);
         QVERIFY(sistema.conteudo() == original);
 
+        QVERIFY(sistema.duplicar(limites, 1, -1, layout_sistema, &nova, true).ok);
+        QCOMPARE(sistema.registroNaLinha(limites, nova), 2);
+        QCOMPARE(sistema.valor(limites, 2, 3), std::string());
+        QCOMPARE(sistema.valor(limites, 2, 4), std::string());
+        QCOMPARE(sistema.valor(limites, 2, 0), sistema.valor(limites, 1, 0));
+        QVERIFY(!sistema.duplicar(interligacoes, 0, -1, layout_sistema, nullptr, true).ok);
+        QVERIFY(sistema.remover(limites, 2, -1, layout_sistema).ok);
+        QVERIFY(sistema.conteudo() == original);
+
         const LayoutArquivoFixo& layout_exph = *layoutNewave("exph.dat");
         ArquivoFixo exph;
         QVERIFY(exph.carregar(deck / "exph.dat", layout_exph).ok);

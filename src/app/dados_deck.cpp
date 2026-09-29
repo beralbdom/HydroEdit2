@@ -272,10 +272,11 @@ void DadosDeck::concluirReinterpretacao(const QString& nome_padrao) {
 }
 
 // Copia de um registro ou do bloco de contexto dele, inserida logo depois (ArquivoFixo::duplicar).
-Resultado DadosDeck::duplicar(const QString& nome_padrao, int secao, int registro, int nivel, int* primeira_linha_nova) {
+Resultado DadosDeck::duplicar(const QString& nome_padrao, int secao, int registro, int nivel, int* primeira_linha_nova,
+                              bool em_branco) {
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo nao carregado");
-    Resultado r = it->second.arquivo.duplicar(secao, registro, nivel, it->second.layout, primeira_linha_nova);
+    Resultado r = it->second.arquivo.duplicar(secao, registro, nivel, it->second.layout, primeira_linha_nova, em_branco);
     if (r.ok) concluirReinterpretacao(nome_padrao);
     return r;
 }

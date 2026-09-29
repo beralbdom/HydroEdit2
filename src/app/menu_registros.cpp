@@ -12,7 +12,7 @@ void aviso(QMenu* menu, const QString& texto) {
 // Opcoes de adicionar (copias inseridas logo depois do original) ou remover para um registro de uma
 // secao: o proprio registro, quando a secao aceita registros avulsos, e cada bloco de contexto a que
 // ele pertence, identificado pelos valores das colunas do contexto ("Submercado A: SUDESTE (1),
-// Submercado B: SUL (2)"). Depois da operacao, depois recebe a recusa (vazia se deu certo) e a
+// Submercado B: SUL (2)"). Adicionar tambem oferece um registro em branco logo depois do selecionado. Depois da operacao, depois recebe a recusa (vazia se deu certo) e a
 // primeira linha inserida no arquivo (-1 se nenhuma).
 void preencherMenuRegistros(QMenu* menu, DadosDeck* dados, const QString& nome_padrao, int secao, int registro, bool adicionar,
                             const DepoisDaEdicao& depois) {
@@ -30,9 +30,9 @@ void preencherMenuRegistros(QMenu* menu, DadosDeck* dados, const QString& nome_p
         aviso(menu, QStringLiteral("Selecione um registro"));
         return;
     }
-    auto executar = [dados, nome_padrao, secao, registro, adicionar, depois](int nivel) {
+    auto executar = [dados, nome_padrao, secao, registro, adicionar, depois](int nivel, bool em_branco = false) {
         int nova = -1;
-        const Resultado r = adicionar ? dados->duplicar(nome_padrao, secao, registro, nivel, &nova)
+        const Resultado r = adicionar ? dados->duplicar(nome_padrao, secao, registro, nivel, &nova, em_branco)
                                       : dados->remover(nome_padrao, secao, registro, nivel);
         depois(r.ok ? QString() : QString::fromUtf8(r.mensagem), r.ok ? nova : -1);
     };
@@ -41,6 +41,8 @@ void preencherMenuRegistros(QMenu* menu, DadosDeck* dados, const QString& nome_p
         if (arquivo->abreBloco(secao, registro))
             texto += adicionar ? QStringLiteral(", com os registros que dependem dele") : QStringLiteral(" e os registros que dependem dele");
         menu->addAction(texto, menu, [executar] { executar(-1); });
+        if (adicionar && !arquivo->abreBloco(secao, registro))
+            menu->addAction(QStringLiteral("Registro em branco"), menu, [executar] { executar(-1, true); });
     }
     const auto& colunas = s.definicao.colunas;
     for (int k = 0; k < static_cast<int>(s.definicao.contextos.size()); ++k) {

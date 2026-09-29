@@ -119,6 +119,9 @@ private slots:
         QVERIFY(dger.campos() >= 101);
         QVERIFY(!PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 0));
         QVERIFY(PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 1));
+        QVERIFY(PaginaArquivoFixo::paginaUnica(*layoutNewave("ree.dat")));
+        QVERIFY(!PaginaArquivoFixo::paginaUnica(*layoutNewave("sistema.dat")));
+        QVERIFY(!PaginaArquivoFixo::paginaUnica(*layoutNewave("dger.dat")));
     }
 
     static QGroupBox* grupo(QWidget& formulario, const QString& titulo) {

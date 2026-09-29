@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPushButton>
+#include <QSplitter>
 #include <QStackedWidget>
 #include <QTabBar>
 #include <QTabWidget>
@@ -30,12 +31,22 @@ bool PaginaArquivoFixo::secaoEmTabela(const LayoutArquivoFixo& layout, int secao
     return !layout.parametros && !layout.secoes[static_cast<size_t>(secao)].formulario;
 }
 
+// Arquivo com formulario e uma tabela so: os dois ficam na mesma pagina, o formulario em cima.
+bool PaginaArquivoFixo::paginaUnica(const LayoutArquivoFixo& layout) {
+    if (!temFormulario(layout) || layout.parametros) return false;
+    int tabelas = 0;
+    for (int s = 0; s < static_cast<int>(layout.secoes.size()); ++s)
+        if (secaoEmTabela(layout, s)) ++tabelas;
+    return tabelas == 1;
+}
+
 // Pagina de um arquivo de colunas fixas: titulo com a parte mostrada, linha de detalhes (arquivo,
 // registros, ultimo aviso), botao Salvar habilitado so com alteracao pendente e, empilhados, o
 // formulario das secoes curtas do arquivo e a tabela editavel de uma secao. O formulario fica num
 // painel de abas sem a barra, para ter o mesmo fundo e borda dos formularios das usinas. A parte exibida e
 // escolhida pela arvore do navegador (secao -1 e o formulario); os dados sao os do repositorio do
-// deck, compartilhados com as outras vistas.
+// deck, compartilhados com as outras vistas. Com uma tabela so (paginaUnica), formulario e tabela
+// ficam juntos, separados por um divisor, e a arvore nao tem filhos para o arquivo.
 PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutArquivoFixo& layout, DadosDeck* dados, QWidget* parent)
     : QWidget(parent), info_(arquivo), layout_(layout), dados_(dados) {
     auto* layout_pagina = new QVBoxLayout(this);
@@ -68,14 +79,13 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         formulario_ = new FormularioArquivo(info_.nome_padrao, layout_, dados_, painel_formulario_);
         painel_formulario_->addTab(formulario_, info_.titulo);
         painel_formulario_->tabBar()->hide();
-        pilha_->addWidget(painel_formulario_);
+        if (!paginaUnica(layout_)) pilha_->addWidget(painel_formulario_);
         connect(formulario_, &FormularioArquivo::valorRecusado, this, [this](const QString& motivo) { atualizar(motivo); });
     }
-    int primeira_tabela = -1;
-    for (int s = 0; s < static_cast<int>(layout_.secoes.size()) && primeira_tabela < 0; ++s)
-        if (secaoEmTabela(layout_, s)) primeira_tabela = s;
-    if (primeira_tabela >= 0) {
-        modelo_ = new ModeloSecaoFixa(dados_, info_.nome_padrao, primeira_tabela, this);
+    for (int s = 0; s < static_cast<int>(layout_.secoes.size()) && primeira_tabela_ < 0; ++s)
+        if (secaoEmTabela(layout_, s)) primeira_tabela_ = s;
+    if (primeira_tabela_ >= 0) {
+        modelo_ = new ModeloSecaoFixa(dados_, info_.nome_padrao, primeira_tabela_, this);
         tabela_ = new QTableView(pilha_);
         tabela_->setModel(modelo_);
         tabela_->setItemDelegate(new DelegateReferencia(tabela_));
@@ -86,7 +96,18 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         tabela_->verticalHeader()->setVisible(false);
         tabela_->verticalHeader()->setDefaultSectionSize(20);
         tabela_->horizontalHeader()->setFixedHeight(22);
-        pilha_->addWidget(tabela_);
+        if (paginaUnica(layout_)) {
+            divisor_ = new QSplitter(Qt::Vertical, pilha_);
+            divisor_->setChildrenCollapsible(false);
+            divisor_->addWidget(painel_formulario_);
+            divisor_->addWidget(tabela_);
+            divisor_->setStretchFactor(0, 0);
+            divisor_->setStretchFactor(1, 1);
+            divisor_->setSizes({painel_formulario_->sizeHint().height(), 100000});
+            pilha_->addWidget(divisor_);
+        } else {
+            pilha_->addWidget(tabela_);
+        }
         connect(modelo_, &ModeloSecaoFixa::valorRecusado, this, [this](const QString& motivo) { atualizar(motivo); });
         definirAcoesExtras(tabela_, [this](QMenu* menu, const QModelIndex& ix) {
             preencherMenu(menu->addMenu(QStringLiteral("Adicionar")), ix.row(), true);
@@ -110,11 +131,23 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         if (tabela_) ajustarColunas(tabela_);
         atualizar();
     });
-    mostrarSecao(formulario_ ? -1 : primeira_tabela);
+    mostrarSecao(formulario_ ? -1 : primeira_tabela_);
 }
 
-// Secao -1 (ou secao que nao e de tabela) mostra o formulario; as demais, a tabela da secao.
+// Secao -1 (ou secao que nao e de tabela) mostra o formulario; as demais, a tabela da secao. Na
+// pagina unica, formulario e tabela aparecem sempre juntos.
 void PaginaArquivoFixo::mostrarSecao(int secao) {
+    if (divisor_) {
+        mostrando_formulario_ = false;
+        botao_adicionar_->setVisible(true);
+        botao_remover_->setVisible(true);
+        modelo_->definirSecao(primeira_tabela_);
+        pilha_->setCurrentWidget(divisor_);
+        titulo_->setText(info_.titulo);
+        ajustarColunas(tabela_);
+        atualizar();
+        return;
+    }
     mostrando_formulario_ = formulario_ && (secao < 0 || !secaoEmTabela(layout_, secao));
     botao_adicionar_->setVisible(tabela_ && !mostrando_formulario_);
     botao_remover_->setVisible(tabela_ && !mostrando_formulario_);

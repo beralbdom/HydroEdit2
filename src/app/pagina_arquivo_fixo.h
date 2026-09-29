@@ -4,6 +4,7 @@
 #include "catalogo_newave.h"
 
 class QLabel;
+class QSplitter;
 class QMenu;
 class QPushButton;
 class QStackedWidget;
@@ -19,6 +20,7 @@ public:
     PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutArquivoFixo& layout, DadosDeck* dados, QWidget* parent = nullptr);
     static bool temFormulario(const LayoutArquivoFixo& layout);
     static bool secaoEmTabela(const LayoutArquivoFixo& layout, int secao);
+    static bool paginaUnica(const LayoutArquivoFixo& layout);
     void mostrarSecao(int secao);
 
 private:
@@ -39,6 +41,8 @@ private:
     FormularioArquivo* formulario_ = nullptr;
     QTabWidget* painel_formulario_ = nullptr;
     QTableView* tabela_ = nullptr;
+    QSplitter* divisor_ = nullptr;
+    int primeira_tabela_ = -1;
     ModeloSecaoFixa* modelo_ = nullptr;
     bool mostrando_formulario_ = false;
 };
