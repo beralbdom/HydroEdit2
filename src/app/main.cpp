@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QPalette>
+#include <QProxyStyle>
 #include "janela_principal.h"
 
 // O Fusion no modo escuro do Windows usa azul nas linhas alternadas; troca por um cinza proximo do fundo.
@@ -11,9 +12,19 @@ static void ajustarLinhasAlternadas(QApplication& app) {
     app.setPalette(pal);
 }
 
+// Fusion com o icone das janelas de aviso (informacao, alerta, erro, pergunta) menor que o padrao.
+class EstiloAplicacao : public QProxyStyle {
+public:
+    EstiloAplicacao() : QProxyStyle(QStringLiteral("Fusion")) {}
+    int pixelMetric(PixelMetric metrica, const QStyleOption* opcao, const QWidget* widget) const override {
+        if (metrica == PM_MessageBoxIconSize) return 24;
+        return QProxyStyle::pixelMetric(metrica, opcao, widget);
+    }
+};
+
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
-    QApplication::setStyle(QStringLiteral("Fusion"));
+    QApplication::setStyle(new EstiloAplicacao);
     ajustarLinhasAlternadas(app);
     app.setWindowIcon(QIcon(QStringLiteral(":/hidr.ico")));
     QApplication::setOrganizationName(QStringLiteral("HydroEdit 2"));

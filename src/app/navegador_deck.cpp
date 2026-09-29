@@ -166,23 +166,24 @@ void NavegadorDeck::aplicarEdicoesPendentes() {
 }
 
 // Estado de cada item: com um deck aberto, arquivo que nao esta nele fica esmaecido e em italico;
-// arquivo alterado e nao salvo ganha um ponto depois do titulo. O hidr.dat, aberto pelo proprio
+// arquivo alterado e nao salvo fica em italico, com a cor normal, e ganha um ponto depois do titulo. O hidr.dat, aberto pelo proprio
 // editor, nunca aparece como ausente.
 void NavegadorDeck::atualizarItens() {
     const QStringList alterados = dados_->modificados();
     for (const ItemArquivo& i : itens_) {
         QTreeView* arvore = i.arvore;
+        const bool alterado = alterados.contains(i.nome_padrao);
         bool ausente = false;
         if (dados_->carregado() && i.nome_padrao != QStringLiteral("hidr.dat"))
             ausente = !dados_->lido(i.nome_padrao);
         const QPalette& paleta = arvore->palette();
         const QColor cor = ausente ? paleta.color(QPalette::Disabled, QPalette::Text) : paleta.color(QPalette::Text);
         QFont fonte = arvore->font();
-        fonte.setItalic(ausente);
+        fonte.setItalic(ausente || alterado);
         i.item->setFont(fonte);
         i.item->setForeground(cor);
         for (int f = 0; f < i.item->rowCount(); ++f) i.item->child(f)->setForeground(cor);
-        i.item->setText(alterados.contains(i.nome_padrao) ? i.titulo + QStringLiteral("  •") : i.titulo);
+        i.item->setText(alterado ? i.titulo + QStringLiteral("  •") : i.titulo);
     }
 }
 
