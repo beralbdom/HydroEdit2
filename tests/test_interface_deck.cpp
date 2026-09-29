@@ -139,17 +139,19 @@ private slots:
         const QModelIndex a = intercambio.index(0, 0);
         QCOMPARE(a.data(Qt::DisplayRole).toString(), QStringLiteral("SUDESTE (1)"));
         QCOMPARE(a.data(Qt::EditRole).toString().trimmed(), QStringLiteral("1"));
-        QCOMPARE(a.data(PAPEL_REFERENCIA).toInt(), int(Referencia::Submercado));
+        QCOMPARE(a.data(PAPEL_OPCOES).toList().size(), qsizetype(5));
         QVERIFY(intercambio.setData(a, QStringLiteral("3"), Qt::EditRole));
         QCOMPARE(a.data(Qt::DisplayRole).toString(), QStringLiteral("NORDESTE (3)"));
 
         ModeloSecaoFixa interligacoes(&dados, QStringLiteral("sistema.dat"), 3);
         QTableView tabela;
         tabela.setModel(&interligacoes);
-        tabela.setItemDelegate(new DelegateReferencia(&dados, &tabela));
+        tabela.setItemDelegate(new DelegateReferencia(&tabela));
         tabela.show();
         const QModelIndex b = interligacoes.index(0, 1);
         QCOMPARE(b.data(Qt::DisplayRole).toString(), QStringLiteral("SUL (2)"));
+        QCOMPARE(interligacoes.index(0, 2).data(Qt::DisplayRole).toString(), QStringLiteral("Limite de intercâmbio (0)"));
+        QCOMPARE(interligacoes.index(0, 2).data(PAPEL_OPCOES).toList().size(), qsizetype(2));
         tabela.edit(b);
         auto* lista = tabela.findChild<QComboBox*>();
         QVERIFY(lista);

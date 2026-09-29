@@ -23,6 +23,12 @@ ColunaFixa doPatamar(ColunaFixa coluna, Patamares tipo, int k) {
     coluna.patamar = k;
     return coluna;
 }
+// Coluna de codigo com valores definidos no manual, mostrada e editada pela descricao de cada um.
+ColunaFixa comOpcoes(ColunaFixa coluna, std::vector<OpcaoFixa> opcoes) {
+    coluna.opcoes = std::move(opcoes);
+    return coluna;
+}
+
 // Coluna com o codigo de um item de outro cadastro do deck (submercado, REE, usina...), mostrada
 // e editada pela lista de nomes desse cadastro.
 ColunaFixa ref(ColunaFixa coluna, Referencia referencia) {
@@ -319,8 +325,9 @@ LayoutArquivoFixo sistema() {
           .contextos = {{{preenchido(2, 4), vazio(96, 102)}}}},
          {.titulo = "Interligações",
           .colunas = {ref(inteiro("Submercado A", 2, 4), Referencia::Submercado),
-                      ref(inteiro("Submercado B", 6, 8), Referencia::Submercado), inteiro("Tipo de limite", 24, 24),
-                      inteiro("Sem penalidade interna", 32, 32)},
+                      ref(inteiro("Submercado B", 6, 8), Referencia::Submercado),
+                      comOpcoes(inteiro("Tipo de limite", 24, 24), {{"0", "Limite de intercâmbio"}, {"1", "Intercâmbio mínimo obrigatório"}}),
+                      comOpcoes(inteiro("Penalidade interna", 32, 32), {{"0", "Considera penalidade"}, {"1", "Não considera penalidade"}})},
           .filtro = {preenchido(2, 4), vazio(96, 102)},
           .mesma_regiao = true,
           .formulario = true},
@@ -338,7 +345,8 @@ LayoutArquivoFixo sistema() {
           .colunas = {ref(inteiro("Submercado", 2, 4), Referencia::Submercado)},
           .filtro = {preenchido(2, 4), vazio(96, 102)},
           .mesma_regiao = true,
-          .formulario = true},
+          .formulario = true,
+          .formulario_ao_lado = "Interligações"},
          {.titulo = "Geração de usinas não simuladas",
           .linhas_cabecalho = 3,
           .terminador = "999",

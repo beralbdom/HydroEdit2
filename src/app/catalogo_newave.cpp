@@ -37,7 +37,7 @@ const std::vector<ArquivoNewave>& catalogoNewave() {
         {QStringLiteral("Hidrologia"), QStringLiteral("Volume de referência sazonal"), QStringLiteral("volref_saz.dat"), QStringLiteral("ARQ. C/ VOLUME REF. SAZONAL"), QStringLiteral("3.42")},
         {QStringLiteral("Hidrologia"), QStringLiteral("Polinômios de jusante por partes"), QStringLiteral("polinjus.csv"), {}, QStringLiteral("3.41.3")},
 
-        {QStringLiteral("Sistema e carga"), QStringLiteral("Subsistemas/submercados"), QStringLiteral("sistema.dat"), QStringLiteral("DADOS DOS SUBSISTEMAS"), QStringLiteral("3.7")},
+        {QStringLiteral("Sistema e carga"), QStringLiteral("Submercados"), QStringLiteral("sistema.dat"), QStringLiteral("DADOS DOS SUBSISTEMAS"), QStringLiteral("3.7")},
         {QStringLiteral("Sistema e carga"), QStringLiteral("Patamares de carga"), QStringLiteral("patamar.dat"), QStringLiteral("ARQUIVO DE PATAMARES MERCADO"), QStringLiteral("3.8")},
         {QStringLiteral("Sistema e carga"), QStringLiteral("Carga e oferta adicionais"), QStringLiteral("c_adic.dat"), QStringLiteral("ARQUIVO C/CARGAS ADICIONAIS"), QStringLiteral("3.27")},
         {QStringLiteral("Sistema e carga"), QStringLiteral("Agrupamento livre de interligações"), QStringLiteral("agrint.dat"), QStringLiteral("ARQUIVO AGRUPAMENTO LIVRE"), QStringLiteral("3.26")},

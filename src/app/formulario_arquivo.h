@@ -4,6 +4,7 @@
 #include "arquivo_fixo.h"
 
 class QComboBox;
+class QGroupBox;
 class QLineEdit;
 class DadosDeck;
 
@@ -29,6 +30,7 @@ private:
     void atualizarValores();
     QWidget* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
     void editarRegistros(int secao, int registro, bool adicionar);
+    QGroupBox* novoGrupo(const ArquivoFixo& arquivo, int secao, QWidget* pai);
     QWidget* campoComPatamares(QWidget* campo, Patamares tipo, QWidget* pai);
     void mudarPatamares(Patamares tipo, int delta);
 

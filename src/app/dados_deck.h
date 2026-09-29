@@ -34,6 +34,9 @@ public:
     QString texto(const QString& nome_padrao) const;
     const std::vector<OpcaoReferencia>& opcoes(Referencia referencia) const;
     QString rotuloReferencia(Referencia referencia, const QString& codigo) const;
+    static bool temOpcoes(const ColunaFixa& coluna);
+    std::vector<OpcaoReferencia> opcoes(const ColunaFixa& coluna) const;
+    QString rotulo(const ColunaFixa& coluna, const QString& codigo) const;
     static QString normalizarCodigo(const QString& codigo);
     void substituirTexto(const QString& nome_padrao, const QString& texto);
     Resultado duplicar(const QString& nome_padrao, int secao, int registro, int nivel, int* primeira_linha_nova = nullptr);

@@ -4,7 +4,7 @@
 
 class DadosDeck;
 
-constexpr int PAPEL_REFERENCIA = Qt::UserRole + 1;
+constexpr int PAPEL_OPCOES = Qt::UserRole + 1;
 
 class ModeloSecaoFixa : public QAbstractTableModel {
     Q_OBJECT

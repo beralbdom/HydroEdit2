@@ -50,7 +50,7 @@ void preencherMenuRegistros(QMenu* menu, DadosDeck* dados, const QString& nome_p
             const ColunaFixa& coluna = colunas[static_cast<size_t>(c)];
             if (coluna.contexto != k || !ArquivoFixo::editavel(coluna)) continue;
             QString valor = QString::fromLatin1(arquivo->valor(secao, registro, c).c_str()).trimmed();
-            if (coluna.referencia != Referencia::Nenhuma) valor = dados->rotuloReferencia(coluna.referencia, valor);
+            if (DadosDeck::temOpcoes(coluna)) valor = dados->rotulo(coluna, valor);
             partes << QStringLiteral("%1: %2").arg(QString::fromStdString(coluna.nome), valor.isEmpty() ? QStringLiteral("vazio") : valor);
         }
         if (partes.isEmpty()) continue;

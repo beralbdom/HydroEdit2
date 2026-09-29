@@ -8,6 +8,11 @@ enum class TipoColunaFixa { Inteiro, Real, Texto, Ordinal, Grupo };
 enum class Patamares { Nenhum, Carga, Deficit };
 enum class Referencia { Nenhuma, Submercado, Ree, UsinaHidro, UsinaTermica, ClasseTermica, Tecnologia, Posto };
 
+struct OpcaoFixa {
+    std::string codigo;
+    std::string descricao;
+};
+
 struct ColunaFixa {
     std::string nome;
     int inicio = 0;
@@ -18,6 +23,7 @@ struct ColunaFixa {
     Patamares patamares = Patamares::Nenhum;
     int patamar = 0;
     Referencia referencia = Referencia::Nenhuma;
+    std::vector<OpcaoFixa> opcoes;
 };
 
 enum class TesteFiltro { Vazio, Preenchido, Igual, Diferente };
@@ -46,6 +52,7 @@ struct SecaoFixa {
     bool contigua = false;
     bool formulario = false;
     Patamares contagem = Patamares::Nenhum;
+    std::string formulario_ao_lado;
 };
 
 struct LayoutArquivoFixo {

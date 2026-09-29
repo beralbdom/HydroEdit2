@@ -78,7 +78,7 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         modelo_ = new ModeloSecaoFixa(dados_, info_.nome_padrao, primeira_tabela, this);
         tabela_ = new QTableView(pilha_);
         tabela_->setModel(modelo_);
-        tabela_->setItemDelegate(new DelegateReferencia(dados_, tabela_));
+        tabela_->setItemDelegate(new DelegateReferencia(tabela_));
         preencherLargura(tabela_);
         habilitarRecursos(tabela_);
         tabela_->setAlternatingRowColors(true);

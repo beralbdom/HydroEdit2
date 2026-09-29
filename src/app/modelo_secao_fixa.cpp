@@ -45,21 +45,27 @@ int ModeloSecaoFixa::columnCount(const QModelIndex& parent) const {
 }
 
 // O texto do arquivo e Latin-1, a codificacao dos decks; numeros ficam alinhados a direita. Coluna
-// que referencia outro cadastro mostra "NOME (codigo)" e edita o codigo; PAPEL_REFERENCIA diz qual
-// cadastro, para o delegate abrir a lista. O papel UserRole da o valor para ordenar: numero nas
-// colunas numericas (vazio antes de todos) e texto nas demais.
+// com lista (outro cadastro ou valores fixos do manual) mostra "NOME (codigo)" e edita o codigo;
+// PAPEL_OPCOES da os itens da lista (pares codigo e rotulo), para o delegate abri-la. O papel
+// UserRole da o valor para ordenar: numero nas colunas numericas (vazio antes de todos) e texto nas
+// demais.
 QVariant ModeloSecaoFixa::data(const QModelIndex& ix, int role) const {
     const SecaoLida* s = secaoLida();
     if (!s || !ix.isValid()) return {};
     const ColunaFixa& c = s->definicao.colunas[static_cast<size_t>(ix.column())];
     if (role == Qt::DisplayRole || role == Qt::EditRole) {
         const QString valor = QString::fromLatin1(dados_->arquivo(nome_)->valor(secao_, ix.row(), ix.column()).c_str());
-        return role == Qt::DisplayRole && c.referencia != Referencia::Nenhuma ? dados_->rotuloReferencia(c.referencia, valor) : valor;
+        return role == Qt::DisplayRole && DadosDeck::temOpcoes(c) ? dados_->rotulo(c, valor) : valor;
     }
-    if (role == PAPEL_REFERENCIA) return static_cast<int>(c.referencia);
+    if (role == PAPEL_OPCOES) {
+        if (!DadosDeck::temOpcoes(c)) return {};
+        QVariantList itens;
+        for (const OpcaoReferencia& o : dados_->opcoes(c)) itens << QVariant(QStringList{o.codigo, o.rotulo});
+        return itens;
+    }
     if (role == Qt::TextAlignmentRole)
-        return c.tipo == TipoColunaFixa::Texto || c.referencia != Referencia::Nenhuma ? int(Qt::AlignLeft | Qt::AlignVCenter)
-                                                                                     : int(Qt::AlignRight | Qt::AlignVCenter);
+        return c.tipo == TipoColunaFixa::Texto || DadosDeck::temOpcoes(c) ? int(Qt::AlignLeft | Qt::AlignVCenter)
+                                                                         : int(Qt::AlignRight | Qt::AlignVCenter);
     if (role == Qt::UserRole) {
         const QString texto = QString::fromLatin1(dados_->arquivo(nome_)->valor(secao_, ix.row(), ix.column()).c_str());
         if (c.tipo == TipoColunaFixa::Texto) return texto;

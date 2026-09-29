@@ -4,23 +4,25 @@
 #include "modelo_secao_fixa.h"
 
 namespace {
-Referencia referenciaDe(const QModelIndex& ix) {
-    const QVariant v = ix.data(PAPEL_REFERENCIA);
-    return v.isValid() ? static_cast<Referencia>(v.toInt()) : Referencia::Nenhuma;
+bool temLista(const QModelIndex& ix) { return ix.data(PAPEL_OPCOES).isValid(); }
+
+std::vector<OpcaoReferencia> opcoesDe(const QModelIndex& ix) {
+    std::vector<OpcaoReferencia> opcoes;
+    for (const QVariant& item : ix.data(PAPEL_OPCOES).toList()) {
+        const QStringList par = item.toStringList();
+        opcoes.push_back({par.value(0), par.value(1)});
+    }
+    return opcoes;
 }
 }  // namespace
 
-// Editor das colunas que referenciam outro cadastro do deck: uma lista com "NOME (codigo)" dos itens
-// desse cadastro, que grava e fecha ao escolher um item; as demais colunas usam o editor comum.
-DelegateReferencia::DelegateReferencia(DadosDeck* dados, QObject* parent) : QStyledItemDelegate(parent), dados_(dados) {}
-
-// Enche a lista com os itens do cadastro e seleciona o codigo atual; codigo que o cadastro nao tem
-// entra no fim, como esta, para nao se perder, e vazio vira a opcao "(nenhum)".
-void DelegateReferencia::preencher(QComboBox* lista, const DadosDeck& dados, Referencia referencia, const QString& codigo) {
+// Enche a lista com os itens e seleciona o codigo atual; codigo que a lista nao tem entra no fim,
+// como esta, para nao se perder, e vazio vira a opcao "(nenhum)".
+void DelegateReferencia::preencher(QComboBox* lista, const std::vector<OpcaoReferencia>& opcoes, const QString& codigo) {
     const QSignalBlocker bloqueio(lista);
     lista->clear();
     lista->addItem(QStringLiteral("(nenhum)"), QString());
-    for (const OpcaoReferencia& o : dados.opcoes(referencia)) lista->addItem(o.rotulo, o.codigo);
+    for (const OpcaoReferencia& o : opcoes) lista->addItem(o.rotulo, o.codigo);
     const QString chave = DadosDeck::normalizarCodigo(codigo);
     int indice = chave.isEmpty() ? 0 : lista->findData(chave);
     if (indice < 0) {
@@ -30,8 +32,10 @@ void DelegateReferencia::preencher(QComboBox* lista, const DadosDeck& dados, Ref
     lista->setCurrentIndex(indice);
 }
 
+// Editor das colunas com lista (outro cadastro do deck ou valores fixos do manual): os itens como
+// "NOME (codigo)", gravando e fechando ao escolher um; as demais colunas usam o editor comum.
 QWidget* DelegateReferencia::createEditor(QWidget* parent, const QStyleOptionViewItem& opcao, const QModelIndex& ix) const {
-    if (referenciaDe(ix) == Referencia::Nenhuma) return QStyledItemDelegate::createEditor(parent, opcao, ix);
+    if (!temLista(ix)) return QStyledItemDelegate::createEditor(parent, opcao, ix);
     auto* lista = new QComboBox(parent);
     lista->setMaxVisibleItems(20);
     auto* delegate = const_cast<DelegateReferencia*>(this);
@@ -44,18 +48,17 @@ QWidget* DelegateReferencia::createEditor(QWidget* parent, const QStyleOptionVie
 
 void DelegateReferencia::setEditorData(QWidget* editor, const QModelIndex& ix) const {
     auto* lista = qobject_cast<QComboBox*>(editor);
-    const Referencia referencia = referenciaDe(ix);
-    if (!lista || referencia == Referencia::Nenhuma) {
+    if (!lista || !temLista(ix)) {
         QStyledItemDelegate::setEditorData(editor, ix);
         return;
     }
-    preencher(lista, *dados_, referencia, ix.data(Qt::EditRole).toString());
+    preencher(lista, opcoesDe(ix), ix.data(Qt::EditRole).toString());
     lista->showPopup();
 }
 
 void DelegateReferencia::setModelData(QWidget* editor, QAbstractItemModel* modelo, const QModelIndex& ix) const {
     auto* lista = qobject_cast<QComboBox*>(editor);
-    if (!lista || referenciaDe(ix) == Referencia::Nenhuma) {
+    if (!lista || !temLista(ix)) {
         QStyledItemDelegate::setModelData(editor, modelo, ix);
         return;
     }

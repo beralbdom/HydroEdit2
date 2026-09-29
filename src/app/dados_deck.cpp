@@ -221,6 +221,32 @@ QString DadosDeck::rotuloReferencia(Referencia referencia, const QString& codigo
     return codigo;
 }
 
+// Coluna mostrada e editada por uma lista: referencia a outro cadastro ou valores fixos do manual.
+bool DadosDeck::temOpcoes(const ColunaFixa& coluna) {
+    return ArquivoFixo::editavel(coluna) && (coluna.referencia != Referencia::Nenhuma || !coluna.opcoes.empty());
+}
+
+// Itens da lista da coluna: os do cadastro referenciado ou os valores fixos, com rotulo
+// "descricao (codigo)".
+std::vector<OpcaoReferencia> DadosDeck::opcoes(const ColunaFixa& coluna) const {
+    if (coluna.referencia != Referencia::Nenhuma) return opcoes(coluna.referencia);
+    std::vector<OpcaoReferencia> lista;
+    for (const OpcaoFixa& o : coluna.opcoes) {
+        const QString codigo = QString::fromStdString(o.codigo);
+        lista.push_back({codigo, QStringLiteral("%1 (%2)").arg(QString::fromStdString(o.descricao), codigo)});
+    }
+    return lista;
+}
+
+// Rotulo do codigo na lista da coluna; codigo que nao esta nela aparece como esta.
+QString DadosDeck::rotulo(const ColunaFixa& coluna, const QString& codigo) const {
+    if (coluna.referencia != Referencia::Nenhuma) return rotuloReferencia(coluna.referencia, codigo);
+    const QString chave = normalizarCodigo(codigo);
+    for (const OpcaoFixa& o : coluna.opcoes)
+        if (QString::fromStdString(o.codigo) == chave) return QStringLiteral("%1 (%2)").arg(QString::fromStdString(o.descricao), chave);
+    return codigo;
+}
+
 // Texto do arquivo para o editor textual: Latin-1, com quebra LF.
 QString DadosDeck::texto(const QString& nome_padrao) const {
     const ArquivoFixo* a = arquivo(nome_padrao);

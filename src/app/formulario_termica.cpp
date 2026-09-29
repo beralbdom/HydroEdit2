@@ -209,7 +209,7 @@ QWidget* FormularioTermica::criarPaginaConfiguracao() {
 QTableView* FormularioTermica::novaTabela(QSortFilterProxyModel* filtro, QWidget* pai) {
     auto* tabela = new QTableView(pai);
     tabela->setModel(filtro);
-    tabela->setItemDelegate(new DelegateReferencia(dados_, tabela));
+    tabela->setItemDelegate(new DelegateReferencia(tabela));
     tabela->setAlternatingRowColors(true);
     tabela->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela->verticalHeader()->setVisible(false);

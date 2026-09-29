@@ -12,6 +12,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <set>
 #include "dados_deck.h"
 #include "delegate_referencia.h"
 #include "formulario_usina.h"
@@ -29,7 +30,7 @@ QFormLayout* novoForm(QWidget* pai) {
     return f;
 }
 
-bool numerica(const ColunaFixa& c) { return c.tipo != TipoColunaFixa::Texto; }
+bool numerica(const ColunaFixa& c) { return c.tipo != TipoColunaFixa::Texto && !DadosDeck::temOpcoes(c); }
 
 // Um registro so: parametro de um valor, ou grupo de valores que cabe numa linha de formulario.
 bool registroUnico(const SecaoFixa& s) { return s.max_registros == 1; }
@@ -98,16 +99,16 @@ void FormularioArquivo::editarRegistros(int secao, int registro, bool adicionar)
 }
 
 // Largura do campo pelo numero de colunas do arquivo que ele ocupa; texto pode ser mais largo. Coluna
-// que referencia outro cadastro (submercado, REE, usina...) vira lista com "NOME (codigo)".
+// com lista (outro cadastro, como submercado, REE e usina, ou valores fixos do manual) vira lista com
+// "NOME (codigo)".
 QWidget* FormularioArquivo::novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai) {
     const ColunaFixa& c = arquivo.secoes()[static_cast<size_t>(secao)].definicao.colunas[static_cast<size_t>(coluna)];
-    if (c.referencia != Referencia::Nenhuma && ArquivoFixo::editavel(c)) {
+    if (DadosDeck::temOpcoes(c)) {
         auto* lista = new QComboBox(pai);
         lista->setMaxVisibleItems(20);
         lista->setSizeAdjustPolicy(QComboBox::AdjustToContents);
         campos_.push_back({nullptr, lista, secao, registro, coluna});
-        const Referencia referencia = c.referencia;
-        connect(lista, &QComboBox::activated, this, [this, lista, secao, registro, coluna, referencia] {
+        connect(lista, &QComboBox::activated, this, [this, lista, secao, registro, coluna, c] {
             if (atualizando_) return;
             const ArquivoFixo* a = dados_->arquivo(nome_);
             if (!a) return;
@@ -116,7 +117,7 @@ QWidget* FormularioArquivo::novoCampo(const ArquivoFixo& arquivo, int secao, int
             if (DadosDeck::normalizarCodigo(atual) == novo) return;
             Resultado r = dados_->definir(nome_, secao, registro, coluna, novo);
             if (!r.ok) {
-                DelegateReferencia::preencher(lista, *dados_, referencia, atual);
+                DelegateReferencia::preencher(lista, dados_->opcoes(c), atual);
                 emit valorRecusado(QString::fromUtf8(r.mensagem));
             }
         });
@@ -193,6 +194,9 @@ void FormularioArquivo::montar() {
     } else {
         QGroupBox* parametros = nullptr;
         QFormLayout* form_parametros = nullptr;
+        std::set<std::string> ao_lado;
+        for (const SecaoLida& secao : arquivo->secoes())
+            if (secao.definicao.formulario && !secao.definicao.formulario_ao_lado.empty()) ao_lado.insert(secao.definicao.formulario_ao_lado);
         for (int s = 0; s < static_cast<int>(arquivo->secoes().size()); ++s) {
             const SecaoLida& secao = arquivo->secoes()[static_cast<size_t>(s)];
             if (!secao.definicao.formulario) continue;
@@ -215,52 +219,20 @@ void FormularioArquivo::montar() {
                 }
                 continue;
             }
-            auto* grupo = new QGroupBox(titulo, interno);
-            v->addWidget(grupo);
-            if (secao.linhas.empty()) {
-                auto* g = new QVBoxLayout(grupo);
-                g->setContentsMargins(8, 6, 8, 6);
-                auto* vazio = new QLabel(QStringLiteral("Sem registros no arquivo"), grupo);
-                vazio->setEnabled(false);
-                g->addWidget(vazio);
+            if (ao_lado.count(secao.definicao.titulo)) continue;
+            QGroupBox* grupo = novoGrupo(*arquivo, s, interno);
+            const auto vizinha = std::find_if(arquivo->secoes().begin(), arquivo->secoes().end(), [&](const SecaoLida& o) {
+                return !secao.definicao.formulario_ao_lado.empty() && o.definicao.titulo == secao.definicao.formulario_ao_lado;
+            });
+            if (vizinha == arquivo->secoes().end()) {
+                v->addWidget(grupo);
                 continue;
             }
-            if (registroUnico(secao.definicao)) {
-                QFormLayout* f = novoForm(grupo);
-                for (int c = 0; c < static_cast<int>(colunas.size()); ++c)
-                    f->addRow(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), novoCampo(*arquivo, s, 0, c, grupo));
-                continue;
-            }
-            auto* grade = new QGridLayout(grupo);
-            grade->setContentsMargins(8, 6, 8, 6);
-            grade->setHorizontalSpacing(6);
-            grade->setVerticalSpacing(4);
-            for (int c = 0; c < static_cast<int>(colunas.size()); ++c) {
-                auto* rotulo = new QLabel(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), grupo);
-                rotulo->setEnabled(false);
-                grade->addWidget(rotulo, 0, c, numerica(colunas[static_cast<size_t>(c)]) ? Qt::AlignRight : Qt::AlignLeft);
-            }
-            const int n_colunas = static_cast<int>(colunas.size());
-            const int n_registros = static_cast<int>(secao.linhas.size());
-            const bool avulsos = arquivo->aceitaRegistrosAvulsos(s);
-            for (int r = 0; r < n_registros; ++r) {
-                for (int c = 0; c < n_colunas; ++c) grade->addWidget(novoCampo(*arquivo, s, r, c, grupo), r + 1, c);
-                if (!avulsos) continue;
-                auto* remover = new QToolButton(grupo);
-                remover->setIcon(style()->standardIcon(QStyle::SP_LineEditClearButton));
-                remover->setAutoRaise(true);
-                remover->setToolTip(arquivo->abreBloco(s, r) ? QStringLiteral("Remover este registro e os que dependem dele")
-                                                             : QStringLiteral("Remover este registro"));
-                connect(remover, &QToolButton::clicked, this, [this, s, r] { editarRegistros(s, r, false); });
-                grade->addWidget(remover, r + 1, n_colunas);
-            }
-            grade->setColumnStretch(n_colunas + (avulsos ? 1 : 0), 1);
-            if (avulsos) {
-                auto* adicionar = new QPushButton(QStringLiteral("Adicionar"), grupo);
-                adicionar->setToolTip(QStringLiteral("Insere uma cópia do último registro, para editar"));
-                connect(adicionar, &QPushButton::clicked, this, [this, s, n_registros] { editarRegistros(s, n_registros - 1, true); });
-                grade->addWidget(adicionar, n_registros + 1, 0, 1, std::min(2, n_colunas), Qt::AlignLeft);
-            }
+            auto* lado_a_lado = new QHBoxLayout;
+            lado_a_lado->setSpacing(v->spacing());
+            lado_a_lado->addWidget(grupo);
+            lado_a_lado->addWidget(novoGrupo(*arquivo, static_cast<int>(vizinha - arquivo->secoes().begin()), interno), 1);
+            v->addLayout(lado_a_lado);
         }
     }
     v->addStretch(1);
@@ -271,6 +243,61 @@ void FormularioArquivo::montar() {
     atualizarValores();
 }
 
+// Grupo de uma secao do formulario: aviso se o arquivo nao tem registros dela, pares rotulo e campo
+// se ela tem um registro so e, nas listas, uma linha de campos por registro, com o botao de remover
+// cada uma e o de adicionar a copia da ultima quando a secao aceita registros avulsos.
+QGroupBox* FormularioArquivo::novoGrupo(const ArquivoFixo& arquivo, int s, QWidget* pai) {
+    const SecaoLida& secao = arquivo.secoes()[static_cast<size_t>(s)];
+    const auto& colunas = secao.definicao.colunas;
+    auto* grupo = new QGroupBox(QString::fromStdString(secao.definicao.titulo), pai);
+    if (secao.linhas.empty()) {
+        auto* g = new QVBoxLayout(grupo);
+        g->setContentsMargins(8, 6, 8, 6);
+        auto* vazio = new QLabel(QStringLiteral("Sem registros no arquivo"), grupo);
+        vazio->setEnabled(false);
+        g->addWidget(vazio);
+        return grupo;
+    }
+    if (registroUnico(secao.definicao)) {
+        QFormLayout* f = novoForm(grupo);
+        for (int c = 0; c < static_cast<int>(colunas.size()); ++c)
+            f->addRow(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), novoCampo(arquivo, s, 0, c, grupo));
+        return grupo;
+    }
+    auto* grade = new QGridLayout(grupo);
+    grade->setContentsMargins(8, 6, 8, 6);
+    grade->setHorizontalSpacing(6);
+    grade->setVerticalSpacing(4);
+    for (int c = 0; c < static_cast<int>(colunas.size()); ++c) {
+        auto* rotulo = new QLabel(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), grupo);
+        rotulo->setEnabled(false);
+        grade->addWidget(rotulo, 0, c, numerica(colunas[static_cast<size_t>(c)]) ? Qt::AlignRight : Qt::AlignLeft);
+    }
+    const int n_colunas = static_cast<int>(colunas.size());
+    const int n_registros = static_cast<int>(secao.linhas.size());
+    const bool avulsos = arquivo.aceitaRegistrosAvulsos(s);
+    for (int r = 0; r < n_registros; ++r) {
+        for (int c = 0; c < n_colunas; ++c) grade->addWidget(novoCampo(arquivo, s, r, c, grupo), r + 1, c);
+        if (!avulsos) continue;
+        auto* remover = new QToolButton(grupo);
+        remover->setIcon(style()->standardIcon(QStyle::SP_LineEditClearButton));
+        remover->setAutoRaise(true);
+        remover->setToolTip(arquivo.abreBloco(s, r) ? QStringLiteral("Remover este registro e os que dependem dele")
+                                                     : QStringLiteral("Remover este registro"));
+        connect(remover, &QToolButton::clicked, this, [this, s, r] { editarRegistros(s, r, false); });
+        grade->addWidget(remover, r + 1, n_colunas);
+    }
+    grade->setColumnStretch(n_colunas + (avulsos ? 1 : 0), 1);
+    if (avulsos) {
+        auto* adicionar = new QPushButton(QStringLiteral("Adicionar"), grupo);
+        adicionar->setToolTip(QStringLiteral("Insere uma cópia do último registro, para editar"));
+        connect(adicionar, &QPushButton::clicked, this, [this, s, n_registros] { editarRegistros(s, n_registros - 1, true); });
+        grade->addWidget(adicionar, n_registros + 1, 0, 1, std::min(2, n_colunas), Qt::AlignLeft);
+    }
+    grade->setRowStretch(n_registros + 2, 1);
+    return grupo;
+}
+
 // Valores atuais do arquivo nos campos; o campo em edicao fica como esta.
 void FormularioArquivo::atualizarValores() {
     const ArquivoFixo* arquivo = dados_->arquivo(nome_);
@@ -279,9 +306,8 @@ void FormularioArquivo::atualizarValores() {
     for (const Campo& c : campos_) {
         const QString valor = QString::fromLatin1(arquivo->valor(c.secao, c.registro, c.coluna).c_str());
         if (c.lista) {
-            const Referencia referencia =
-                arquivo->secoes()[static_cast<size_t>(c.secao)].definicao.colunas[static_cast<size_t>(c.coluna)].referencia;
-            DelegateReferencia::preencher(c.lista, *dados_, referencia, valor);
+            const ColunaFixa& coluna = arquivo->secoes()[static_cast<size_t>(c.secao)].definicao.colunas[static_cast<size_t>(c.coluna)];
+            DelegateReferencia::preencher(c.lista, dados_->opcoes(coluna), valor);
             continue;
         }
         if (c.edit->hasFocus() && c.edit->isModified()) continue;
