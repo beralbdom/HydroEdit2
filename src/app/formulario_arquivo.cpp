@@ -6,6 +6,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QStyle>
 #include <QToolButton>
@@ -52,6 +53,41 @@ FormularioArquivo::FormularioArquivo(const QString& nome_padrao, const LayoutArq
     });
     connect(dados_, &DadosDeck::alterado, this, &FormularioArquivo::atualizarValores);
     montar();
+}
+
+// Campo do numero de patamares com os botoes que adicionam ou removem o ultimo patamar em todos os
+// arquivos do deck; digitar o numero so muda o numero.
+QWidget* FormularioArquivo::campoComPatamares(QWidget* campo, Patamares tipo, QWidget* pai) {
+    auto* linha = new QWidget(pai);
+    auto* h = new QHBoxLayout(linha);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(6);
+    campo->setParent(linha);
+    h->addWidget(campo);
+    auto* adicionar = new QPushButton(QStringLiteral("Adicionar patamar"), linha);
+    auto* remover = new QPushButton(QStringLiteral("Remover patamar"), linha);
+    const QString arquivos = tipo == Patamares::Deficit ? QStringLiteral("no sistema.dat")
+                                                        : QStringLiteral("no patamar.dat e nos arquivos que têm valores por patamar");
+    adicionar->setToolTip(QStringLiteral("Acrescenta um patamar depois do último, %1").arg(arquivos));
+    remover->setToolTip(QStringLiteral("Tira o último patamar, %1").arg(arquivos));
+    connect(adicionar, &QPushButton::clicked, this, [this, tipo] { mudarPatamares(tipo, 1); });
+    connect(remover, &QPushButton::clicked, this, [this, tipo] { mudarPatamares(tipo, -1); });
+    h->addWidget(adicionar);
+    h->addWidget(remover);
+    h->addStretch(1);
+    return linha;
+}
+
+// Muda o numero de patamares pelo repositorio do deck e mostra os arquivos alterados e o que conferir.
+void FormularioArquivo::mudarPatamares(Patamares tipo, int delta) {
+    QStringList avisos;
+    const Resultado r = dados_->mudarPatamares(tipo, delta, &avisos);
+    if (!r.ok) {
+        emit valorRecusado(QString::fromUtf8(r.mensagem));
+        return;
+    }
+    QMessageBox::information(this, delta > 0 ? QStringLiteral("Patamar adicionado") : QStringLiteral("Patamar removido"),
+                             avisos.join(QStringLiteral("\n\n")));
 }
 
 // Copia do registro inserida logo depois dele, ou o registro removido, com o bloco que ele abre em
@@ -173,7 +209,9 @@ void FormularioArquivo::montar() {
                     ausente->setEnabled(false);
                     form_parametros->addRow(titulo, ausente);
                 } else {
-                    form_parametros->addRow(titulo, novoCampo(*arquivo, s, 0, 0, parametros));
+                    QWidget* campo = novoCampo(*arquivo, s, 0, 0, parametros);
+                    if (secao.definicao.contagem != Patamares::Nenhum) campo = campoComPatamares(campo, secao.definicao.contagem, parametros);
+                    form_parametros->addRow(titulo, campo);
                 }
                 continue;
             }

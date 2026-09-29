@@ -29,6 +29,8 @@ private:
     void atualizarValores();
     QWidget* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
     void editarRegistros(int secao, int registro, bool adicionar);
+    QWidget* campoComPatamares(QWidget* campo, Patamares tipo, QWidget* pai);
+    void mudarPatamares(Patamares tipo, int delta);
 
     QString nome_;
     LayoutArquivoFixo layout_;

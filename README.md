@@ -35,6 +35,9 @@ Abra o `hidr.dat` do deck pelo menu Arquivo > Abrir. O programa lê o `arquivos.
 
 ### Funções especiais
 - Clicar no cabeçalho de uma coluna abre o filtro por valores, como nas planilhas (e a ordenação, nas tabelas de usinas). O conteúdo das tabelas pode ser copiado e colado com Ctrl+C e Ctrl+V, inclusive de e para o Excel.
+- Submercados, REEs, usinas, classes, tecnologias e postos aparecem pelo nome, com o código entre parênteses, e são escolhidos numa lista.
+- Os botões Adicionar e Remover (também no menu do botão direito e nas listas dos formulários) inserem a cópia de um registro ou de um bloco inteiro, como uma interligação com todos os anos, e removem registros e blocos.
+- No formulário do `patamar.dat`, Adicionar patamar e Remover patamar mudam o número de patamares de carga em todos os arquivos que dependem dele (`patamar.dat`, `loss.dat`, `gtminpat.dat`, `agrint.dat`, `adterm.dat`, `ghmin.dat`, `penalid.dat`, `re.dat` e `restricao-eletrica.csv`) e avisam o que precisa ser conferido, como a soma das durações; no `sistema.dat`, o mesmo vale para os patamares de déficit.
 - Ver > Editor textual troca as tabelas pelo texto de cada arquivo.
 - Ferramentas > Exportar vazões incrementais gera um CSV com a vazão de cada usina menos a dos postos imediatamente a montante, com opção de aplicar as regras do `REGRAS.DAT` do GEVAZP.
 - Os arquivos `empresas.csv` e `turbinas.csv`, se colocados ao lado do executável, são opcionais e usados para resolver nomes de agentes e turbinas; o formato de cada linha é `codigo;nome`.

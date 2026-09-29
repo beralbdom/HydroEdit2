@@ -430,15 +430,15 @@ int ArquivoFixo::registroNaLinha(int secao, int linha) const {
 // como estava.
 Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const LayoutArquivoFixo& layout, int* primeira_linha_nova) {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
-    if (s.definicao.max_registros > 0) return Resultado::erro("A secao tem numero fixo de registros");
+    if (s.definicao.max_registros > 0) return Resultado::erro("A seção tem número fixo de registros");
     TrechoLinhas origem;
     std::vector<std::string> copia;
     bool avulso = false;
     if (nivel >= 0) {
         origem = blocoDeContexto(s, nivel, s.linhas_contexto[static_cast<size_t>(registro)][static_cast<size_t>(nivel)]);
-        if (origem.vazio()) return Resultado::erro("O registro nao pertence a um bloco desse nivel");
+        if (origem.vazio()) return Resultado::erro("O registro não pertence a um bloco desse nível");
     } else {
-        if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta secao acompanham os patamares; duplique o bloco");
+        if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta seção acompanham os patamares; duplique o bloco");
         const int linha = s.linhas[static_cast<size_t>(registro)];
         if (nivelProprio(secao, registro) < 0) origem = blocoAberto(secao, linha);
         if (origem.vazio()) {
@@ -460,7 +460,7 @@ Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const Layout
     if (avulso && registroNaLinha(secao, origem.fim) < 0) {
         substituirLinhas(antes, layout);
         modificado_ = modificado_antes;
-        return Resultado::erro("A copia do registro nao seria lida como registro da secao");
+        return Resultado::erro("A cópia do registro não seria lida como registro da seção");
     }
     if (primeira_linha_nova) *primeira_linha_nova = origem.fim;
     return Resultado::sucesso();
@@ -471,13 +471,13 @@ Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const Layout
 // bloco, e entao sai o bloco inteiro (a usina do exph.dat com o seu 9999).
 Resultado ArquivoFixo::remover(int secao, int registro, int nivel, const LayoutArquivoFixo& layout) {
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
-    if (s.definicao.max_registros > 0) return Resultado::erro("A secao tem numero fixo de registros");
+    if (s.definicao.max_registros > 0) return Resultado::erro("A seção tem número fixo de registros");
     TrechoLinhas alvo;
     if (nivel >= 0) {
         alvo = blocoDeContexto(s, nivel, s.linhas_contexto[static_cast<size_t>(registro)][static_cast<size_t>(nivel)]);
-        if (alvo.vazio()) return Resultado::erro("O registro nao pertence a um bloco desse nivel");
+        if (alvo.vazio()) return Resultado::erro("O registro não pertence a um bloco desse nível");
     } else {
-        if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta secao acompanham os patamares; remova o bloco");
+        if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta seção acompanham os patamares; remova o bloco");
         const int linha = s.linhas[static_cast<size_t>(registro)];
         const int proprio = nivelProprio(secao, registro);
         if (proprio >= 0) {

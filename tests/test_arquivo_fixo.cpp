@@ -4,10 +4,12 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include "arquivo_fixo.h"
 #include "layouts_newave.h"
+#include "patamares_newave.h"
 
 namespace fs = std::filesystem;
 
@@ -474,6 +476,149 @@ private slots:
         QVERIFY(patamar.duplicar(nao_simuladas, ultimo, 0, layout_patamar).ok);
         QCOMPARE(patamar.secoes()[static_cast<size_t>(nao_simuladas)].linhas.size(), registros_ns + do_ultimo_bloco);
         QCOMPARE(patamar.linhas().size(), linhas_antes + static_cast<size_t>(linhas_antes - abertura));
+    }
+
+    static std::string semCr(std::string texto) {
+        texto.erase(std::remove(texto.begin(), texto.end(), '\r'), texto.end());
+        return texto;
+    }
+
+    static ArquivoFixo ler(const std::map<std::string, std::string>& textos, const std::string& nome) {
+        ArquivoFixo a;
+        a.interpretar(textos.at(nome), *layoutNewave(nome));
+        return a;
+    }
+
+    // Tamanho de cada grupo de linhas por patamar (coluna Ordinal "Patamar") do arquivo.
+    static std::vector<size_t> gruposPorPatamar(const ArquivoFixo& a) {
+        std::vector<size_t> tamanhos;
+        for (const SecaoLida& s : a.secoes()) {
+            int ordinal = -1;
+            for (size_t c = 0; c < s.definicao.colunas.size(); ++c)
+                if (s.definicao.colunas[c].tipo == TipoColunaFixa::Ordinal && s.definicao.colunas[c].nome == "Patamar") ordinal = static_cast<int>(c);
+            if (ordinal < 0) continue;
+            const size_t nivel = static_cast<size_t>(s.definicao.colunas[static_cast<size_t>(ordinal)].contexto);
+            std::map<int, size_t> grupos;
+            for (const std::vector<int>& c : s.linhas_contexto) ++grupos[c[nivel]];
+            for (const auto& [linha, n] : grupos) tamanhos.push_back(n);
+        }
+        return tamanhos;
+    }
+
+    void adicionaERemovePatamarDeCarga() {
+        fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "patamar.dat")) QSKIP("deck ausente");
+        std::map<std::string, std::string> textos;
+        for (const std::string& nome : arquivosComPatamares())
+            if (fs::exists(deck / nome)) textos[nome] = semCr(lerBytes(deck / nome));
+        const ArquivoFixo patamar_antes = ler(textos, "patamar.dat");
+        QCOMPARE(patamaresDeCarga(patamar_antes), 3);
+        const std::vector<size_t> grupos_antes = gruposPorPatamar(patamar_antes);
+        QVERIFY(!grupos_antes.empty());
+        for (size_t n : grupos_antes) QCOMPARE(n, size_t(3));
+
+        MudancaPatamares mais;
+        QVERIFY(mudarPatamaresDeCarga(textos, 1, mais).ok);
+        QVERIFY(mais.textos.count("patamar.dat") && mais.textos.count("agrint.dat") && mais.textos.count("adterm.dat"));
+        QVERIFY(mais.textos.count("restricao-eletrica.csv"));
+        QVERIFY(!mais.textos.count("ghmin.dat"));
+        std::map<std::string, std::string> depois = textos;
+        for (const auto& [nome, texto] : mais.textos) depois[nome] = texto;
+
+        const ArquivoFixo patamar = ler(depois, "patamar.dat");
+        QCOMPARE(patamaresDeCarga(patamar), 4);
+        const std::vector<size_t> grupos = gruposPorPatamar(patamar);
+        QCOMPARE(grupos.size(), grupos_antes.size());
+        for (size_t n : grupos) QCOMPARE(n, size_t(4));
+        const SecaoLida& duracoes = patamar.secoes()[1];
+        QCOMPARE(duracoes.definicao.titulo, std::string("Duração dos patamares por ano"));
+        for (size_t r = 3; r < duracoes.linhas.size(); r += 4) {
+            QCOMPARE(patamar.valor(1, static_cast<int>(r), 13), std::string("0.0000"));
+            QVERIFY(patamar.valor(1, static_cast<int>(r), 0) == patamar.valor(1, static_cast<int>(r - 1), 0));
+        }
+
+        const ArquivoFixo agrint = ler(depois, "agrint.dat");
+        const SecaoLida& limites = agrint.secoes()[1];
+        int coluna4 = -1;
+        for (size_t c = 0; c < limites.definicao.colunas.size(); ++c)
+            if (limites.definicao.colunas[c].patamares == Patamares::Carga && limites.definicao.colunas[c].patamar == 4) coluna4 = static_cast<int>(c);
+        QVERIFY(coluna4 >= 0);
+        for (size_t r = 0; r < limites.linhas.size(); ++r) QCOMPARE(agrint.valor(1, static_cast<int>(r), coluna4), std::string("-1."));
+        for (const char* comentario : {"RECEBIMENTO NE", "EXPORTACAO IMP-SENE", "FNS + FNESE + XINGU->SE/CO"}) {
+            const auto conta = [&](const std::string& t) {
+                size_t n = 0;
+                for (size_t p = t.find(comentario); p != std::string::npos; p = t.find(comentario, p + 1)) ++n;
+                return n;
+            };
+            QCOMPARE(conta(depois["agrint.dat"]), conta(textos["agrint.dat"]));
+        }
+
+        const ArquivoFixo adterm = ler(depois, "adterm.dat");
+        const SecaoLida& lags = adterm.secoes()[0];
+        for (size_t r = 0; r < lags.linhas.size(); ++r) {
+            const std::string& linha = adterm.linhas()[static_cast<size_t>(lags.linhas[r])];
+            QCOMPARE(linha.substr(60, 10), linha.substr(48, 10));
+        }
+
+        const auto conta_patamar = [](const std::string& csv, int patamar) {
+            std::istringstream entrada(csv);
+            int n = 0;
+            for (std::string linha; std::getline(entrada, linha);) {
+                if (linha.rfind("RE-LIM-FORM-PER-PAT", 0) != 0) continue;
+                std::istringstream campos(linha);
+                std::string campo;
+                for (int k = 0; k < 5; ++k) std::getline(campos, campo, ';');
+                if (std::stoi(campo) == patamar) ++n;
+            }
+            return n;
+        };
+        QVERIFY(conta_patamar(textos["restricao-eletrica.csv"], 3) > 0);
+        QCOMPARE(conta_patamar(depois["restricao-eletrica.csv"], 4), conta_patamar(textos["restricao-eletrica.csv"], 3));
+
+        MudancaPatamares menos;
+        QVERIFY(mudarPatamaresDeCarga(depois, -1, menos).ok);
+        for (const auto& [nome, texto] : menos.textos) depois[nome] = texto;
+        QCOMPARE(patamaresDeCarga(ler(depois, "patamar.dat")), 3);
+        QVERIFY(depois["patamar.dat"] == textos["patamar.dat"]);
+        QVERIFY(depois["restricao-eletrica.csv"] == textos["restricao-eletrica.csv"]);
+        const ArquivoFixo agrint_de_volta = ler(depois, "agrint.dat");
+        for (size_t r = 0; r < agrint_de_volta.secoes()[1].linhas.size(); ++r)
+            QCOMPARE(agrint_de_volta.valor(1, static_cast<int>(r), coluna4), std::string());
+
+        MudancaPatamares recusa;
+        QVERIFY(!mudarPatamaresDeCarga(std::map<std::string, std::string>{}, 1, recusa).ok);
+    }
+
+    void adicionaERemovePatamarDeDeficit() {
+        fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "sistema.dat")) QSKIP("deck ausente");
+        std::map<std::string, std::string> textos = {{"sistema.dat", semCr(lerBytes(deck / "sistema.dat"))}};
+        MudancaPatamares mais;
+        QVERIFY(mudarPatamaresDeDeficit(textos, 1, mais).ok);
+        const ArquivoFixo sistema = ler(mais.textos, "sistema.dat");
+        QCOMPARE(patamaresDeDeficit(sistema), 2);
+        const SecaoFixa& custo = sistema.secoes()[1].definicao;
+        int custo1 = -1, custo2 = -1, profundidade2 = -1;
+        for (size_t c = 0; c < custo.colunas.size(); ++c) {
+            const ColunaFixa& col = custo.colunas[c];
+            if (col.patamares != Patamares::Deficit) continue;
+            const bool eh_custo = col.nome.rfind("Custo", 0) == 0;
+            if (eh_custo && col.patamar == 1) custo1 = static_cast<int>(c);
+            if (eh_custo && col.patamar == 2) custo2 = static_cast<int>(c);
+            if (!eh_custo && col.patamar == 2) profundidade2 = static_cast<int>(c);
+        }
+        QVERIFY(custo1 >= 0 && custo2 >= 0 && profundidade2 >= 0);
+        QCOMPARE(sistema.valor(1, 0, custo2), sistema.valor(1, 0, custo1));
+        QCOMPARE(sistema.valor(1, 0, profundidade2), std::string("0.000"));
+        const int ficticio = static_cast<int>(sistema.secoes()[1].linhas.size()) - 1;
+        QCOMPARE(sistema.valor(1, ficticio, custo2), std::string());
+
+        MudancaPatamares menos;
+        QVERIFY(mudarPatamaresDeDeficit(mais.textos, -1, menos).ok);
+        const ArquivoFixo de_volta = ler(menos.textos, "sistema.dat");
+        QCOMPARE(patamaresDeDeficit(de_volta), 1);
+        QCOMPARE(de_volta.valor(1, 0, custo2), std::string("0.00"));
+        QVERIFY(!mudarPatamaresDeDeficit(menos.textos, -1, menos).ok);
     }
 };
 

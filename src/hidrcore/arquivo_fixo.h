@@ -45,6 +45,7 @@ struct SecaoFixa {
     int max_registros = 0;
     bool contigua = false;
     bool formulario = false;
+    Patamares contagem = Patamares::Nenhum;
 };
 
 struct LayoutArquivoFixo {

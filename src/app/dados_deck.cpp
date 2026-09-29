@@ -5,6 +5,7 @@
 #include <limits>
 #include "catalogo_newave.h"
 #include "layouts_newave.h"
+#include "patamares_newave.h"
 
 DadosDeck::DadosDeck(QObject* parent) : QObject(parent) {}
 
@@ -250,6 +251,37 @@ Resultado DadosDeck::duplicar(const QString& nome_padrao, int secao, int registr
     if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo nao carregado");
     Resultado r = it->second.arquivo.duplicar(secao, registro, nivel, it->second.layout, primeira_linha_nova);
     if (r.ok) concluirReinterpretacao(nome_padrao);
+    return r;
+}
+
+// Adiciona (delta 1) ou remove (delta -1) o ultimo patamar de carga ou de deficit em todos os arquivos
+// do deck que dependem dele (mudarPatamaresDeCarga, mudarPatamaresDeDeficit). Os arquivos alterados
+// sao relidos e ficam por salvar; avisos recebe a lista deles e o que o usuario precisa conferir.
+Resultado DadosDeck::mudarPatamares(Patamares tipo, int delta, QStringList* avisos) {
+    std::map<std::string, std::string> textos;
+    for (const std::string& nome : arquivosComPatamares()) {
+        const auto it = arquivos_.find(QString::fromStdString(nome));
+        if (it != arquivos_.end() && it->second.lido && !it->second.eh_binario) textos[nome] = it->second.arquivo.textoLf();
+    }
+    MudancaPatamares mudanca;
+    const Resultado r = tipo == Patamares::Deficit ? mudarPatamaresDeDeficit(textos, delta, mudanca) : mudarPatamaresDeCarga(textos, delta, mudanca);
+    if (!r.ok) return r;
+    QStringList alterados;
+    for (const auto& [nome, texto] : mudanca.textos) {
+        Entrada& entrada = arquivos_[QString::fromStdString(nome)];
+        entrada.arquivo.substituirTexto(texto, entrada.layout);
+        alterados << QString::fromStdString(nome);
+    }
+    referencias_.clear();
+    for (const QString& nome : alterados) {
+        emit reinterpretado(nome);
+        emit alterado(nome);
+    }
+    aplicarPatamares(true);
+    if (avisos) {
+        *avisos << QStringLiteral("Arquivos alterados: %1.").arg(alterados.join(QStringLiteral(", ")));
+        for (const std::string& aviso : mudanca.avisos) *avisos << QString::fromUtf8(aviso);
+    }
     return r;
 }
 
