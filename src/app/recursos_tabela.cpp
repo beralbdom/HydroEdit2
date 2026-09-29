@@ -14,12 +14,14 @@
 #include <QPainterPath>
 #include <QProxyStyle>
 #include <QPushButton>
+#include <QStyleFactory>
 #include <QStyleOptionHeader>
 #include <QTableView>
 #include <QToolTip>
 #include <QVBoxLayout>
 #include <QWidgetAction>
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <set>
 
@@ -53,7 +55,7 @@ const char* const PROP_FILTRADAS = "colunas_filtradas";
 // espaco da seta, para o texto nao passar por cima.
 class EstiloCabecalho : public QProxyStyle {
 public:
-    explicit EstiloCabecalho(QObject* pai) : QProxyStyle(QApplication::style()->name()) { setParent(pai); }
+    explicit EstiloCabecalho(QObject* pai) : QProxyStyle(QStyleFactory::create(QStringLiteral("Fusion"))) { setParent(pai); }
 
     void drawControl(ControlElement elemento, const QStyleOption* opcao, QPainter* pintor, const QWidget* widget) const override {
         QProxyStyle::drawControl(elemento, opcao, pintor, widget);
@@ -85,7 +87,9 @@ public:
 };
 
 // Filtro por coluna no estilo das planilhas, copiar e colar em texto separado por tabulacao e
-// ordenacao pelo menu do cabecalho. O filtro esconde as linhas da vista (setRowHidden), sem modelo
+// ordenacao pelo menu do cabecalho. Nas tabelas ordenaveis a ordenacao e a do modelo (sortByColumn);
+// nas demais ela so move as linhas na vista (cabecalho vertical), e o modelo segue na ordem do
+// arquivo. Copiar e colar andam pelas linhas na ordem da vista. O filtro esconde as linhas da vista (setRowHidden), sem modelo
 // intermediario, entao a edicao continua indo direto ao modelo da tabela; um predicado externo
 // (como Ocultar registros vazios) entra na mesma conta, para os dois nao se desfazerem. O clique no
 // cabecalho so abre o menu: a ordenacao automatica e a selecao da coluna inteira ficam desligadas.
@@ -193,8 +197,8 @@ private:
         return true;
     }
 
-    // Menu do cabecalho: ordenacao (nas tabelas ordenaveis), pesquisa e lista de valores distintos da
-    // coluna com caixas de marcar, como nas planilhas.
+    // Menu do cabecalho: ordenacao, pesquisa e lista de valores distintos da coluna com caixas de
+    // marcar, como nas planilhas.
     void abrirMenu(int coluna) {
         ligarModelo();
         QAbstractItemModel* modelo = tabela_->model();
@@ -221,11 +225,12 @@ private:
         });
 
         QMenu menu(tabela_);
-        if (ordenavel_) {
-            menu.addAction(QStringLiteral("Ordenar crescente"), this, [this, coluna] { tabela_->sortByColumn(coluna, Qt::AscendingOrder); });
-            menu.addAction(QStringLiteral("Ordenar decrescente"), this, [this, coluna] { tabela_->sortByColumn(coluna, Qt::DescendingOrder); });
-            menu.addSeparator();
-        }
+        menu.addAction(QStringLiteral("Ordenar crescente"), this, [this, coluna] { ordenar(coluna, Qt::AscendingOrder); });
+        menu.addAction(QStringLiteral("Ordenar decrescente"), this, [this, coluna] { ordenar(coluna, Qt::DescendingOrder); });
+        if (!ordenavel_)
+            menu.addAction(QStringLiteral("Ordem do arquivo"), this, [this] { ordenar(-1, Qt::AscendingOrder); })
+                ->setEnabled(tabela_->verticalHeader()->sectionsMoved());
+        menu.addSeparator();
         auto* painel = new QWidget(&menu);
         auto* v = new QVBoxLayout(painel);
         v->setContentsMargins(6, 4, 6, 4);
@@ -305,22 +310,80 @@ private:
         menu.exec(cabecalho->mapToGlobal(QPoint(cabecalho->sectionViewportPosition(coluna), cabecalho->height())));
     }
 
-    // Retangulo da selecao, sem as linhas e colunas escondidas; celula fora da selecao sai vazia.
+public:
+    // Ordena pela coluna (-1 volta a ordem do arquivo). Nas tabelas que nao sao ordenaveis pelo
+    // modelo, move as linhas da vista: numeros pela ordem numerica (papel UserRole, quando o modelo o
+    // da), textos pela ordem alfabetica, vazios por ultimo; empates ficam na ordem do arquivo.
+    void ordenar(int coluna, Qt::SortOrder ordem) {
+        if (ordenavel_) {
+            if (coluna >= 0) tabela_->sortByColumn(coluna, ordem);
+            return;
+        }
+        QAbstractItemModel* modelo = tabela_->model();
+        if (!modelo) return;
+        const int n = modelo->rowCount();
+        std::vector<int> linhas(static_cast<size_t>(n));
+        for (int r = 0; r < n; ++r) linhas[static_cast<size_t>(r)] = r;
+        if (coluna >= 0) {
+            QCollator colador;
+            colador.setNumericMode(true);
+            std::vector<QVariant> chaves;
+            chaves.reserve(static_cast<size_t>(n));
+            for (int r = 0; r < n; ++r) {
+                const QModelIndex ix = modelo->index(r, coluna);
+                const QVariant chave = ix.data(Qt::UserRole);
+                chaves.push_back(chave.isValid() ? chave : ix.data(Qt::DisplayRole));
+            }
+            const auto numero = [](const QVariant& v) { return v.typeId() != QMetaType::QString && v.canConvert<double>(); };
+            const auto vazio = [&](const QVariant& v) {
+                return !v.isValid() || (numero(v) ? std::isinf(v.toDouble()) : v.toString().trimmed().isEmpty());
+            };
+            std::stable_sort(linhas.begin(), linhas.end(), [&](int a, int b) {
+                const QVariant& va = chaves[static_cast<size_t>(a)];
+                const QVariant& vb = chaves[static_cast<size_t>(b)];
+                if (vazio(va) || vazio(vb)) return !vazio(va) && vazio(vb);
+                const int c = numero(va) && numero(vb) ? (va.toDouble() < vb.toDouble() ? -1 : va.toDouble() > vb.toDouble() ? 1 : 0)
+                                                       : colador.compare(va.toString(), vb.toString());
+                return ordem == Qt::AscendingOrder ? c < 0 : c > 0;
+            });
+        }
+        QHeaderView* vertical = tabela_->verticalHeader();
+        for (int i = 0; i < n; ++i) {
+            const int atual = vertical->visualIndex(linhas[static_cast<size_t>(i)]);
+            if (atual != i) vertical->moveSection(atual, i);
+        }
+    }
+
+private:
+    // Linhas do modelo na ordem em que a vista as mostra.
+    std::vector<int> linhasNaVista() const {
+        QHeaderView* vertical = tabela_->verticalHeader();
+        const int n = tabela_->model() ? tabela_->model()->rowCount() : 0;
+        std::vector<int> linhas;
+        linhas.reserve(static_cast<size_t>(n));
+        for (int v = 0; v < n; ++v) linhas.push_back(vertical->logicalIndex(v));
+        return linhas;
+    }
+
+    // Retangulo da selecao na ordem da vista, sem as linhas e colunas escondidas; celula fora da
+    // selecao sai vazia.
     void copiar() {
         QAbstractItemModel* modelo = tabela_->model();
         const QModelIndexList selecao = tabela_->selectionModel()->selectedIndexes();
         if (!modelo || selecao.isEmpty()) return;
-        int r0 = selecao.front().row(), r1 = r0, c0 = selecao.front().column(), c1 = c0;
+        QHeaderView* vertical = tabela_->verticalHeader();
+        int v0 = vertical->visualIndex(selecao.front().row()), v1 = v0, c0 = selecao.front().column(), c1 = c0;
         std::set<std::pair<int, int>> marcadas;
         for (const QModelIndex& ix : selecao) {
-            r0 = std::min(r0, ix.row());
-            r1 = std::max(r1, ix.row());
+            v0 = std::min(v0, vertical->visualIndex(ix.row()));
+            v1 = std::max(v1, vertical->visualIndex(ix.row()));
             c0 = std::min(c0, ix.column());
             c1 = std::max(c1, ix.column());
             marcadas.insert({ix.row(), ix.column()});
         }
         std::vector<QStringList> linhas;
-        for (int r = r0; r <= r1; ++r) {
+        for (int v = v0; v <= v1; ++v) {
+            const int r = vertical->logicalIndex(v);
             if (tabela_->isRowHidden(r)) continue;
             QStringList linha;
             for (int c = c0; c <= c1; ++c)
@@ -330,7 +393,7 @@ private:
         QApplication::clipboard()->setText(formatarTsv(linhas));
     }
 
-    // Cola a partir do canto da selecao, descendo pelas linhas visiveis; um valor so, com varias
+    // Cola a partir do canto da selecao, descendo pelas linhas visiveis na ordem da vista; um valor so, com varias
     // celulas selecionadas, vai para todas elas. Cada valor passa pelo setData do modelo, com a mesma
     // validacao da edicao celula a celula; celulas que nao se editam ficam de fora, e tabela so de
     // leitura (sem gatilho de edicao) nao recebe nada. Em tabela que seleciona linhas inteiras, a
@@ -356,16 +419,20 @@ private:
             for (const QModelIndex& ix : selecao)
                 if (!tabela_->isRowHidden(ix.row())) gravar(ix, linhas.front().front());
         } else {
-            int r = selecao.front().row(), c0 = selecao.front().column();
+            QHeaderView* vertical = tabela_->verticalHeader();
+            const std::vector<int> ordem = linhasNaVista();
+            int v = vertical->visualIndex(selecao.front().row()), c0 = selecao.front().column();
             for (const QModelIndex& ix : selecao) {
-                r = std::min(r, ix.row());
+                v = std::min(v, vertical->visualIndex(ix.row()));
                 c0 = std::min(c0, ix.column());
             }
             if (tabela_->selectionBehavior() == QAbstractItemView::SelectRows && tabela_->currentIndex().isValid())
                 c0 = tabela_->currentIndex().column();
+            const int n = static_cast<int>(ordem.size());
             for (const QStringList& linha : linhas) {
-                while (r < modelo->rowCount() && tabela_->isRowHidden(r)) ++r;
-                if (r >= modelo->rowCount()) break;
+                while (v < n && tabela_->isRowHidden(ordem[static_cast<size_t>(v)])) ++v;
+                if (v >= n) break;
+                const int r = ordem[static_cast<size_t>(v)];
                 int c = c0;
                 for (const QString& valor : linha) {
                     while (c < modelo->columnCount() && tabela_->isColumnHidden(c)) ++c;
@@ -373,7 +440,7 @@ private:
                     gravar(modelo->index(r, c), valor);
                     ++c;
                 }
-                ++r;
+                ++v;
             }
         }
         QString resumo = QStringLiteral("%1 valores colados").arg(gravados);
@@ -416,6 +483,12 @@ void definirLinhasOcultas(QTableView* tabela, std::function<bool(int)> oculta) {
 // Tira todos os filtros das colunas, para quando o conteudo da tabela e trocado sem refazer o modelo.
 void limparFiltros(QTableView* tabela) {
     if (RecursosTabela* r = recursos(tabela)) r->limpar();
+}
+
+// Ordena a tabela pela coluna, como o menu do cabecalho; coluna -1 volta a ordem do arquivo.
+void ordenarTabela(QTableView* tabela, int coluna, Qt::SortOrder ordem) {
+    habilitarRecursos(tabela);
+    recursos(tabela)->ordenar(coluna, ordem);
 }
 
 // Acoes que o menu de contexto da tabela acrescenta depois de copiar e colar; recebem o indice (da

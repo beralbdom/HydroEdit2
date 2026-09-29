@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QStandardItemModel>
+#include <QHeaderView>
 #include <QTableView>
 #include <QtTest>
 #include <filesystem>
@@ -68,6 +69,35 @@ private slots:
         QApplication::clipboard()->setText(QStringLiteral("x"));
         tecla(tabela, QKeySequence::Paste);
         QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("a"));
+    }
+
+    void ordenaNaVistaECopiaNaOrdemMostrada() {
+        QStandardItemModel modelo(3, 2);
+        const QStringList nomes = {QStringLiteral("b"), QStringLiteral("a"), QStringLiteral("c")};
+        for (int r = 0; r < 3; ++r) {
+            modelo.setItem(r, 0, new QStandardItem(nomes[r]));
+            modelo.setItem(r, 1, new QStandardItem(QString::number(r)));
+        }
+        QTableView tabela;
+        tabela.setModel(&modelo);
+        habilitarRecursos(&tabela);
+        ordenarTabela(&tabela, 0, Qt::AscendingOrder);
+        QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("b"));
+        tabela.selectAll();
+        tecla(tabela, QKeySequence::Copy);
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("a\t1\r\nb\t0\r\nc\t2\r\n"));
+        ordenarTabela(&tabela, 0, Qt::DescendingOrder);
+        tabela.selectAll();
+        tecla(tabela, QKeySequence::Copy);
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("c\t2\r\nb\t0\r\na\t1\r\n"));
+        tabela.clearSelection();
+        tabela.setCurrentIndex(modelo.index(2, 1));
+        QApplication::clipboard()->setText(QStringLiteral("x\ny"));
+        tecla(tabela, QKeySequence::Paste);
+        QCOMPARE(modelo.item(2, 1)->text(), QStringLiteral("x"));
+        QCOMPARE(modelo.item(0, 1)->text(), QStringLiteral("y"));
+        ordenarTabela(&tabela, -1, Qt::AscendingOrder);
+        QVERIFY(!tabela.verticalHeader()->sectionsMoved() || tabela.verticalHeader()->visualIndex(2) == 2);
     }
 
     void formulariosDoDeckReal() {
