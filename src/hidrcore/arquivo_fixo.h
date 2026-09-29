@@ -6,6 +6,7 @@
 
 enum class TipoColunaFixa { Inteiro, Real, Texto, Ordinal, Grupo };
 enum class Patamares { Nenhum, Carga, Deficit };
+enum class Referencia { Nenhuma, Submercado, Ree, UsinaHidro, UsinaTermica, ClasseTermica, Tecnologia, Posto };
 
 struct ColunaFixa {
     std::string nome;
@@ -16,6 +17,7 @@ struct ColunaFixa {
     int contexto = -1;
     Patamares patamares = Patamares::Nenhum;
     int patamar = 0;
+    Referencia referencia = Referencia::Nenhuma;
 };
 
 enum class TesteFiltro { Vazio, Preenchido, Igual, Diferente };

@@ -13,6 +13,14 @@ struct NumeroPatamares {
 int patamaresDeCarga(const ArquivoFixo& patamar);
 int patamaresDeDeficit(const ArquivoFixo& sistema);
 bool dependeDePatamares(const LayoutArquivoFixo& layout);
+
+struct FonteReferencia {
+    const char* arquivo;
+    int secao;
+    int coluna_codigo;
+    int coluna_nome;
+};
+FonteReferencia fonteReferencia(Referencia referencia);
 LayoutArquivoFixo ajustarPatamares(const LayoutArquivoFixo& layout, NumeroPatamares numero);
 
 namespace postos_dat {

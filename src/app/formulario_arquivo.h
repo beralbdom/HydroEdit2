@@ -3,6 +3,7 @@
 #include <vector>
 #include "arquivo_fixo.h"
 
+class QComboBox;
 class QLineEdit;
 class DadosDeck;
 
@@ -18,6 +19,7 @@ signals:
 private:
     struct Campo {
         QLineEdit* edit;
+        QComboBox* lista;
         int secao;
         int registro;
         int coluna;
@@ -25,7 +27,7 @@ private:
 
     void montar();
     void atualizarValores();
-    QLineEdit* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
+    QWidget* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
 
     QString nome_;
     LayoutArquivoFixo layout_;

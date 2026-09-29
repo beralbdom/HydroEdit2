@@ -2,10 +2,16 @@
 #include <QObject>
 #include <QStringList>
 #include <map>
+#include <vector>
 #include <string>
 #include "arquivo_binario.h"
 #include "arquivo_fixo.h"
 #include "layouts_newave.h"
+
+struct OpcaoReferencia {
+    QString codigo;
+    QString rotulo;
+};
 
 class DadosDeck : public QObject {
     Q_OBJECT
@@ -26,6 +32,9 @@ public:
     Resultado definirTextoBinario(const QString& nome_padrao, int registro, int inicio, int tamanho, const QString& texto);
     Resultado definirInteiroBinario(const QString& nome_padrao, int registro, int inicio, const QString& texto);
     QString texto(const QString& nome_padrao) const;
+    const std::vector<OpcaoReferencia>& opcoes(Referencia referencia) const;
+    QString rotuloReferencia(Referencia referencia, const QString& codigo) const;
+    static QString normalizarCodigo(const QString& codigo);
     void substituirTexto(const QString& nome_padrao, const QString& texto);
     bool salvar(const QString& nome_padrao, QString* motivo = nullptr);
     QStringList modificados() const;
@@ -55,4 +64,5 @@ private:
     std::map<QString, Entrada> arquivos_;
     QString dir_;
     NumeroPatamares patamares_;
+    mutable std::map<Referencia, std::vector<OpcaoReferencia>> referencias_;
 };

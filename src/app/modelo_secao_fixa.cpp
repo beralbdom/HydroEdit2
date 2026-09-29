@@ -44,17 +44,22 @@ int ModeloSecaoFixa::columnCount(const QModelIndex& parent) const {
     return parent.isValid() || !s ? 0 : static_cast<int>(s->definicao.colunas.size());
 }
 
-// O texto do arquivo e Latin-1, a codificacao dos decks; numeros ficam alinhados a direita. O papel
-// UserRole da o valor para ordenar: numero nas colunas numericas (vazio antes de todos) e texto nas
-// demais.
+// O texto do arquivo e Latin-1, a codificacao dos decks; numeros ficam alinhados a direita. Coluna
+// que referencia outro cadastro mostra "NOME (codigo)" e edita o codigo; PAPEL_REFERENCIA diz qual
+// cadastro, para o delegate abrir a lista. O papel UserRole da o valor para ordenar: numero nas
+// colunas numericas (vazio antes de todos) e texto nas demais.
 QVariant ModeloSecaoFixa::data(const QModelIndex& ix, int role) const {
     const SecaoLida* s = secaoLida();
     if (!s || !ix.isValid()) return {};
     const ColunaFixa& c = s->definicao.colunas[static_cast<size_t>(ix.column())];
-    if (role == Qt::DisplayRole || role == Qt::EditRole)
-        return QString::fromLatin1(dados_->arquivo(nome_)->valor(secao_, ix.row(), ix.column()).c_str());
+    if (role == Qt::DisplayRole || role == Qt::EditRole) {
+        const QString valor = QString::fromLatin1(dados_->arquivo(nome_)->valor(secao_, ix.row(), ix.column()).c_str());
+        return role == Qt::DisplayRole && c.referencia != Referencia::Nenhuma ? dados_->rotuloReferencia(c.referencia, valor) : valor;
+    }
+    if (role == PAPEL_REFERENCIA) return static_cast<int>(c.referencia);
     if (role == Qt::TextAlignmentRole)
-        return c.tipo == TipoColunaFixa::Texto ? int(Qt::AlignLeft | Qt::AlignVCenter) : int(Qt::AlignRight | Qt::AlignVCenter);
+        return c.tipo == TipoColunaFixa::Texto || c.referencia != Referencia::Nenhuma ? int(Qt::AlignLeft | Qt::AlignVCenter)
+                                                                                     : int(Qt::AlignRight | Qt::AlignVCenter);
     if (role == Qt::UserRole) {
         const QString texto = QString::fromLatin1(dados_->arquivo(nome_)->valor(secao_, ix.row(), ix.column()).c_str());
         if (c.tipo == TipoColunaFixa::Texto) return texto;

@@ -1,14 +1,17 @@
 #include <QApplication>
 #include <QClipboard>
+#include <QComboBox>
 #include <QStandardItemModel>
 #include <QTableView>
 #include <QtTest>
 #include <filesystem>
 #include "catalogo_newave.h"
 #include "dados_deck.h"
+#include "delegate_referencia.h"
 #include "deck_newave.h"
 #include "formulario_arquivo.h"
 #include "layouts_newave.h"
+#include "modelo_secao_fixa.h"
 #include "pagina_arquivo_fixo.h"
 #include "recursos_tabela.h"
 
@@ -78,11 +81,50 @@ private slots:
             for (int s = -1; s < static_cast<int>(layout->secoes.size()); ++s) pagina.mostrarSecao(s);
         }
         FormularioArquivo patamar(QStringLiteral("patamar.dat"), *layoutNewave("patamar.dat"), &dados);
-        QCOMPARE(patamar.campos(), 1 + 4 + 12 * 2 + 32 * 2);
+        QCOMPARE(patamar.campos(), 1 + 4 + 12 * 2);
         FormularioArquivo dger(QStringLiteral("dger.dat"), *layoutNewave("dger.dat"), &dados);
         QVERIFY(dger.campos() >= 101);
         QVERIFY(!PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 0));
         QVERIFY(PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 1));
+    }
+
+    void referenciasMostramNomeECodigo() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "sistema.dat")) QSKIP("deck ausente");
+        DadosDeck dados;
+        dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        QCOMPARE(dados.rotuloReferencia(Referencia::Submercado, QStringLiteral("  1")), QStringLiteral("SUDESTE (1)"));
+        QCOMPARE(dados.rotuloReferencia(Referencia::Submercado, QStringLiteral("77")), QStringLiteral("77"));
+        QCOMPARE(dados.opcoes(Referencia::Submercado).size(), size_t(5));
+        QVERIFY(!dados.opcoes(Referencia::Ree).empty());
+        QVERIFY(!dados.opcoes(Referencia::UsinaHidro).empty());
+        QVERIFY(!dados.opcoes(Referencia::UsinaTermica).empty());
+        QVERIFY(!dados.opcoes(Referencia::Posto).empty());
+
+        ModeloSecaoFixa intercambio(&dados, QStringLiteral("sistema.dat"), 2);
+        const QModelIndex a = intercambio.index(0, 0);
+        QCOMPARE(a.data(Qt::DisplayRole).toString(), QStringLiteral("SUDESTE (1)"));
+        QCOMPARE(a.data(Qt::EditRole).toString().trimmed(), QStringLiteral("1"));
+        QCOMPARE(a.data(PAPEL_REFERENCIA).toInt(), int(Referencia::Submercado));
+        QVERIFY(intercambio.setData(a, QStringLiteral("3"), Qt::EditRole));
+        QCOMPARE(a.data(Qt::DisplayRole).toString(), QStringLiteral("NORDESTE (3)"));
+
+        ModeloSecaoFixa interligacoes(&dados, QStringLiteral("sistema.dat"), 3);
+        QTableView tabela;
+        tabela.setModel(&interligacoes);
+        tabela.setItemDelegate(new DelegateReferencia(&dados, &tabela));
+        tabela.show();
+        const QModelIndex b = interligacoes.index(0, 1);
+        QCOMPARE(b.data(Qt::DisplayRole).toString(), QStringLiteral("SUL (2)"));
+        tabela.edit(b);
+        auto* lista = tabela.findChild<QComboBox*>();
+        QVERIFY(lista);
+        const int norte = lista->findData(QStringLiteral("4"));
+        QVERIFY(norte > 0);
+        lista->setCurrentIndex(norte);
+        emit lista->activated(norte);
+        QCOMPARE(b.data(Qt::DisplayRole).toString(), QStringLiteral("NORTE (4)"));
+        QTRY_VERIFY(!tabela.findChild<QComboBox*>());
     }
 };
 

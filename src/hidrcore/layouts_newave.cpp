@@ -23,6 +23,12 @@ ColunaFixa doPatamar(ColunaFixa coluna, Patamares tipo, int k) {
     coluna.patamar = k;
     return coluna;
 }
+// Coluna com o codigo de um item de outro cadastro do deck (submercado, REE, usina...), mostrada
+// e editada pela lista de nomes desse cadastro.
+ColunaFixa ref(ColunaFixa coluna, Referencia referencia) {
+    coluna.referencia = referencia;
+    return coluna;
+}
 ColunaFixa deCarga(ColunaFixa coluna, int k) { return doPatamar(std::move(coluna), Patamares::Carga, k); }
 ColunaFixa deDeficit(ColunaFixa coluna, int k) { return doPatamar(std::move(coluna), Patamares::Deficit, k); }
 
@@ -38,8 +44,9 @@ FiltroLinha diferente(int inicio, int fim, std::vector<std::string> valores) {
 LayoutArquivoFixo conft() {
     return {"3.15",
             {{"Usinas termoelétricas na configuração", 2, "",
-              {inteiro("Usina", 2, 5), texto("Nome", 7, 18), inteiro("Submercado", 22, 25), texto("Situação", 31, 32),
-               inteiro("Classe", 36, 39), inteiro("Tecnologia", 41, 43), inteiro("Classe de gás", 45, 48)},
+              {inteiro("Usina", 2, 5), texto("Nome", 7, 18), ref(inteiro("Submercado", 22, 25), Referencia::Submercado),
+               texto("Situação", 31, 32), ref(inteiro("Classe", 36, 39), Referencia::ClasseTermica),
+               ref(inteiro("Tecnologia", 41, 43), Referencia::Tecnologia), inteiro("Classe de gás", 45, 48)},
               0}}};
 }
 
@@ -64,8 +71,8 @@ LayoutArquivoFixo term() {
 LayoutArquivoFixo expt() {
     return {"3.17",
             {{"Modificações por período", 2, "",
-              {inteiro("Usina", 1, 4), texto("Tipo", 6, 10), real("Valor", 12, 19, 2), inteiro("Mês início", 21, 22),
-               inteiro("Ano início", 24, 27), inteiro("Mês fim", 29, 30), inteiro("Ano fim", 32, 35)},
+              {ref(inteiro("Usina", 1, 4), Referencia::UsinaTermica), texto("Tipo", 6, 10), real("Valor", 12, 19, 2),
+               inteiro("Mês início", 21, 22), inteiro("Ano início", 24, 27), inteiro("Mês fim", 29, 30), inteiro("Ano fim", 32, 35)},
               0}}};
 }
 
@@ -78,8 +85,8 @@ LayoutArquivoFixo clast() {
               {inteiro("Classe", 2, 5), texto("Nome", 7, 18), texto("Combustível", 20, 29), real("Custo ano", 31, 37, 2)},
               8},
              {"Modificações de custo", 2, "",
-              {inteiro("Classe", 2, 5), real("Custo ($/MWh)", 9, 15, 2), inteiro("Mês início", 18, 19),
-               inteiro("Ano início", 21, 24), inteiro("Mês fim", 27, 28), inteiro("Ano fim", 30, 33)},
+              {ref(inteiro("Classe", 2, 5), Referencia::ClasseTermica), real("Custo ($/MWh)", 9, 15, 2),
+               inteiro("Mês início", 18, 19), inteiro("Ano início", 21, 24), inteiro("Mês fim", 27, 28), inteiro("Ano fim", 30, 33)},
               0}}};
 }
 
@@ -89,8 +96,9 @@ LayoutArquivoFixo clast() {
 LayoutArquivoFixo manutt() {
     return {"3.19",
             {{"Manutenções programadas", 2, "",
-              {inteiro("Usina", 18, 20), inteiro("Dia início", 41, 42), inteiro("Mês início", 43, 44),
-               inteiro("Ano início", 45, 48), inteiro("Duração (dias)", 50, 52), real("Potência (MW)", 56, 62, 2)},
+              {ref(inteiro("Usina", 18, 20), Referencia::UsinaTermica), inteiro("Dia início", 41, 42),
+               inteiro("Mês início", 43, 44), inteiro("Ano início", 45, 48), inteiro("Duração (dias)", 50, 52),
+               real("Potência (MW)", 56, 62, 2)},
               0}}};
 }
 
@@ -99,9 +107,7 @@ LayoutArquivoFixo manutt() {
 // manual da o nome em A12 (colunas 31 a 42), mas decks atuais trazem nomes maiores
 // (volref_saz.dat), lidos pelo NEWAVE; o campo vai ate a coluna 80.
 LayoutArquivoFixo arquivos() {
-    return {
-        "3.3",
-        {{.titulo = "Arquivos do caso", .colunas = {texto("Descrição", 1, 28), texto("Arquivo", 31, 80)}, .formulario = true}}};
+    return {"3.3", {{.titulo = "Arquivos do caso", .colunas = {texto("Descrição", 1, 28), texto("Arquivo", 31, 80)}}}};
 }
 
 // dger.dat, manual do NEWAVE 30.0.2, secao 3.5: 102 registros em ordem fixa, um parametro por
@@ -267,8 +273,7 @@ LayoutArquivoFixo shist() {
              {.titulo = "Séries históricas simuladas",
               .linhas_cabecalho = 2,
               .terminador = "9999",
-              .colunas = {inteiro("Ano início", 1, 4)},
-              .formulario = true}}};
+              .colunas = {inteiro("Ano início", 1, 4)}}}};
 }
 
 // sistema.dat, manual do NEWAVE 30.0.2, secao 3.7: cinco blocos, cada um precedido de tres
@@ -302,7 +307,8 @@ LayoutArquivoFixo sistema() {
          {.titulo = "Limites de intercâmbio",
           .linhas_cabecalho = 3,
           .terminador = "999",
-          .colunas = {deContexto(inteiro("Submercado A", 2, 4), 0), deContexto(inteiro("Submercado B", 6, 8), 0),
+          .colunas = {ref(deContexto(inteiro("Submercado A", 2, 4), 0), Referencia::Submercado),
+                      ref(deContexto(inteiro("Submercado B", 6, 8), 0), Referencia::Submercado),
                       grupo("Sentido (1 = A→B, 2 = B→A)", 0), inteiro("Ano", 1, 7), real("Jan (MWmédio)", 8, 14, 0),
                       real("Fev (MWmédio)", 16, 22, 0), real("Mar (MWmédio)", 24, 30, 0), real("Abr (MWmédio)", 32, 38, 0),
                       real("Mai (MWmédio)", 40, 46, 0), real("Jun (MWmédio)", 48, 54, 0), real("Jul (MWmédio)", 56, 62, 0),
@@ -311,7 +317,8 @@ LayoutArquivoFixo sistema() {
           .filtro = {preenchido(96, 102)},
           .contextos = {{{preenchido(2, 4), vazio(96, 102)}}}},
          {.titulo = "Interligações",
-          .colunas = {inteiro("Submercado A", 2, 4), inteiro("Submercado B", 6, 8), inteiro("Tipo de limite", 24, 24),
+          .colunas = {ref(inteiro("Submercado A", 2, 4), Referencia::Submercado),
+                      ref(inteiro("Submercado B", 6, 8), Referencia::Submercado), inteiro("Tipo de limite", 24, 24),
                       inteiro("Sem penalidade interna", 32, 32)},
           .filtro = {preenchido(2, 4), vazio(96, 102)},
           .mesma_regiao = true,
@@ -319,35 +326,34 @@ LayoutArquivoFixo sistema() {
          {.titulo = "Carga de energia",
           .linhas_cabecalho = 3,
           .terminador = "999",
-          .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), texto("Ano", 1, 7), real("Jan (MWmédio)", 8, 14, 0),
-                      real("Fev (MWmédio)", 16, 22, 0), real("Mar (MWmédio)", 24, 30, 0), real("Abr (MWmédio)", 32, 38, 0),
-                      real("Mai (MWmédio)", 40, 46, 0), real("Jun (MWmédio)", 48, 54, 0), real("Jul (MWmédio)", 56, 62, 0),
-                      real("Ago (MWmédio)", 64, 70, 0), real("Set (MWmédio)", 72, 78, 0), real("Out (MWmédio)", 80, 86, 0),
-                      real("Nov (MWmédio)", 88, 94, 0), real("Dez (MWmédio)", 96, 102, 0)},
+          .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado), texto("Ano", 1, 7),
+                      real("Jan (MWmédio)", 8, 14, 0), real("Fev (MWmédio)", 16, 22, 0), real("Mar (MWmédio)", 24, 30, 0),
+                      real("Abr (MWmédio)", 32, 38, 0), real("Mai (MWmédio)", 40, 46, 0), real("Jun (MWmédio)", 48, 54, 0),
+                      real("Jul (MWmédio)", 56, 62, 0), real("Ago (MWmédio)", 64, 70, 0), real("Set (MWmédio)", 72, 78, 0),
+                      real("Out (MWmédio)", 80, 86, 0), real("Nov (MWmédio)", 88, 94, 0), real("Dez (MWmédio)", 96, 102, 0)},
           .filtro = {preenchido(96, 102)},
           .contextos = {{{preenchido(2, 4), vazio(96, 102)}}}},
          {.titulo = "Submercados da carga",
-          .colunas = {inteiro("Submercado", 2, 4)},
+          .colunas = {ref(inteiro("Submercado", 2, 4), Referencia::Submercado)},
           .filtro = {preenchido(2, 4), vazio(96, 102)},
           .mesma_regiao = true,
           .formulario = true},
          {.titulo = "Geração de usinas não simuladas",
           .linhas_cabecalho = 3,
           .terminador = "999",
-          .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), deContexto(inteiro("Bloco", 7, 9), 0),
-                      deContexto(texto("Descrição", 12, 31), 0), inteiro("Ano", 1, 7), real("Jan (MWmédio)", 8, 14, 0),
-                      real("Fev (MWmédio)", 16, 22, 0), real("Mar (MWmédio)", 24, 30, 0), real("Abr (MWmédio)", 32, 38, 0),
-                      real("Mai (MWmédio)", 40, 46, 0), real("Jun (MWmédio)", 48, 54, 0), real("Jul (MWmédio)", 56, 62, 0),
-                      real("Ago (MWmédio)", 64, 70, 0), real("Set (MWmédio)", 72, 78, 0), real("Out (MWmédio)", 80, 86, 0),
-                      real("Nov (MWmédio)", 88, 94, 0), real("Dez (MWmédio)", 96, 102, 0)},
+          .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado),
+                      deContexto(inteiro("Bloco", 7, 9), 0), deContexto(texto("Descrição", 12, 31), 0), inteiro("Ano", 1, 7),
+                      real("Jan (MWmédio)", 8, 14, 0), real("Fev (MWmédio)", 16, 22, 0), real("Mar (MWmédio)", 24, 30, 0),
+                      real("Abr (MWmédio)", 32, 38, 0), real("Mai (MWmédio)", 40, 46, 0), real("Jun (MWmédio)", 48, 54, 0),
+                      real("Jul (MWmédio)", 56, 62, 0), real("Ago (MWmédio)", 64, 70, 0), real("Set (MWmédio)", 72, 78, 0),
+                      real("Out (MWmédio)", 80, 86, 0), real("Nov (MWmédio)", 88, 94, 0), real("Dez (MWmédio)", 96, 102, 0)},
           .filtro = {preenchido(96, 102)},
           .contextos = {{{preenchido(2, 4), vazio(96, 102)}}}},
          {.titulo = "Blocos de usinas não simuladas",
-          .colunas = {inteiro("Submercado", 2, 4), inteiro("Bloco", 7, 9), texto("Descrição", 12, 31),
-                      inteiro("Tecnologia", 34, 36)},
+          .colunas = {ref(inteiro("Submercado", 2, 4), Referencia::Submercado), inteiro("Bloco", 7, 9),
+                      texto("Descrição", 12, 31), ref(inteiro("Tecnologia", 34, 36), Referencia::Tecnologia)},
           .filtro = {preenchido(2, 4), vazio(96, 102)},
-          .mesma_regiao = true,
-          .formulario = true}}};
+          .mesma_regiao = true}}};
 }
 
 // patamar.dat, manual do NEWAVE 30.0.2, secao 3.8: dois registros de comentario e o numero de
@@ -362,104 +368,106 @@ LayoutArquivoFixo sistema() {
 // colunas 95 a 100, tipo 1 com nome do mes e sem dezembro). O deck traz quatro registros de
 // comentario antes do bloco 3, e nao tres.
 LayoutArquivoFixo patamar() {
-    return {
-        "3.8",
-        {{.titulo = "Patamares de carga",
-          .linhas_cabecalho = 2,
-          .colunas = {inteiro("Patamares de carga", 2, 3)},
-          .max_registros = 1,
-          .formulario = true},
-         {.titulo = "Duração dos patamares por ano",
-          .linhas_cabecalho = 3,
-          .colunas = {deContexto(inteiro("Ano", 1, 4), 0), ordinal("Patamar", 0), real("Jan (p.u.)", 7, 12, 4),
-                      real("Fev (p.u.)", 15, 20, 4), real("Mar (p.u.)", 23, 28, 4), real("Abr (p.u.)", 31, 36, 4),
-                      real("Mai (p.u.)", 39, 44, 4), real("Jun (p.u.)", 47, 52, 4), real("Jul (p.u.)", 55, 60, 4),
-                      real("Ago (p.u.)", 63, 68, 4), real("Set (p.u.)", 71, 76, 4), real("Out (p.u.)", 79, 84, 4),
-                      real("Nov (p.u.)", 87, 92, 4), real("Dez (p.u.)", 95, 100, 4)},
-          .filtro = {vazio(5, 6), preenchido(95, 100)},
-          .contextos = {{{preenchido(1, 4), preenchido(95, 100)}}},
-          .contigua = true},
-         {.titulo = "Duração sazonal dos patamares",
-          .colunas = {texto("Mês", 2, 4), deCarga(real("Patamar 1 (p.u.)", 7, 12, 4), 1),
-                      deCarga(real("Patamar 2 (p.u.)", 15, 20, 4), 2), deCarga(real("Patamar 3 (p.u.)", 23, 28, 4), 3),
-                      deCarga(real("Patamar 4 (p.u.)", 31, 36, 4), 4), deCarga(real("Patamar 5 (p.u.)", 39, 44, 4), 5)},
-          .filtro = {preenchido(2, 4), vazio(5, 6), preenchido(7, 12), vazio(95, 100)},
-          .contigua = true},
-         {.titulo = "Carga por patamar e ano",
-          .linhas_cabecalho = 4,
-          .terminador = "9999",
-          .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), deContexto(inteiro("Ano", 4, 7), 1), ordinal("Patamar", 1),
-                      real("Jan (p.u.)", 9, 14, 4), real("Fev (p.u.)", 16, 21, 4), real("Mar (p.u.)", 23, 28, 4),
-                      real("Abr (p.u.)", 30, 35, 4), real("Mai (p.u.)", 37, 42, 4), real("Jun (p.u.)", 44, 49, 4),
-                      real("Jul (p.u.)", 51, 56, 4), real("Ago (p.u.)", 58, 63, 4), real("Set (p.u.)", 65, 70, 4),
-                      real("Out (p.u.)", 72, 77, 4), real("Nov (p.u.)", 79, 84, 4), real("Dez (p.u.)", 86, 91, 4)},
-          .filtro = {preenchido(86, 91)},
-          .contextos = {{{preenchido(2, 4), vazio(9, 91)}}, {{preenchido(4, 7), preenchido(86, 91)}}}},
-         {.titulo = "Carga por patamar, sazonal",
-          .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), ordinal("Patamar", 0), real("Mês 1 (p.u.)", 2, 7, 4),
-                      real("Mês 2 (p.u.)", 9, 14, 4), real("Mês 3 (p.u.)", 16, 21, 4), real("Mês 4 (p.u.)", 23, 28, 4),
-                      real("Mês 5 (p.u.)", 30, 35, 4), real("Mês 6 (p.u.)", 37, 42, 4), real("Mês 7 (p.u.)", 44, 49, 4),
-                      real("Mês 8 (p.u.)", 51, 56, 4), real("Mês 9 (p.u.)", 58, 63, 4), real("Mês 10 (p.u.)", 65, 70, 4),
-                      real("Mês 11 (p.u.)", 72, 77, 4), real("Mês 12 (p.u.)", 79, 84, 4)},
-          .filtro = {preenchido(9, 14), vazio(86, 91)},
-          .contextos = {{{preenchido(2, 4), vazio(9, 91)}}},
-          .mesma_regiao = true},
-         {.titulo = "Submercados da carga",
-          .colunas = {inteiro("Submercado", 2, 4)},
-          .filtro = {preenchido(2, 4), vazio(9, 91)},
-          .mesma_regiao = true,
-          .formulario = true},
-         {.titulo = "Intercâmbio por patamar e ano",
-          .linhas_cabecalho = 5,
-          .terminador = "9999",
-          .colunas = {deContexto(inteiro("Submercado A", 2, 4), 0), deContexto(inteiro("Submercado B", 6, 8), 0),
-                      deContexto(inteiro("Ano", 4, 7), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 9, 14, 4),
-                      real("Fev (p.u.)", 16, 21, 4), real("Mar (p.u.)", 23, 28, 4), real("Abr (p.u.)", 30, 35, 4),
-                      real("Mai (p.u.)", 37, 42, 4), real("Jun (p.u.)", 44, 49, 4), real("Jul (p.u.)", 51, 56, 4),
-                      real("Ago (p.u.)", 58, 63, 4), real("Set (p.u.)", 65, 70, 4), real("Out (p.u.)", 72, 77, 4),
-                      real("Nov (p.u.)", 79, 84, 4), real("Dez (p.u.)", 86, 91, 4)},
-          .filtro = {preenchido(86, 91)},
-          .contextos = {{{preenchido(2, 4), vazio(9, 91)}}, {{preenchido(4, 7), preenchido(86, 91)}}}},
-         {.titulo = "Intercâmbio por patamar, sazonal",
-          .colunas = {deContexto(inteiro("Submercado A", 2, 4), 0), deContexto(inteiro("Submercado B", 6, 8), 0),
-                      ordinal("Patamar", 0), real("Mês 1 (p.u.)", 2, 7, 4), real("Mês 2 (p.u.)", 9, 14, 4),
-                      real("Mês 3 (p.u.)", 16, 21, 4), real("Mês 4 (p.u.)", 23, 28, 4), real("Mês 5 (p.u.)", 30, 35, 4),
-                      real("Mês 6 (p.u.)", 37, 42, 4), real("Mês 7 (p.u.)", 44, 49, 4), real("Mês 8 (p.u.)", 51, 56, 4),
-                      real("Mês 9 (p.u.)", 58, 63, 4), real("Mês 10 (p.u.)", 65, 70, 4), real("Mês 11 (p.u.)", 72, 77, 4),
-                      real("Mês 12 (p.u.)", 79, 84, 4)},
-          .filtro = {preenchido(9, 14), vazio(86, 91)},
-          .contextos = {{{preenchido(2, 4), vazio(9, 91)}}},
-          .mesma_regiao = true},
-         {.titulo = "Interligações",
-          .colunas = {inteiro("Submercado A", 2, 4), inteiro("Submercado B", 6, 8)},
-          .filtro = {preenchido(2, 4), vazio(9, 91)},
-          .mesma_regiao = true,
-          .formulario = true},
-         {.titulo = "Usinas não simuladas por patamar e ano",
-          .linhas_cabecalho = 4,
-          .terminador = "9999",
-          .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), deContexto(inteiro("Bloco", 6, 8), 0),
-                      deContexto(inteiro("Ano", 4, 7), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 9, 14, 4),
-                      real("Fev (p.u.)", 16, 21, 4), real("Mar (p.u.)", 23, 28, 4), real("Abr (p.u.)", 30, 35, 4),
-                      real("Mai (p.u.)", 37, 42, 4), real("Jun (p.u.)", 44, 49, 4), real("Jul (p.u.)", 51, 56, 4),
-                      real("Ago (p.u.)", 58, 63, 4), real("Set (p.u.)", 65, 70, 4), real("Out (p.u.)", 72, 77, 4),
-                      real("Nov (p.u.)", 79, 84, 4), real("Dez (p.u.)", 86, 91, 4)},
-          .filtro = {preenchido(86, 91)},
-          .contextos = {{{preenchido(2, 4), vazio(9, 91)}}, {{preenchido(4, 7), preenchido(86, 91)}}}},
-         {.titulo = "Usinas não simuladas por patamar, sazonal",
-          .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), deContexto(inteiro("Bloco", 6, 8), 0), ordinal("Patamar", 0),
-                      real("Mês 1 (p.u.)", 2, 7, 4), real("Mês 2 (p.u.)", 9, 14, 4), real("Mês 3 (p.u.)", 16, 21, 4),
-                      real("Mês 4 (p.u.)", 23, 28, 4), real("Mês 5 (p.u.)", 30, 35, 4), real("Mês 6 (p.u.)", 37, 42, 4),
-                      real("Mês 7 (p.u.)", 44, 49, 4), real("Mês 8 (p.u.)", 51, 56, 4), real("Mês 9 (p.u.)", 58, 63, 4),
-                      real("Mês 10 (p.u.)", 65, 70, 4), real("Mês 11 (p.u.)", 72, 77, 4), real("Mês 12 (p.u.)", 79, 84, 4)},
-          .filtro = {preenchido(9, 14), vazio(86, 91)},
-          .contextos = {{{preenchido(2, 4), vazio(9, 91)}}},
-          .mesma_regiao = true},
-         {.titulo = "Blocos de usinas não simuladas",
-          .colunas = {inteiro("Submercado", 2, 4), inteiro("Bloco", 6, 8)},
-          .filtro = {preenchido(2, 4), vazio(9, 91)},
-          .mesma_regiao = true,
-          .formulario = true}}};
+    return {"3.8",
+            {{.titulo = "Patamares de carga",
+              .linhas_cabecalho = 2,
+              .colunas = {inteiro("Patamares de carga", 2, 3)},
+              .max_registros = 1,
+              .formulario = true},
+             {.titulo = "Duração dos patamares por ano",
+              .linhas_cabecalho = 3,
+              .colunas = {deContexto(inteiro("Ano", 1, 4), 0), ordinal("Patamar", 0), real("Jan (p.u.)", 7, 12, 4),
+                          real("Fev (p.u.)", 15, 20, 4), real("Mar (p.u.)", 23, 28, 4), real("Abr (p.u.)", 31, 36, 4),
+                          real("Mai (p.u.)", 39, 44, 4), real("Jun (p.u.)", 47, 52, 4), real("Jul (p.u.)", 55, 60, 4),
+                          real("Ago (p.u.)", 63, 68, 4), real("Set (p.u.)", 71, 76, 4), real("Out (p.u.)", 79, 84, 4),
+                          real("Nov (p.u.)", 87, 92, 4), real("Dez (p.u.)", 95, 100, 4)},
+              .filtro = {vazio(5, 6), preenchido(95, 100)},
+              .contextos = {{{preenchido(1, 4), preenchido(95, 100)}}},
+              .contigua = true},
+             {.titulo = "Duração sazonal dos patamares",
+              .colunas = {texto("Mês", 2, 4), deCarga(real("Patamar 1 (p.u.)", 7, 12, 4), 1),
+                          deCarga(real("Patamar 2 (p.u.)", 15, 20, 4), 2), deCarga(real("Patamar 3 (p.u.)", 23, 28, 4), 3),
+                          deCarga(real("Patamar 4 (p.u.)", 31, 36, 4), 4), deCarga(real("Patamar 5 (p.u.)", 39, 44, 4), 5)},
+              .filtro = {preenchido(2, 4), vazio(5, 6), preenchido(7, 12), vazio(95, 100)},
+              .contigua = true},
+             {.titulo = "Carga por patamar e ano",
+              .linhas_cabecalho = 4,
+              .terminador = "9999",
+              .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado),
+                          deContexto(inteiro("Ano", 4, 7), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 9, 14, 4),
+                          real("Fev (p.u.)", 16, 21, 4), real("Mar (p.u.)", 23, 28, 4), real("Abr (p.u.)", 30, 35, 4),
+                          real("Mai (p.u.)", 37, 42, 4), real("Jun (p.u.)", 44, 49, 4), real("Jul (p.u.)", 51, 56, 4),
+                          real("Ago (p.u.)", 58, 63, 4), real("Set (p.u.)", 65, 70, 4), real("Out (p.u.)", 72, 77, 4),
+                          real("Nov (p.u.)", 79, 84, 4), real("Dez (p.u.)", 86, 91, 4)},
+              .filtro = {preenchido(86, 91)},
+              .contextos = {{{preenchido(2, 4), vazio(9, 91)}}, {{preenchido(4, 7), preenchido(86, 91)}}}},
+             {.titulo = "Carga por patamar, sazonal",
+              .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado), ordinal("Patamar", 0),
+                          real("Mês 1 (p.u.)", 2, 7, 4), real("Mês 2 (p.u.)", 9, 14, 4), real("Mês 3 (p.u.)", 16, 21, 4),
+                          real("Mês 4 (p.u.)", 23, 28, 4), real("Mês 5 (p.u.)", 30, 35, 4), real("Mês 6 (p.u.)", 37, 42, 4),
+                          real("Mês 7 (p.u.)", 44, 49, 4), real("Mês 8 (p.u.)", 51, 56, 4), real("Mês 9 (p.u.)", 58, 63, 4),
+                          real("Mês 10 (p.u.)", 65, 70, 4), real("Mês 11 (p.u.)", 72, 77, 4), real("Mês 12 (p.u.)", 79, 84, 4)},
+              .filtro = {preenchido(9, 14), vazio(86, 91)},
+              .contextos = {{{preenchido(2, 4), vazio(9, 91)}}},
+              .mesma_regiao = true},
+             {.titulo = "Submercados da carga",
+              .colunas = {ref(inteiro("Submercado", 2, 4), Referencia::Submercado)},
+              .filtro = {preenchido(2, 4), vazio(9, 91)},
+              .mesma_regiao = true,
+              .formulario = true},
+             {.titulo = "Intercâmbio por patamar e ano",
+              .linhas_cabecalho = 5,
+              .terminador = "9999",
+              .colunas = {ref(deContexto(inteiro("Submercado A", 2, 4), 0), Referencia::Submercado),
+                          ref(deContexto(inteiro("Submercado B", 6, 8), 0), Referencia::Submercado),
+                          deContexto(inteiro("Ano", 4, 7), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 9, 14, 4),
+                          real("Fev (p.u.)", 16, 21, 4), real("Mar (p.u.)", 23, 28, 4), real("Abr (p.u.)", 30, 35, 4),
+                          real("Mai (p.u.)", 37, 42, 4), real("Jun (p.u.)", 44, 49, 4), real("Jul (p.u.)", 51, 56, 4),
+                          real("Ago (p.u.)", 58, 63, 4), real("Set (p.u.)", 65, 70, 4), real("Out (p.u.)", 72, 77, 4),
+                          real("Nov (p.u.)", 79, 84, 4), real("Dez (p.u.)", 86, 91, 4)},
+              .filtro = {preenchido(86, 91)},
+              .contextos = {{{preenchido(2, 4), vazio(9, 91)}}, {{preenchido(4, 7), preenchido(86, 91)}}}},
+             {.titulo = "Intercâmbio por patamar, sazonal",
+              .colunas = {ref(deContexto(inteiro("Submercado A", 2, 4), 0), Referencia::Submercado),
+                          ref(deContexto(inteiro("Submercado B", 6, 8), 0), Referencia::Submercado), ordinal("Patamar", 0),
+                          real("Mês 1 (p.u.)", 2, 7, 4), real("Mês 2 (p.u.)", 9, 14, 4), real("Mês 3 (p.u.)", 16, 21, 4),
+                          real("Mês 4 (p.u.)", 23, 28, 4), real("Mês 5 (p.u.)", 30, 35, 4), real("Mês 6 (p.u.)", 37, 42, 4),
+                          real("Mês 7 (p.u.)", 44, 49, 4), real("Mês 8 (p.u.)", 51, 56, 4), real("Mês 9 (p.u.)", 58, 63, 4),
+                          real("Mês 10 (p.u.)", 65, 70, 4), real("Mês 11 (p.u.)", 72, 77, 4), real("Mês 12 (p.u.)", 79, 84, 4)},
+              .filtro = {preenchido(9, 14), vazio(86, 91)},
+              .contextos = {{{preenchido(2, 4), vazio(9, 91)}}},
+              .mesma_regiao = true},
+             {.titulo = "Interligações",
+              .colunas = {ref(inteiro("Submercado A", 2, 4), Referencia::Submercado),
+                          ref(inteiro("Submercado B", 6, 8), Referencia::Submercado)},
+              .filtro = {preenchido(2, 4), vazio(9, 91)},
+              .mesma_regiao = true,
+              .formulario = true},
+             {.titulo = "Usinas não simuladas por patamar e ano",
+              .linhas_cabecalho = 4,
+              .terminador = "9999",
+              .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado),
+                          deContexto(inteiro("Bloco", 6, 8), 0), deContexto(inteiro("Ano", 4, 7), 1), ordinal("Patamar", 1),
+                          real("Jan (p.u.)", 9, 14, 4), real("Fev (p.u.)", 16, 21, 4), real("Mar (p.u.)", 23, 28, 4),
+                          real("Abr (p.u.)", 30, 35, 4), real("Mai (p.u.)", 37, 42, 4), real("Jun (p.u.)", 44, 49, 4),
+                          real("Jul (p.u.)", 51, 56, 4), real("Ago (p.u.)", 58, 63, 4), real("Set (p.u.)", 65, 70, 4),
+                          real("Out (p.u.)", 72, 77, 4), real("Nov (p.u.)", 79, 84, 4), real("Dez (p.u.)", 86, 91, 4)},
+              .filtro = {preenchido(86, 91)},
+              .contextos = {{{preenchido(2, 4), vazio(9, 91)}}, {{preenchido(4, 7), preenchido(86, 91)}}}},
+             {.titulo = "Usinas não simuladas por patamar, sazonal",
+              .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado),
+                          deContexto(inteiro("Bloco", 6, 8), 0), ordinal("Patamar", 0), real("Mês 1 (p.u.)", 2, 7, 4),
+                          real("Mês 2 (p.u.)", 9, 14, 4), real("Mês 3 (p.u.)", 16, 21, 4), real("Mês 4 (p.u.)", 23, 28, 4),
+                          real("Mês 5 (p.u.)", 30, 35, 4), real("Mês 6 (p.u.)", 37, 42, 4), real("Mês 7 (p.u.)", 44, 49, 4),
+                          real("Mês 8 (p.u.)", 51, 56, 4), real("Mês 9 (p.u.)", 58, 63, 4), real("Mês 10 (p.u.)", 65, 70, 4),
+                          real("Mês 11 (p.u.)", 72, 77, 4), real("Mês 12 (p.u.)", 79, 84, 4)},
+              .filtro = {preenchido(9, 14), vazio(86, 91)},
+              .contextos = {{{preenchido(2, 4), vazio(9, 91)}}},
+              .mesma_regiao = true},
+             {.titulo = "Blocos de usinas não simuladas",
+              .colunas = {ref(inteiro("Submercado", 2, 4), Referencia::Submercado), inteiro("Bloco", 6, 8)},
+              .filtro = {preenchido(2, 4), vazio(9, 91)},
+              .mesma_regiao = true}}};
 }
 
 // confhd.dat, manual do NEWAVE 30.0.2, secao 3.9: dois registros de comentario e um registro por
@@ -469,10 +477,11 @@ LayoutArquivoFixo confhd() {
         "3.9",
         {{.titulo = "Usinas hidroelétricas na configuração",
           .linhas_cabecalho = 2,
-          .colunas = {inteiro("Usina", 2, 5), texto("Nome", 7, 18), inteiro("Posto", 20, 23), inteiro("Usina a jusante", 26, 29),
-                      inteiro("REE", 31, 34), real("Volume inicial (% vol. útil)", 36, 41, 2), texto("Situação", 45, 46),
-                      inteiro("Modifica cadastro", 50, 53), inteiro("Ano início histórico", 59, 62),
-                      inteiro("Ano fim histórico", 68, 71), inteiro("Tecnologia", 74, 76)}}}};
+          .colunas = {inteiro("Usina", 2, 5), texto("Nome", 7, 18), ref(inteiro("Posto", 20, 23), Referencia::Posto),
+                      ref(inteiro("Usina a jusante", 26, 29), Referencia::UsinaHidro),
+                      ref(inteiro("REE", 31, 34), Referencia::Ree), real("Volume inicial (% vol. útil)", 36, 41, 2),
+                      texto("Situação", 45, 46), inteiro("Modifica cadastro", 50, 53), inteiro("Ano início histórico", 59, 62),
+                      inteiro("Ano fim histórico", 68, 71), ref(inteiro("Tecnologia", 74, 76), Referencia::Tecnologia)}}}};
 }
 
 // exph.dat, manual do NEWAVE 30.0.2, secao 3.13: tres registros de comentario e, para cada usina,
@@ -480,21 +489,20 @@ LayoutArquivoFixo confhd() {
 // unidades), o primeiro registro da usina com codigo e nome, ate o 9999 no campo 1 que fecha o
 // cronograma da usina.
 LayoutArquivoFixo exph() {
-    return {
-        "3.13",
-        {{.titulo = "Entrada de unidades",
-          .linhas_cabecalho = 3,
-          .colunas = {deContexto(inteiro("Usina", 1, 4), 0), deContexto(texto("Nome", 6, 17), 0), inteiro("Mês entrada", 45, 46),
-                      inteiro("Ano entrada", 48, 51), inteiro("Unidade", 61, 62), inteiro("Conjunto", 65, 65)},
-          .filtro = {preenchido(48, 51)},
-          .contextos = {{{preenchido(1, 4), diferente(1, 4, {"9999"})}}}},
-         {.titulo = "Usinas e enchimento de volume morto",
-          .colunas = {inteiro("Usina", 1, 4), texto("Nome", 6, 17), inteiro("Mês início enchimento", 19, 20),
-                      inteiro("Ano início enchimento", 22, 25), inteiro("Duração enchimento (meses)", 32, 33),
-                      real("Volume morto preenchido (%)", 38, 42, 1)},
-          .filtro = {preenchido(1, 4), diferente(1, 4, {"9999"})},
-          .mesma_regiao = true,
-          .formulario = true}}};
+    return {"3.13",
+            {{.titulo = "Entrada de unidades",
+              .linhas_cabecalho = 3,
+              .colunas = {ref(deContexto(inteiro("Usina", 1, 4), 0), Referencia::UsinaHidro), deContexto(texto("Nome", 6, 17), 0),
+                          inteiro("Mês entrada", 45, 46), inteiro("Ano entrada", 48, 51), inteiro("Unidade", 61, 62),
+                          inteiro("Conjunto", 65, 65)},
+              .filtro = {preenchido(48, 51)},
+              .contextos = {{{preenchido(1, 4), diferente(1, 4, {"9999"})}}}},
+             {.titulo = "Usinas e enchimento de volume morto",
+              .colunas = {ref(inteiro("Usina", 1, 4), Referencia::UsinaHidro), texto("Nome", 6, 17),
+                          inteiro("Mês início enchimento", 19, 20), inteiro("Ano início enchimento", 22, 25),
+                          inteiro("Duração enchimento (meses)", 32, 33), real("Volume morto preenchido (%)", 38, 42, 1)},
+              .filtro = {preenchido(1, 4), diferente(1, 4, {"9999"})},
+              .mesma_regiao = true}}};
 }
 
 // loss.dat (perda.dat no manual do NEWAVE 30.0.2, secao 3.20): quatro blocos, cada um precedido de
@@ -509,52 +517,56 @@ LayoutArquivoFixo loss() {
             {{.titulo = "Perdas das hidroelétricas",
               .linhas_cabecalho = 2,
               .terminador = "9999",
-              .colunas = {deContexto(inteiro("Usina", 2, 5), 0), deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1),
-                          real("Jan (p.u.)", 15, 19, 3), real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3),
-                          real("Abr (p.u.)", 33, 37, 3), real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3),
-                          real("Jul (p.u.)", 51, 55, 3), real("Ago (p.u.)", 57, 61, 3), real("Set (p.u.)", 63, 67, 3),
-                          real("Out (p.u.)", 69, 73, 3), real("Nov (p.u.)", 75, 79, 3), real("Dez (p.u.)", 81, 85, 3)},
+              .colunas = {ref(deContexto(inteiro("Usina", 2, 5), 0), Referencia::UsinaHidro),
+                          deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 15, 19, 3),
+                          real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3), real("Abr (p.u.)", 33, 37, 3),
+                          real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3), real("Jul (p.u.)", 51, 55, 3),
+                          real("Ago (p.u.)", 57, 61, 3), real("Set (p.u.)", 63, 67, 3), real("Out (p.u.)", 69, 73, 3),
+                          real("Nov (p.u.)", 75, 79, 3), real("Dez (p.u.)", 81, 85, 3)},
               .filtro = {vazio(2, 5)},
               .contextos = {{{preenchido(2, 5)}}, {{vazio(2, 5), preenchido(7, 10)}}}},
              {.titulo = "Hidroelétricas",
-              .colunas = {inteiro("Usina", 2, 5)},
+              .colunas = {ref(inteiro("Usina", 2, 5), Referencia::UsinaHidro)},
               .filtro = {preenchido(2, 5)},
               .mesma_regiao = true,
               .formulario = true},
              {.titulo = "Perdas das termoelétricas",
               .linhas_cabecalho = 2,
               .terminador = "9999",
-              .colunas = {deContexto(inteiro("Usina", 2, 5), 0), deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1),
-                          real("Jan (p.u.)", 15, 19, 3), real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3),
-                          real("Abr (p.u.)", 33, 37, 3), real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3),
-                          real("Jul (p.u.)", 51, 55, 3), real("Ago (p.u.)", 57, 61, 3), real("Set (p.u.)", 63, 67, 3),
-                          real("Out (p.u.)", 69, 73, 3), real("Nov (p.u.)", 75, 79, 3), real("Dez (p.u.)", 81, 85, 3)},
+              .colunas = {ref(deContexto(inteiro("Usina", 2, 5), 0), Referencia::UsinaTermica),
+                          deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 15, 19, 3),
+                          real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3), real("Abr (p.u.)", 33, 37, 3),
+                          real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3), real("Jul (p.u.)", 51, 55, 3),
+                          real("Ago (p.u.)", 57, 61, 3), real("Set (p.u.)", 63, 67, 3), real("Out (p.u.)", 69, 73, 3),
+                          real("Nov (p.u.)", 75, 79, 3), real("Dez (p.u.)", 81, 85, 3)},
               .filtro = {vazio(2, 5)},
               .contextos = {{{preenchido(2, 5)}}, {{vazio(2, 5), preenchido(7, 10)}}}},
              {.titulo = "Termoelétricas",
-              .colunas = {inteiro("Usina", 2, 5)},
+              .colunas = {ref(inteiro("Usina", 2, 5), Referencia::UsinaTermica)},
               .filtro = {preenchido(2, 5)},
               .mesma_regiao = true,
               .formulario = true},
              {.titulo = "Perdas dos submercados (não implementado)",
               .linhas_cabecalho = 2,
               .terminador = "9999",
-              .colunas = {deContexto(inteiro("Submercado", 2, 5), 0), deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1),
-                          real("Jan (p.u.)", 15, 19, 3), real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3),
-                          real("Abr (p.u.)", 33, 37, 3), real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3),
-                          real("Jul (p.u.)", 51, 55, 3), real("Ago (p.u.)", 57, 61, 3), real("Set (p.u.)", 63, 67, 3),
-                          real("Out (p.u.)", 69, 73, 3), real("Nov (p.u.)", 75, 79, 3), real("Dez (p.u.)", 81, 85, 3)},
+              .colunas = {ref(deContexto(inteiro("Submercado", 2, 5), 0), Referencia::Submercado),
+                          deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 15, 19, 3),
+                          real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3), real("Abr (p.u.)", 33, 37, 3),
+                          real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3), real("Jul (p.u.)", 51, 55, 3),
+                          real("Ago (p.u.)", 57, 61, 3), real("Set (p.u.)", 63, 67, 3), real("Out (p.u.)", 69, 73, 3),
+                          real("Nov (p.u.)", 75, 79, 3), real("Dez (p.u.)", 81, 85, 3)},
               .filtro = {vazio(2, 5)},
               .contextos = {{{preenchido(2, 5)}}, {{vazio(2, 5), preenchido(7, 10)}}}},
              {.titulo = "Submercados (não implementado)",
-              .colunas = {inteiro("Submercado", 2, 5)},
+              .colunas = {ref(inteiro("Submercado", 2, 5), Referencia::Submercado)},
               .filtro = {preenchido(2, 5)},
               .mesma_regiao = true,
               .formulario = true},
              {.titulo = "Perdas entre submercados",
               .linhas_cabecalho = 2,
               .terminador = "999",
-              .colunas = {deContexto(inteiro("Submercado A", 2, 5), 0), deContexto(inteiro("Submercado B", 7, 10), 0),
+              .colunas = {ref(deContexto(inteiro("Submercado A", 2, 5), 0), Referencia::Submercado),
+                          ref(deContexto(inteiro("Submercado B", 7, 10), 0), Referencia::Submercado),
                           deContexto(inteiro("Ano", 7, 10), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 15, 19, 3),
                           real("Fev (p.u.)", 21, 25, 3), real("Mar (p.u.)", 27, 31, 3), real("Abr (p.u.)", 33, 37, 3),
                           real("Mai (p.u.)", 39, 43, 3), real("Jun (p.u.)", 45, 49, 3), real("Jul (p.u.)", 51, 55, 3),
@@ -563,7 +575,8 @@ LayoutArquivoFixo loss() {
               .filtro = {vazio(2, 5)},
               .contextos = {{{preenchido(2, 5)}}, {{vazio(2, 5), preenchido(7, 10)}}}},
              {.titulo = "Pares de submercados",
-              .colunas = {inteiro("Submercado A", 2, 5), inteiro("Submercado B", 7, 10)},
+              .colunas = {ref(inteiro("Submercado A", 2, 5), Referencia::Submercado),
+                          ref(inteiro("Submercado B", 7, 10), Referencia::Submercado)},
               .filtro = {preenchido(2, 5)},
               .mesma_regiao = true,
               .formulario = true}}};
@@ -573,15 +586,16 @@ LayoutArquivoFixo loss() {
 // usina e ano, com a vazao desviada ou adicionada de cada mes a cada 7 colunas a partir da 10 e o
 // flag de usina NC na 98, ate o 9999 no campo 1.
 LayoutArquivoFixo dsvagua() {
-    return {"3.21",
-            {{.titulo = "Outros usos da água",
-              .linhas_cabecalho = 2,
-              .terminador = "9999",
-              .colunas = {inteiro("Ano", 1, 4), inteiro("Usina", 6, 9), real("Jan (m³/s)", 10, 16, 1),
-                          real("Fev (m³/s)", 17, 23, 1), real("Mar (m³/s)", 24, 30, 1), real("Abr (m³/s)", 31, 37, 1),
-                          real("Mai (m³/s)", 38, 44, 1), real("Jun (m³/s)", 45, 51, 1), real("Jul (m³/s)", 52, 58, 1),
-                          real("Ago (m³/s)", 59, 65, 1), real("Set (m³/s)", 66, 72, 1), real("Out (m³/s)", 73, 79, 1),
-                          real("Nov (m³/s)", 80, 86, 1), real("Dez (m³/s)", 87, 93, 1), inteiro("Considera se NC", 98, 101)}}}};
+    return {
+        "3.21",
+        {{.titulo = "Outros usos da água",
+          .linhas_cabecalho = 2,
+          .terminador = "9999",
+          .colunas = {inteiro("Ano", 1, 4), ref(inteiro("Usina", 6, 9), Referencia::UsinaHidro), real("Jan (m³/s)", 10, 16, 1),
+                      real("Fev (m³/s)", 17, 23, 1), real("Mar (m³/s)", 24, 30, 1), real("Abr (m³/s)", 31, 37, 1),
+                      real("Mai (m³/s)", 38, 44, 1), real("Jun (m³/s)", 45, 51, 1), real("Jul (m³/s)", 52, 58, 1),
+                      real("Ago (m³/s)", 59, 65, 1), real("Set (m³/s)", 66, 72, 1), real("Out (m³/s)", 73, 79, 1),
+                      real("Nov (m³/s)", 80, 86, 1), real("Dez (m³/s)", 87, 93, 1), inteiro("Considera se NC", 98, 101)}}}};
 }
 
 // vazpast.dat, manual do NEWAVE 30.0.2, secao 3.22.3: tres registros de comentario e um registro
@@ -592,11 +606,11 @@ LayoutArquivoFixo vazpast() {
     return {"3.22.3",
             {{.titulo = "Tendência hidrológica",
               .linhas_cabecalho = 3,
-              .colunas = {inteiro("Posto", 3, 5), real("Jan (m³/s)", 19, 27, 2), real("Fev (m³/s)", 29, 37, 2),
-                          real("Mar (m³/s)", 39, 47, 2), real("Abr (m³/s)", 49, 57, 2), real("Mai (m³/s)", 59, 67, 2),
-                          real("Jun (m³/s)", 69, 77, 2), real("Jul (m³/s)", 79, 87, 2), real("Ago (m³/s)", 89, 97, 2),
-                          real("Set (m³/s)", 99, 107, 2), real("Out (m³/s)", 109, 117, 2), real("Nov (m³/s)", 119, 127, 2),
-                          real("Dez (m³/s)", 129, 137, 2)}}}};
+              .colunas = {ref(inteiro("Posto", 3, 5), Referencia::Posto), real("Jan (m³/s)", 19, 27, 2),
+                          real("Fev (m³/s)", 29, 37, 2), real("Mar (m³/s)", 39, 47, 2), real("Abr (m³/s)", 49, 57, 2),
+                          real("Mai (m³/s)", 59, 67, 2), real("Jun (m³/s)", 69, 77, 2), real("Jul (m³/s)", 79, 87, 2),
+                          real("Ago (m³/s)", 89, 97, 2), real("Set (m³/s)", 99, 107, 2), real("Out (m³/s)", 109, 117, 2),
+                          real("Nov (m³/s)", 119, 127, 2), real("Dez (m³/s)", 129, 137, 2)}}}};
 }
 
 // gtminpat.dat, manual do NEWAVE 30.0.2, secao 3.23: dois registros de comentario e blocos sem
@@ -607,32 +621,34 @@ LayoutArquivoFixo vazpast() {
 // patamares, sem o ano. Os registros de fatores dos dois blocos se distinguem por dezembro: colunas
 // 103 a 108 no bloco 1 e 112 a 117 no bloco 2.
 LayoutArquivoFixo gtminpat() {
-    return {
-        "3.23",
-        {{.titulo = "Fatores por patamar",
-          .linhas_cabecalho = 2,
-          .colunas = {deContexto(inteiro("Submercado", 1, 3), 0), deContexto(inteiro("Classe", 7, 9), 0), ordinal("Patamar", 0),
-                      real("Jan (p.u.)", 4, 9, 4), real("Fev (p.u.)", 13, 18, 4), real("Mar (p.u.)", 22, 27, 4),
-                      real("Abr (p.u.)", 31, 36, 4), real("Mai (p.u.)", 40, 45, 4), real("Jun (p.u.)", 49, 54, 4),
-                      real("Jul (p.u.)", 58, 63, 4), real("Ago (p.u.)", 67, 72, 4), real("Set (p.u.)", 76, 81, 4),
-                      real("Out (p.u.)", 85, 90, 4), real("Nov (p.u.)", 94, 99, 4), real("Dez (p.u.)", 103, 108, 4)},
-          .filtro = {vazio(1, 3), vazio(112, 117)},
-          .contextos = {{{preenchido(1, 3)}}}},
-         {.titulo = "Fatores por ano e patamar",
-          .colunas = {deContexto(inteiro("Submercado", 1, 3), 0), deContexto(inteiro("Classe", 7, 9), 0),
-                      deContexto(inteiro("Ano", 5, 8), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 13, 18, 4),
-                      real("Fev (p.u.)", 22, 27, 4), real("Mar (p.u.)", 31, 36, 4), real("Abr (p.u.)", 40, 45, 4),
-                      real("Mai (p.u.)", 49, 54, 4), real("Jun (p.u.)", 58, 63, 4), real("Jul (p.u.)", 67, 72, 4),
-                      real("Ago (p.u.)", 76, 81, 4), real("Set (p.u.)", 85, 90, 4), real("Out (p.u.)", 94, 99, 4),
-                      real("Nov (p.u.)", 103, 108, 4), real("Dez (p.u.)", 112, 117, 4)},
-          .filtro = {vazio(1, 3), preenchido(112, 117)},
-          .contextos = {{{preenchido(1, 3)}}, {{vazio(1, 3), preenchido(5, 8), preenchido(112, 117)}}},
-          .mesma_regiao = true},
-         {.titulo = "Submercados e classes",
-          .colunas = {inteiro("Submercado", 1, 3), inteiro("Classe", 7, 9)},
-          .filtro = {preenchido(1, 3)},
-          .mesma_regiao = true,
-          .formulario = true}}};
+    return {"3.23",
+            {{.titulo = "Fatores por patamar",
+              .linhas_cabecalho = 2,
+              .colunas = {ref(deContexto(inteiro("Submercado", 1, 3), 0), Referencia::Submercado),
+                          ref(deContexto(inteiro("Classe", 7, 9), 0), Referencia::ClasseTermica), ordinal("Patamar", 0),
+                          real("Jan (p.u.)", 4, 9, 4), real("Fev (p.u.)", 13, 18, 4), real("Mar (p.u.)", 22, 27, 4),
+                          real("Abr (p.u.)", 31, 36, 4), real("Mai (p.u.)", 40, 45, 4), real("Jun (p.u.)", 49, 54, 4),
+                          real("Jul (p.u.)", 58, 63, 4), real("Ago (p.u.)", 67, 72, 4), real("Set (p.u.)", 76, 81, 4),
+                          real("Out (p.u.)", 85, 90, 4), real("Nov (p.u.)", 94, 99, 4), real("Dez (p.u.)", 103, 108, 4)},
+              .filtro = {vazio(1, 3), vazio(112, 117)},
+              .contextos = {{{preenchido(1, 3)}}}},
+             {.titulo = "Fatores por ano e patamar",
+              .colunas = {ref(deContexto(inteiro("Submercado", 1, 3), 0), Referencia::Submercado),
+                          ref(deContexto(inteiro("Classe", 7, 9), 0), Referencia::ClasseTermica),
+                          deContexto(inteiro("Ano", 5, 8), 1), ordinal("Patamar", 1), real("Jan (p.u.)", 13, 18, 4),
+                          real("Fev (p.u.)", 22, 27, 4), real("Mar (p.u.)", 31, 36, 4), real("Abr (p.u.)", 40, 45, 4),
+                          real("Mai (p.u.)", 49, 54, 4), real("Jun (p.u.)", 58, 63, 4), real("Jul (p.u.)", 67, 72, 4),
+                          real("Ago (p.u.)", 76, 81, 4), real("Set (p.u.)", 85, 90, 4), real("Out (p.u.)", 94, 99, 4),
+                          real("Nov (p.u.)", 103, 108, 4), real("Dez (p.u.)", 112, 117, 4)},
+              .filtro = {vazio(1, 3), preenchido(112, 117)},
+              .contextos = {{{preenchido(1, 3)}}, {{vazio(1, 3), preenchido(5, 8), preenchido(112, 117)}}},
+              .mesma_regiao = true},
+             {.titulo = "Submercados e classes",
+              .colunas = {ref(inteiro("Submercado", 1, 3), Referencia::Submercado),
+                          ref(inteiro("Classe", 7, 9), Referencia::ClasseTermica)},
+              .filtro = {preenchido(1, 3)},
+              .mesma_regiao = true,
+              .formulario = true}}};
 }
 
 // penalid.dat, manual do NEWAVE 30.0.2, secao 3.24: dois registros de comentario e um bloco unico
@@ -664,19 +680,19 @@ LayoutArquivoFixo curva() {
          {.titulo = "Penalidades por REE",
           .linhas_cabecalho = 2,
           .terminador = "999",
-          .colunas = {inteiro("REE", 2, 4), real("Penalidade ($/MWh)", 12, 18, 2)},
+          .colunas = {ref(inteiro("REE", 2, 4), Referencia::Ree), real("Penalidade ($/MWh)", 12, 18, 2)},
           .formulario = true},
          {.titulo = "Curva de segurança (% EARmáx)",
           .linhas_cabecalho = 3,
           .terminador = "9999",
-          .colunas = {deContexto(inteiro("REE", 2, 4), 0), inteiro("Ano", 1, 4), real("Jan", 7, 11, 1), real("Fev", 13, 17, 1),
-                      real("Mar", 19, 23, 1), real("Abr", 25, 29, 1), real("Mai", 31, 35, 1), real("Jun", 37, 41, 1),
-                      real("Jul", 43, 47, 1), real("Ago", 49, 53, 1), real("Set", 55, 59, 1), real("Out", 61, 65, 1),
-                      real("Nov", 67, 71, 1), real("Dez", 73, 77, 1)},
+          .colunas = {ref(deContexto(inteiro("REE", 2, 4), 0), Referencia::Ree), inteiro("Ano", 1, 4), real("Jan", 7, 11, 1),
+                      real("Fev", 13, 17, 1), real("Mar", 19, 23, 1), real("Abr", 25, 29, 1), real("Mai", 31, 35, 1),
+                      real("Jun", 37, 41, 1), real("Jul", 43, 47, 1), real("Ago", 49, 53, 1), real("Set", 55, 59, 1),
+                      real("Out", 61, 65, 1), real("Nov", 67, 71, 1), real("Dez", 73, 77, 1)},
           .filtro = {preenchido(1, 1)},
           .contextos = {{{vazio(1, 1), preenchido(2, 4)}}}},
          {.titulo = "REEs da curva de segurança",
-          .colunas = {inteiro("REE", 2, 4)},
+          .colunas = {ref(inteiro("REE", 2, 4), Referencia::Ree)},
           .filtro = {vazio(1, 1), preenchido(2, 4)},
           .mesma_regiao = true,
           .formulario = true},
@@ -703,8 +719,8 @@ LayoutArquivoFixo agrint() {
         {{.titulo = "Agrupamentos de interligações",
           .linhas_cabecalho = 3,
           .terminador = "999",
-          .colunas = {inteiro("Agrupamento", 2, 4), inteiro("Submercado origem", 6, 8), inteiro("Submercado destino", 10, 12),
-                      real("Coeficiente", 14, 20, 4)}},
+          .colunas = {inteiro("Agrupamento", 2, 4), ref(inteiro("Submercado origem", 6, 8), Referencia::Submercado),
+                      ref(inteiro("Submercado destino", 10, 12), Referencia::Submercado), real("Coeficiente", 14, 20, 4)}},
          {.titulo = "Limites dos agrupamentos",
           .linhas_cabecalho = 3,
           .terminador = "999",
@@ -724,14 +740,14 @@ LayoutArquivoFixo c_adic() {
             {{.titulo = "Carga/oferta adicional (MWmédio)",
               .linhas_cabecalho = 2,
               .terminador = "999",
-              .colunas = {deContexto(inteiro("Submercado", 2, 4), 0), texto("Ano", 1, 7), real("Jan", 8, 14, 0),
-                          real("Fev", 16, 22, 0), real("Mar", 24, 30, 0), real("Abr", 32, 38, 0), real("Mai", 40, 46, 0),
-                          real("Jun", 48, 54, 0), real("Jul", 56, 62, 0), real("Ago", 64, 70, 0), real("Set", 72, 78, 0),
-                          real("Out", 80, 86, 0), real("Nov", 88, 94, 0), real("Dez", 96, 102, 0)},
+              .colunas = {ref(deContexto(inteiro("Submercado", 2, 4), 0), Referencia::Submercado), texto("Ano", 1, 7),
+                          real("Jan", 8, 14, 0), real("Fev", 16, 22, 0), real("Mar", 24, 30, 0), real("Abr", 32, 38, 0),
+                          real("Mai", 40, 46, 0), real("Jun", 48, 54, 0), real("Jul", 56, 62, 0), real("Ago", 64, 70, 0),
+                          real("Set", 72, 78, 0), real("Out", 80, 86, 0), real("Nov", 88, 94, 0), real("Dez", 96, 102, 0)},
               .filtro = {preenchido(96, 102)},
               .contextos = {{{preenchido(2, 4), vazio(96, 102)}}}},
              {.titulo = "Submercados",
-              .colunas = {inteiro("Submercado", 2, 4)},
+              .colunas = {ref(inteiro("Submercado", 2, 4), Referencia::Submercado)},
               .filtro = {preenchido(2, 4), vazio(96, 102)},
               .mesma_regiao = true,
               .formulario = true}}};
@@ -742,23 +758,25 @@ LayoutArquivoFixo c_adic() {
 // (geracao antecipada de cada patamar de carga, ate cinco, a cada 12 colunas a partir da 25), ate o
 // 9999 no campo 1.
 LayoutArquivoFixo adterm() {
-    return {"3.28",
-            {{.titulo = "Geração antecipada por lag",
-              .linhas_cabecalho = 2,
-              .terminador = "9999",
-              .colunas = {deContexto(inteiro("Usina", 2, 5), 0), deContexto(texto("Nome", 8, 19), 0), ordinal("Lag", 0),
-                          deCarga(real("GT antecipada pat. 1 (MW)", 25, 34, 2), 1),
-                          deCarga(real("GT antecipada pat. 2 (MW)", 37, 46, 2), 2),
-                          deCarga(real("GT antecipada pat. 3 (MW)", 49, 58, 2), 3),
-                          deCarga(real("GT antecipada pat. 4 (MW)", 61, 70, 2), 4),
-                          deCarga(real("GT antecipada pat. 5 (MW)", 73, 82, 2), 5)},
-              .filtro = {vazio(2, 5)},
-              .contextos = {{{preenchido(2, 5)}}}},
-             {.titulo = "Usinas GNL",
-              .colunas = {inteiro("Usina", 2, 5), texto("Nome", 8, 19), inteiro("Lag de antecipação", 22, 22)},
-              .filtro = {preenchido(2, 5)},
-              .mesma_regiao = true,
-              .formulario = true}}};
+    return {
+        "3.28",
+        {{.titulo = "Geração antecipada por lag",
+          .linhas_cabecalho = 2,
+          .terminador = "9999",
+          .colunas = {ref(deContexto(inteiro("Usina", 2, 5), 0), Referencia::UsinaTermica), deContexto(texto("Nome", 8, 19), 0),
+                      ordinal("Lag", 0), deCarga(real("GT antecipada pat. 1 (MW)", 25, 34, 2), 1),
+                      deCarga(real("GT antecipada pat. 2 (MW)", 37, 46, 2), 2),
+                      deCarga(real("GT antecipada pat. 3 (MW)", 49, 58, 2), 3),
+                      deCarga(real("GT antecipada pat. 4 (MW)", 61, 70, 2), 4),
+                      deCarga(real("GT antecipada pat. 5 (MW)", 73, 82, 2), 5)},
+          .filtro = {vazio(2, 5)},
+          .contextos = {{{preenchido(2, 5)}}}},
+         {.titulo = "Usinas GNL",
+          .colunas = {ref(inteiro("Usina", 2, 5), Referencia::UsinaTermica), texto("Nome", 8, 19),
+                      inteiro("Lag de antecipação", 22, 22)},
+          .filtro = {preenchido(2, 5)},
+          .mesma_regiao = true,
+          .formulario = true}}};
 }
 
 // ghmin.dat, manual do NEWAVE 30.0.2, secao 3.29: dois registros de comentario e um registro por
@@ -769,8 +787,8 @@ LayoutArquivoFixo ghmin() {
             {{.titulo = "Gerações hidráulicas mínimas",
               .linhas_cabecalho = 2,
               .terminador = "999",
-              .colunas = {inteiro("Usina", 1, 3), inteiro("Mês início", 6, 7), texto("Ano início", 9, 12),
-                          inteiro("Patamar", 15, 15), real("GH mín. (MWmédio)", 18, 23, 1)}}}};
+              .colunas = {ref(inteiro("Usina", 1, 3), Referencia::UsinaHidro), inteiro("Mês início", 6, 7),
+                          texto("Ano início", 9, 12), inteiro("Patamar", 15, 15), real("GH mín. (MWmédio)", 18, 23, 1)}}}};
 }
 
 // sar.dat, manual do NEWAVE 30.0.2, secao 3.30: quatro blocos sem terminador; bloco 1 com um
@@ -792,7 +810,7 @@ LayoutArquivoFixo sar() {
              {.titulo = "Penalidade ($/MWh)", .colunas = {real("Valor", 14, 21, 2)}, .max_registros = 1, .formulario = true},
              {.titulo = "Nível meta por REE",
               .linhas_cabecalho = 2,
-              .colunas = {inteiro("REE", 1, 4), real("Nível meta ano", 17, 21, 1)},
+              .colunas = {ref(inteiro("REE", 1, 4), Referencia::Ree), real("Nível meta ano", 17, 21, 1)},
               .passo_repeticao = 8,
               .filtro = {preenchido(1, 4), vazio(15, 16), preenchido(17, 21), vazio(22, 24)},
               .contigua = true},
@@ -812,13 +830,13 @@ LayoutArquivoFixo sar() {
               .formulario = true},
              {.titulo = "Ano do histórico por REE",
               .linhas_cabecalho = 2,
-              .colunas = {inteiro("REE", 2, 4), inteiro("Ano do histórico", 19, 22)},
+              .colunas = {ref(inteiro("REE", 2, 4), Referencia::Ree), inteiro("Ano do histórico", 19, 22)},
               .filtro = {vazio(27, 32)}},
              {.titulo = "Percentual da média por REE (%)",
-              .colunas = {inteiro("REE", 2, 4), real("Jan", 19, 24, 2), real("Fev", 27, 32, 2), real("Mar", 35, 40, 2),
-                          real("Abr", 43, 48, 2), real("Mai", 51, 56, 2), real("Jun", 59, 64, 2), real("Jul", 67, 72, 2),
-                          real("Ago", 75, 80, 2), real("Set", 83, 88, 2), real("Out", 91, 96, 2), real("Nov", 99, 104, 2),
-                          real("Dez", 107, 112, 2)},
+              .colunas = {ref(inteiro("REE", 2, 4), Referencia::Ree), real("Jan", 19, 24, 2), real("Fev", 27, 32, 2),
+                          real("Mar", 35, 40, 2), real("Abr", 43, 48, 2), real("Mai", 51, 56, 2), real("Jun", 59, 64, 2),
+                          real("Jul", 67, 72, 2), real("Ago", 75, 80, 2), real("Set", 83, 88, 2), real("Out", 91, 96, 2),
+                          real("Nov", 99, 104, 2), real("Dez", 107, 112, 2)},
               .filtro = {preenchido(27, 32)},
               .mesma_regiao = true}}};
 }
@@ -864,7 +882,7 @@ LayoutArquivoFixo ree() {
             {{.titulo = "REEs",
               .linhas_cabecalho = 3,
               .terminador = "999",
-              .colunas = {inteiro("REE", 2, 4), texto("Nome", 6, 15), inteiro("Submercado", 19, 21),
+              .colunas = {inteiro("REE", 2, 4), texto("Nome", 6, 15), ref(inteiro("Submercado", 19, 21), Referencia::Submercado),
                           inteiro("Mês agregação", 24, 25), inteiro("Ano agregação", 27, 30)}},
              {.titulo = "Usinas fictícias",
               .colunas = {inteiro("Manter fictícias", 22, 25)},
@@ -877,20 +895,24 @@ LayoutArquivoFixo ree() {
 // campo 1; bloco 2 com dois registros de comentario e os limites por periodo e patamar ate o 999 no
 // campo 1.
 LayoutArquivoFixo re() {
-    return {"3.33",
-            {{.titulo = "Restrições elétricas",
-              .linhas_cabecalho = 2,
-              .terminador = "999",
-              .colunas = {inteiro("Restrição", 1, 3), inteiro("Usina 1", 7, 9), inteiro("Usina 2", 11, 13),
-                          inteiro("Usina 3", 15, 17), inteiro("Usina 4", 19, 21), inteiro("Usina 5", 23, 25),
-                          inteiro("Usina 6", 27, 29), inteiro("Usina 7", 31, 33), inteiro("Usina 8", 35, 37),
-                          inteiro("Usina 9", 39, 41), inteiro("Usina 10", 43, 45)}},
-             {.titulo = "Limites das restrições",
-              .linhas_cabecalho = 2,
-              .terminador = "999",
-              .colunas = {inteiro("Restrição", 1, 3), inteiro("Mês início", 5, 6), inteiro("Ano início", 8, 11),
-                          inteiro("Mês fim", 13, 14), inteiro("Ano fim", 16, 19), inteiro("Patamar", 21, 21),
-                          real("Limite (MWmédio)", 23, 37, 2)}}}};
+    return {
+        "3.33",
+        {{.titulo = "Restrições elétricas",
+          .linhas_cabecalho = 2,
+          .terminador = "999",
+          .colunas =
+              {inteiro("Restrição", 1, 3), ref(inteiro("Usina 1", 7, 9), Referencia::UsinaHidro),
+               ref(inteiro("Usina 2", 11, 13), Referencia::UsinaHidro), ref(inteiro("Usina 3", 15, 17), Referencia::UsinaHidro),
+               ref(inteiro("Usina 4", 19, 21), Referencia::UsinaHidro), ref(inteiro("Usina 5", 23, 25), Referencia::UsinaHidro),
+               ref(inteiro("Usina 6", 27, 29), Referencia::UsinaHidro), ref(inteiro("Usina 7", 31, 33), Referencia::UsinaHidro),
+               ref(inteiro("Usina 8", 35, 37), Referencia::UsinaHidro), ref(inteiro("Usina 9", 39, 41), Referencia::UsinaHidro),
+               ref(inteiro("Usina 10", 43, 45), Referencia::UsinaHidro)}},
+         {.titulo = "Limites das restrições",
+          .linhas_cabecalho = 2,
+          .terminador = "999",
+          .colunas = {inteiro("Restrição", 1, 3), inteiro("Mês início", 5, 6), inteiro("Ano início", 8, 11),
+                      inteiro("Mês fim", 13, 14), inteiro("Ano fim", 16, 19), inteiro("Patamar", 21, 21),
+                      real("Limite (MWmédio)", 23, 37, 2)}}}};
 }
 
 // selcor.dat, manual do NEWAVE 30.0.2, secao 3.34: dois registros de comentario seguidos de 7
@@ -935,14 +957,15 @@ LayoutArquivoFixo tecno() {
 LayoutArquivoFixo polinjus() {
     return {"3.41.3",
             {{.titulo = "Curvas de jusante",
-              .colunas = {inteiro("Usina", 2, 2), inteiro("Curva", 3, 3), real("Altura de referência (m)", 4, 4, 0)},
+              .colunas = {ref(inteiro("Usina", 2, 2), Referencia::UsinaHidro), inteiro("Curva", 3, 3),
+                          real("Altura de referência (m)", 4, 4, 0)},
               .filtro = {igual(1, 1, {"HIDRELETRICA-CURVAJUSANTE"})}},
              {.titulo = "Polinômios por partes",
-              .colunas = {inteiro("Usina", 2, 2), inteiro("Curva", 3, 3), inteiro("Partes", 4, 4)},
+              .colunas = {ref(inteiro("Usina", 2, 2), Referencia::UsinaHidro), inteiro("Curva", 3, 3), inteiro("Partes", 4, 4)},
               .filtro = {igual(1, 1, {"HIDRELETRICA-CURVAJUSANTE-POLINOMIOPORPARTES"})},
               .mesma_regiao = true},
              {.titulo = "Partes dos polinômios",
-              .colunas = {inteiro("Usina", 2, 2), inteiro("Curva", 3, 3), inteiro("Parte", 4, 4),
+              .colunas = {ref(inteiro("Usina", 2, 2), Referencia::UsinaHidro), inteiro("Curva", 3, 3), inteiro("Parte", 4, 4),
                           real("Vazão jusante mín. (m³/s)", 5, 5, 0), real("Vazão jusante máx. (m³/s)", 6, 6, 0),
                           real("Coef. grau 0", 7, 7, 0), real("Coef. grau 1", 8, 8, 0), real("Coef. grau 2", 9, 9, 0),
                           real("Coef. grau 3", 10, 10, 0), real("Coef. grau 4", 11, 11, 0)},
@@ -959,7 +982,7 @@ LayoutArquivoFixo volref_saz() {
     return {"3.42",
             {{.titulo = "Volumes de referência",
               .linhas_cabecalho = 3,
-              .colunas = {inteiro("Usina", 1, 3), texto("Nome", 6, 17), real("Jan (hm³)", 20, 27, 2),
+              .colunas = {ref(inteiro("Usina", 1, 3), Referencia::UsinaHidro), texto("Nome", 6, 17), real("Jan (hm³)", 20, 27, 2),
                           real("Fev (hm³)", 30, 37, 2), real("Mar (hm³)", 40, 47, 2), real("Abr (hm³)", 50, 57, 2),
                           real("Mai (hm³)", 60, 67, 2), real("Jun (hm³)", 70, 77, 2), real("Jul (hm³)", 80, 87, 2),
                           real("Ago (hm³)", 90, 97, 2), real("Set (hm³)", 100, 107, 2), real("Out (hm³)", 110, 117, 2),
@@ -1046,4 +1069,18 @@ LayoutArquivoFixo ajustarPatamares(const LayoutArquivoFixo& layout, NumeroPatama
             return limite > 0 && c.patamar > limite;
         });
     return ajustado;
+}
+
+// Onde estao os itens de cada cadastro referenciado: arquivo, secao e colunas do codigo e do nome. O
+// posto vem do postos.dat, binario, e e tratado a parte pelo repositorio do deck.
+FonteReferencia fonteReferencia(Referencia referencia) {
+    switch (referencia) {
+    case Referencia::Submercado: return {"sistema.dat", 1, 0, 1};
+    case Referencia::Ree: return {"ree.dat", 0, 0, 1};
+    case Referencia::UsinaHidro: return {"confhd.dat", 0, 0, 1};
+    case Referencia::UsinaTermica: return {"conft.dat", 0, 0, 1};
+    case Referencia::ClasseTermica: return {"clast.dat", 0, 0, 1};
+    case Referencia::Tecnologia: return {"tecno.dat", 0, 0, 1};
+    default: return {"", -1, -1, -1};
+    }
 }

@@ -166,10 +166,16 @@ private:
         connect(modelo, &QAbstractItemModel::rowsRemoved, this, &RecursosTabela::aplicar);
     }
 
+    // Valor para copiar e colar: o editavel (o codigo, nas colunas que mostram um nome).
     QString texto(int linha, int coluna) const {
         const QModelIndex ix = tabela_->model()->index(linha, coluna);
         const QVariant edicao = ix.data(Qt::EditRole);
         return (edicao.isValid() ? edicao : ix.data(Qt::DisplayRole)).toString().trimmed();
+    }
+
+    // Valor para o filtro: o que a celula mostra ("SUDESTE (1)").
+    QString exibido(int linha, int coluna) const {
+        return tabela_->model()->index(linha, coluna).data(Qt::DisplayRole).toString().trimmed();
     }
 
     // Linha passa nos filtros de todas as colunas, menos a ignorada (a do menu aberto, para a lista de
@@ -177,7 +183,7 @@ private:
     bool visivel(int linha, int ignorada) const {
         if (oculta_ && oculta_(linha)) return false;
         for (const auto& [coluna, valores] : filtros_)
-            if (coluna != ignorada && !valores.count(texto(linha, coluna))) return false;
+            if (coluna != ignorada && !valores.count(exibido(linha, coluna))) return false;
         return true;
     }
 
@@ -192,7 +198,7 @@ private:
         std::vector<QString> valores;
         for (int r = 0; r < modelo->rowCount() && static_cast<int>(valores.size()) < MAX_VALORES; ++r) {
             if (!visivel(r, coluna)) continue;
-            const QString v = texto(r, coluna);
+            const QString v = exibido(r, coluna);
             if (vistos.insert(v).second) valores.push_back(v);
         }
         bool numericos = true;

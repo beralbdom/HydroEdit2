@@ -54,6 +54,7 @@ void DadosDeck::carregarBinario(const QString& nome_padrao, int tamanho_registro
 // arquivos.dat quando o arquivo tem rotulo la.
 void DadosDeck::carregar(const QString& dir_deck, const std::map<std::string, std::string>& arquivos_dat) {
     arquivos_.clear();
+    referencias_.clear();
     dir_ = dir_deck;
     for (const ArquivoNewave& info : catalogoNewave()) {
         if (binario(info.nome_padrao)) continue;
@@ -117,6 +118,7 @@ Resultado DadosDeck::definir(const QString& nome_padrao, int secao, int registro
     if (it == arquivos_.end() || !it->second.lido) return Resultado::erro("Arquivo nao carregado");
     Resultado r = it->second.arquivo.definir(secao, registro, coluna, texto.toLatin1().toStdString());
     if (r.ok) {
+        referencias_.clear();
         emit alterado(nome_padrao);
         aplicarPatamares(true);
     }
@@ -148,7 +150,10 @@ Resultado DadosDeck::definirTextoBinario(const QString& nome_padrao, int registr
     Entrada* entrada = binarioLido(nome_padrao);
     if (!entrada) return Resultado::erro("Arquivo nao carregado");
     Resultado r = entrada->binario.definirTexto(registro, inicio, tamanho, texto.trimmed().toLatin1().toStdString());
-    if (r.ok) emit alterado(nome_padrao);
+    if (r.ok) {
+        referencias_.clear();
+        emit alterado(nome_padrao);
+    }
     return r;
 }
 
@@ -165,6 +170,56 @@ Resultado DadosDeck::definirInteiroBinario(const QString& nome_padrao, int regis
     return Resultado::sucesso();
 }
 
+// Codigo como numero sem zeros a esquerda ("001" e "1" sao o mesmo REE); texto que nao e numero
+// fica como esta, aparado.
+QString DadosDeck::normalizarCodigo(const QString& codigo) {
+    bool ok = false;
+    const int n = codigo.trimmed().toInt(&ok);
+    return ok ? QString::number(n) : codigo.trimmed();
+}
+
+// Itens do cadastro referenciado, na ordem do arquivo, com rotulo "NOME (codigo)": submercados do
+// sistema.dat, REEs do ree.dat, usinas do confhd.dat e do conft.dat, classes do clast.dat,
+// tecnologias do tecno.dat e postos com nome do postos.dat. A lista e refeita depois de qualquer
+// edicao, porque um nome ou codigo pode ter mudado.
+const std::vector<OpcaoReferencia>& DadosDeck::opcoes(Referencia referencia) const {
+    auto it = referencias_.find(referencia);
+    if (it != referencias_.end()) return it->second;
+    std::vector<OpcaoReferencia> lista;
+    auto rotulo = [](const QString& nome, const QString& codigo) {
+        return nome.isEmpty() ? codigo : QStringLiteral("%1 (%2)").arg(nome, codigo);
+    };
+    if (referencia == Referencia::Posto) {
+        if (const ArquivoBinario* postos = arquivoBinario(QStringLiteral("postos.dat")))
+            for (int r = 0; r < postos->registros(); ++r) {
+                const QString nome = QString::fromLatin1(postos->texto(r, postos_dat::NOME, postos_dat::TAMANHO_NOME).c_str()).trimmed();
+                if (!nome.isEmpty()) lista.push_back({QString::number(r + 1), rotulo(nome, QString::number(r + 1))});
+            }
+    } else {
+        const FonteReferencia fonte = fonteReferencia(referencia);
+        const ArquivoFixo* a = fonte.secao >= 0 ? arquivo(QString::fromLatin1(fonte.arquivo)) : nullptr;
+        if (a && fonte.secao < static_cast<int>(a->secoes().size())) {
+            const int n = static_cast<int>(a->secoes()[static_cast<size_t>(fonte.secao)].linhas.size());
+            for (int r = 0; r < n; ++r) {
+                const QString codigo = normalizarCodigo(QString::fromLatin1(a->valor(fonte.secao, r, fonte.coluna_codigo).c_str()));
+                if (codigo.isEmpty()) continue;
+                const QString nome = QString::fromLatin1(a->valor(fonte.secao, r, fonte.coluna_nome).c_str()).trimmed();
+                lista.push_back({codigo, rotulo(nome, codigo)});
+            }
+        }
+    }
+    return referencias_.emplace(referencia, std::move(lista)).first->second;
+}
+
+// Rotulo do codigo no cadastro referenciado; codigo que nao esta nele aparece como esta.
+QString DadosDeck::rotuloReferencia(Referencia referencia, const QString& codigo) const {
+    const QString chave = normalizarCodigo(codigo);
+    if (chave.isEmpty()) return codigo;
+    for (const OpcaoReferencia& o : opcoes(referencia))
+        if (o.codigo == chave) return o.rotulo;
+    return codigo;
+}
+
 // Texto do arquivo para o editor textual: Latin-1, com quebra LF.
 QString DadosDeck::texto(const QString& nome_padrao) const {
     const ArquivoFixo* a = arquivo(nome_padrao);
@@ -177,6 +232,7 @@ void DadosDeck::substituirTexto(const QString& nome_padrao, const QString& texto
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido) return;
     it->second.arquivo.substituirTexto(texto.toLatin1().toStdString(), it->second.layout);
+    referencias_.clear();
     emit reinterpretado(nome_padrao);
     emit alterado(nome_padrao);
     aplicarPatamares(true);

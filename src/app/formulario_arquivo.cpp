@@ -1,4 +1,5 @@
 #include "formulario_arquivo.h"
+#include <QComboBox>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -8,6 +9,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include "dados_deck.h"
+#include "delegate_referencia.h"
 #include "formulario_usina.h"
 
 namespace {
@@ -49,16 +51,38 @@ FormularioArquivo::FormularioArquivo(const QString& nome_padrao, const LayoutArq
     montar();
 }
 
-// Largura do campo pelo numero de colunas do arquivo que ele ocupa; texto pode ser mais largo.
-QLineEdit* FormularioArquivo::novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai) {
+// Largura do campo pelo numero de colunas do arquivo que ele ocupa; texto pode ser mais largo. Coluna
+// que referencia outro cadastro (submercado, REE, usina...) vira lista com "NOME (codigo)".
+QWidget* FormularioArquivo::novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai) {
     const ColunaFixa& c = arquivo.secoes()[static_cast<size_t>(secao)].definicao.colunas[static_cast<size_t>(coluna)];
+    if (c.referencia != Referencia::Nenhuma && ArquivoFixo::editavel(c)) {
+        auto* lista = new QComboBox(pai);
+        lista->setMaxVisibleItems(20);
+        lista->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+        campos_.push_back({nullptr, lista, secao, registro, coluna});
+        const Referencia referencia = c.referencia;
+        connect(lista, &QComboBox::activated, this, [this, lista, secao, registro, coluna, referencia] {
+            if (atualizando_) return;
+            const ArquivoFixo* a = dados_->arquivo(nome_);
+            if (!a) return;
+            const QString atual = QString::fromLatin1(a->valor(secao, registro, coluna).c_str());
+            const QString novo = lista->currentData().toString();
+            if (DadosDeck::normalizarCodigo(atual) == novo) return;
+            Resultado r = dados_->definir(nome_, secao, registro, coluna, novo);
+            if (!r.ok) {
+                DelegateReferencia::preencher(lista, *dados_, referencia, atual);
+                emit valorRecusado(QString::fromUtf8(r.mensagem));
+            }
+        });
+        return lista;
+    }
     auto* edit = new QLineEdit(pai);
     const int caracteres = layout_.separador ? 12 : std::max(4, c.fim - c.inicio + 1);
     edit->setFixedWidth(std::clamp(edit->fontMetrics().horizontalAdvance(QString(caracteres, QLatin1Char('0'))) + 16, 56, 420));
     if (numerica(c)) edit->setAlignment(Qt::AlignRight);
     edit->setReadOnly(!ArquivoFixo::editavel(c));
     edit->setToolTip(QStringLiteral("Colunas %1 a %2").arg(c.inicio).arg(c.fim));
-    campos_.push_back({edit, secao, registro, coluna});
+    campos_.push_back({edit, nullptr, secao, registro, coluna});
     connect(edit, &QLineEdit::editingFinished, this, [this, edit, secao, registro, coluna] {
         if (atualizando_) return;
         const ArquivoFixo* a = dados_->arquivo(nome_);
@@ -187,8 +211,15 @@ void FormularioArquivo::atualizarValores() {
     if (!arquivo) return;
     atualizando_ = true;
     for (const Campo& c : campos_) {
+        const QString valor = QString::fromLatin1(arquivo->valor(c.secao, c.registro, c.coluna).c_str());
+        if (c.lista) {
+            const Referencia referencia =
+                arquivo->secoes()[static_cast<size_t>(c.secao)].definicao.colunas[static_cast<size_t>(c.coluna)].referencia;
+            DelegateReferencia::preencher(c.lista, *dados_, referencia, valor);
+            continue;
+        }
         if (c.edit->hasFocus() && c.edit->isModified()) continue;
-        c.edit->setText(QString::fromLatin1(arquivo->valor(c.secao, c.registro, c.coluna).c_str()));
+        c.edit->setText(valor);
         c.edit->setModified(false);
     }
     atualizando_ = false;

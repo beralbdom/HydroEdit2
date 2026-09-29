@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 #include "ajuste_colunas.h"
 #include "dados_deck.h"
+#include "delegate_referencia.h"
 #include "formulario_arquivo.h"
 #include "formulario_usina.h"
 #include "modelo_secao_fixa.h"
@@ -71,6 +72,7 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         modelo_ = new ModeloSecaoFixa(dados_, info_.nome_padrao, primeira_tabela, this);
         tabela_ = new QTableView(pilha_);
         tabela_->setModel(modelo_);
+        tabela_->setItemDelegate(new DelegateReferencia(dados_, tabela_));
         preencherLargura(tabela_);
         habilitarRecursos(tabela_);
         tabela_->setAlternatingRowColors(true);

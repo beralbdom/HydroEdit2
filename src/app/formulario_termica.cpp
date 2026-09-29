@@ -16,6 +16,7 @@
 #include "ajuste_colunas.h"
 #include "recursos_tabela.h"
 #include "dados_deck.h"
+#include "delegate_referencia.h"
 #include "formulario_usina.h"
 #include "modelo_secao_fixa.h"
 
@@ -206,6 +207,7 @@ QWidget* FormularioTermica::criarPaginaConfiguracao() {
 QTableView* FormularioTermica::novaTabela(QSortFilterProxyModel* filtro, QWidget* pai) {
     auto* tabela = new QTableView(pai);
     tabela->setModel(filtro);
+    tabela->setItemDelegate(new DelegateReferencia(dados_, tabela));
     tabela->setAlternatingRowColors(true);
     tabela->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela->verticalHeader()->setVisible(false);
