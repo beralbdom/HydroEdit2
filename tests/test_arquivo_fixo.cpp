@@ -383,6 +383,98 @@ private slots:
         QCOMPARE(clast.valor(1, 0, 1), std::string("177.97"));
         QCOMPARE(clast.valor(1, 0, 2), std::string("9"));
     }
+
+    static int secaoPorTitulo(const ArquivoFixo& a, const std::string& titulo) {
+        for (size_t s = 0; s < a.secoes().size(); ++s)
+            if (a.secoes()[s].definicao.titulo == titulo) return static_cast<int>(s);
+        return -1;
+    }
+
+    void duplicaERemoveRegistrosEBlocos() {
+        fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "sistema.dat")) QSKIP("deck ausente");
+        const LayoutArquivoFixo& layout_sistema = *layoutNewave("sistema.dat");
+        ArquivoFixo sistema;
+        QVERIFY(sistema.carregar(deck / "sistema.dat", layout_sistema).ok);
+        const std::string original = sistema.conteudo();
+        const int limites = secaoPorTitulo(sistema, "Limites de intercâmbio");
+        const int interligacoes = secaoPorTitulo(sistema, "Interligações");
+        QVERIFY(limites >= 0 && interligacoes >= 0);
+        const size_t anos = sistema.secoes()[static_cast<size_t>(limites)].linhas.size();
+        const size_t pares = sistema.secoes()[static_cast<size_t>(interligacoes)].linhas.size();
+        const int linha_par = sistema.secoes()[static_cast<size_t>(interligacoes)].linhas[0];
+        size_t anos_do_par = 0;
+        for (const std::vector<int>& c : sistema.secoes()[static_cast<size_t>(limites)].linhas_contexto)
+            if (c[0] == linha_par) ++anos_do_par;
+        QVERIFY(anos_do_par > 0);
+
+        int nova = -1;
+        QVERIFY(sistema.duplicar(interligacoes, 0, -1, layout_sistema, &nova).ok);
+        QCOMPARE(sistema.secoes()[static_cast<size_t>(interligacoes)].linhas.size(), pares + 1);
+        QCOMPARE(sistema.secoes()[static_cast<size_t>(limites)].linhas.size(), anos + anos_do_par);
+        QCOMPARE(sistema.registroNaLinha(interligacoes, nova), 1);
+        QCOMPARE(sistema.valor(interligacoes, 1, 0), sistema.valor(interligacoes, 0, 0));
+        QCOMPARE(sistema.valor(interligacoes, 1, 1), sistema.valor(interligacoes, 0, 1));
+        QVERIFY(sistema.modificado());
+        QVERIFY(sistema.remover(interligacoes, 1, -1, layout_sistema).ok);
+        QVERIFY(sistema.conteudo() == original);
+
+        QVERIFY(sistema.duplicar(limites, 0, 0, layout_sistema).ok);
+        QCOMPARE(sistema.secoes()[static_cast<size_t>(interligacoes)].linhas.size(), pares + 1);
+        QVERIFY(sistema.remover(limites, static_cast<int>(anos_do_par), 0, layout_sistema).ok);
+        QVERIFY(sistema.conteudo() == original);
+
+        QVERIFY(sistema.duplicar(limites, 0, -1, layout_sistema, &nova).ok);
+        QCOMPARE(sistema.secoes()[static_cast<size_t>(limites)].linhas.size(), anos + 1);
+        QCOMPARE(sistema.linhas()[static_cast<size_t>(nova)], sistema.linhas()[static_cast<size_t>(nova - 1)]);
+        QVERIFY(sistema.remover(limites, 1, -1, layout_sistema).ok);
+        QVERIFY(sistema.conteudo() == original);
+
+        const LayoutArquivoFixo& layout_exph = *layoutNewave("exph.dat");
+        ArquivoFixo exph;
+        QVERIFY(exph.carregar(deck / "exph.dat", layout_exph).ok);
+        const std::string original_exph = exph.conteudo();
+        const size_t unidades = exph.secoes()[0].linhas.size();
+        const size_t usinas = exph.secoes()[1].linhas.size();
+        QCOMPARE(exph.valor(0, 0, 0), std::string("9"));
+        QVERIFY(exph.duplicar(0, 0, -1, layout_exph, &nova).ok);
+        QCOMPARE(exph.secoes()[0].linhas.size(), unidades + 1);
+        QCOMPARE(exph.secoes()[1].linhas.size(), usinas);
+        QCOMPARE(exph.valor(0, 1, 0), std::string("9"));
+        QCOMPARE(exph.linhas()[static_cast<size_t>(nova)].substr(0, 17), std::string(17, ' '));
+        QVERIFY(!exph.remover(0, 0, -1, layout_exph).ok);
+        QVERIFY(exph.remover(0, 1, -1, layout_exph).ok);
+        QVERIFY(exph.conteudo() == original_exph);
+        int sao_simao = -1;
+        for (int r = 0; r < static_cast<int>(unidades) && sao_simao < 0; ++r)
+            if (exph.valor(0, r, 0) == "33") sao_simao = r;
+        QVERIFY(sao_simao >= 0);
+        QVERIFY(exph.remover(0, sao_simao, -1, layout_exph).ok);
+        QCOMPARE(exph.secoes()[1].linhas.size(), usinas - 1);
+        QVERIFY(exph.conteudo().find(" SAO SIMAO") == std::string::npos);
+        QVERIFY(exph.duplicar(1, 0, -1, layout_exph).ok);
+        QCOMPARE(exph.secoes()[1].linhas.size(), usinas);
+        QCOMPARE(exph.secoes()[0].linhas.size(), unidades - 1 + 2);
+
+        const LayoutArquivoFixo& layout_patamar = *layoutNewave("patamar.dat");
+        ArquivoFixo patamar;
+        QVERIFY(patamar.carregar(deck / "patamar.dat", layout_patamar).ok);
+        const int nao_simuladas = secaoPorTitulo(patamar, "Usinas não simuladas por patamar e ano");
+        QVERIFY(nao_simuladas >= 0);
+        QVERIFY(!patamar.aceitaRegistrosAvulsos(nao_simuladas));
+        QVERIFY(!patamar.duplicar(nao_simuladas, 0, -1, layout_patamar).ok);
+        const std::vector<int>& linhas_ns = patamar.secoes()[static_cast<size_t>(nao_simuladas)].linhas;
+        const size_t registros_ns = linhas_ns.size();
+        const int ultimo = static_cast<int>(registros_ns) - 1;
+        size_t do_ultimo_bloco = 0;
+        const int abertura = patamar.secoes()[static_cast<size_t>(nao_simuladas)].linhas_contexto.back()[0];
+        for (const std::vector<int>& c : patamar.secoes()[static_cast<size_t>(nao_simuladas)].linhas_contexto)
+            if (c[0] == abertura) ++do_ultimo_bloco;
+        const size_t linhas_antes = patamar.linhas().size();
+        QVERIFY(patamar.duplicar(nao_simuladas, ultimo, 0, layout_patamar).ok);
+        QCOMPARE(patamar.secoes()[static_cast<size_t>(nao_simuladas)].linhas.size(), registros_ns + do_ultimo_bloco);
+        QCOMPARE(patamar.linhas().size(), linhas_antes + static_cast<size_t>(linhas_antes - abertura));
+    }
 };
 
 QTEST_GUILESS_MAIN(TestArquivoFixo)

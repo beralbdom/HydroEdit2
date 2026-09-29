@@ -232,10 +232,34 @@ void DadosDeck::substituirTexto(const QString& nome_padrao, const QString& texto
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido) return;
     it->second.arquivo.substituirTexto(texto.toLatin1().toStdString(), it->second.layout);
+    concluirReinterpretacao(nome_padrao);
+}
+
+// Avisa as vistas de um arquivo relido com outras linhas; se o numero de patamares mudou, os
+// arquivos que dependem dele sao relidos tambem.
+void DadosDeck::concluirReinterpretacao(const QString& nome_padrao) {
     referencias_.clear();
     emit reinterpretado(nome_padrao);
     emit alterado(nome_padrao);
     aplicarPatamares(true);
+}
+
+// Copia de um registro ou do bloco de contexto dele, inserida logo depois (ArquivoFixo::duplicar).
+Resultado DadosDeck::duplicar(const QString& nome_padrao, int secao, int registro, int nivel, int* primeira_linha_nova) {
+    auto it = arquivos_.find(nome_padrao);
+    if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo nao carregado");
+    Resultado r = it->second.arquivo.duplicar(secao, registro, nivel, it->second.layout, primeira_linha_nova);
+    if (r.ok) concluirReinterpretacao(nome_padrao);
+    return r;
+}
+
+// Remove um registro ou o bloco de contexto dele (ArquivoFixo::remover).
+Resultado DadosDeck::remover(const QString& nome_padrao, int secao, int registro, int nivel) {
+    auto it = arquivos_.find(nome_padrao);
+    if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo nao carregado");
+    Resultado r = it->second.arquivo.remover(secao, registro, nivel, it->second.layout);
+    if (r.ok) concluirReinterpretacao(nome_padrao);
+    return r;
 }
 
 bool DadosDeck::salvar(const QString& nome_padrao, QString* motivo) {

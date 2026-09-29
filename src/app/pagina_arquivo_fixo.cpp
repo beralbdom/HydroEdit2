@@ -2,6 +2,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMenu>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTabBar>
@@ -13,6 +14,7 @@
 #include "delegate_referencia.h"
 #include "formulario_arquivo.h"
 #include "formulario_usina.h"
+#include "menu_registros.h"
 #include "modelo_secao_fixa.h"
 #include "recursos_tabela.h"
 
@@ -47,7 +49,11 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
     fonte.setBold(true);
     titulo_->setFont(fonte);
     botao_salvar_ = new QPushButton(QStringLiteral("Salvar"), this);
+    botao_adicionar_ = novoBotaoRegistros(QStringLiteral("Adicionar"), true);
+    botao_remover_ = novoBotaoRegistros(QStringLiteral("Remover"), false);
     cabecalho->addWidget(titulo_, 1);
+    cabecalho->addWidget(botao_adicionar_);
+    cabecalho->addWidget(botao_remover_);
     cabecalho->addWidget(botao_salvar_);
     layout_pagina->addLayout(cabecalho);
 
@@ -82,6 +88,10 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         tabela_->horizontalHeader()->setFixedHeight(22);
         pilha_->addWidget(tabela_);
         connect(modelo_, &ModeloSecaoFixa::valorRecusado, this, [this](const QString& motivo) { atualizar(motivo); });
+        definirAcoesExtras(tabela_, [this](QMenu* menu, const QModelIndex& ix) {
+            preencherMenu(menu->addMenu(QStringLiteral("Adicionar")), ix.row(), true);
+            preencherMenu(menu->addMenu(QStringLiteral("Remover")), ix.row(), false);
+        });
     }
 
     connect(botao_salvar_, &QPushButton::clicked, this, [this] {
@@ -106,6 +116,8 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
 // Secao -1 (ou secao que nao e de tabela) mostra o formulario; as demais, a tabela da secao.
 void PaginaArquivoFixo::mostrarSecao(int secao) {
     mostrando_formulario_ = formulario_ && (secao < 0 || !secaoEmTabela(layout_, secao));
+    botao_adicionar_->setVisible(tabela_ && !mostrando_formulario_);
+    botao_remover_->setVisible(tabela_ && !mostrando_formulario_);
     if (mostrando_formulario_ || !tabela_) {
         pilha_->setCurrentWidget(formulario_ ? static_cast<QWidget*>(painel_formulario_) : static_cast<QWidget*>(tabela_));
         titulo_->setText(info_.titulo);
@@ -118,6 +130,40 @@ void PaginaArquivoFixo::mostrarSecao(int secao) {
         ajustarColunas(tabela_);
     }
     atualizar();
+}
+
+// Botao do cabecalho com o menu de adicionar ou remover o registro selecionado na tabela ou o bloco
+// dele, montado na hora de abrir.
+QPushButton* PaginaArquivoFixo::novoBotaoRegistros(const QString& texto, bool adicionar) {
+    auto* botao = new QPushButton(texto, this);
+    auto* menu = new QMenu(botao);
+    botao->setMenu(menu);
+    connect(menu, &QMenu::aboutToShow, this, [this, menu, adicionar] {
+        menu->clear();
+        preencherMenu(menu, tabela_->currentIndex().row(), adicionar);
+    });
+    return botao;
+}
+
+void PaginaArquivoFixo::preencherMenu(QMenu* menu, int registro, bool adicionar) {
+    preencherMenuRegistros(menu, dados_, info_.nome_padrao, modelo_->secao(), registro, adicionar,
+                           [this, registro](const QString& recusa, int nova) { depoisDaEdicao(recusa, nova, registro); });
+}
+
+// Seleciona o primeiro registro inserido ou, depois de remover, o que ficou no lugar do removido.
+void PaginaArquivoFixo::depoisDaEdicao(const QString& recusa, int linha_nova, int registro_anterior) {
+    if (!recusa.isEmpty()) {
+        atualizar(recusa);
+        return;
+    }
+    const int registro = linha_nova >= 0 ? registroAPartirDaLinha(*dados_, info_.nome_padrao, modelo_->secao(), linha_nova)
+                                         : std::min(registro_anterior, modelo_->rowCount() - 1);
+    if (registro >= 0) {
+        const QModelIndex ix = modelo_->index(registro, 0);
+        tabela_->setCurrentIndex(ix);
+        tabela_->scrollTo(ix);
+    }
+    atualizar(linha_nova >= 0 ? QStringLiteral("cópia inserida") : QStringLiteral("removido"));
 }
 
 void PaginaArquivoFixo::atualizar(const QString& aviso) {
@@ -136,4 +182,6 @@ void PaginaArquivoFixo::atualizar(const QString& aviso) {
     if (!aviso.isEmpty()) texto += QStringLiteral("  ·  ") + aviso;
     detalhes_->setText(texto);
     botao_salvar_->setEnabled(arquivo && arquivo->modificado());
+    botao_adicionar_->setEnabled(arquivo);
+    botao_remover_->setEnabled(arquivo);
 }

@@ -1,6 +1,9 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QComboBox>
+#include <QGroupBox>
+#include <QPushButton>
+#include <QToolButton>
 #include <QStandardItemModel>
 #include <QTableView>
 #include <QtTest>
@@ -86,6 +89,37 @@ private slots:
         QVERIFY(dger.campos() >= 101);
         QVERIFY(!PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 0));
         QVERIFY(PaginaArquivoFixo::secaoEmTabela(*layoutNewave("patamar.dat"), 1));
+    }
+
+    static QGroupBox* grupo(QWidget& formulario, const QString& titulo) {
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        for (QGroupBox* g : formulario.findChildren<QGroupBox*>())
+            if (g->title() == titulo) return g;
+        return nullptr;
+    }
+
+    void formularioAdicionaERemoveRegistros() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "sistema.dat")) QSKIP("deck ausente");
+        DadosDeck dados;
+        dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        const QString sistema = QStringLiteral("sistema.dat");
+        const QString original = dados.texto(sistema);
+        const auto pares = [&] { return dados.arquivo(sistema)->secoes()[3].linhas.size(); };
+        const size_t antes = pares();
+        FormularioArquivo formulario(sistema, *layoutNewave("sistema.dat"), &dados);
+        QGroupBox* interligacoes = grupo(formulario, QStringLiteral("Interligações"));
+        QVERIFY(interligacoes);
+        QCOMPARE(interligacoes->findChildren<QToolButton*>().size(), qsizetype(antes));
+        QPushButton* adicionar = interligacoes->findChild<QPushButton*>();
+        QVERIFY(adicionar);
+        adicionar->click();
+        QCOMPARE(pares(), antes + 1);
+        interligacoes = grupo(formulario, QStringLiteral("Interligações"));
+        QCOMPARE(interligacoes->findChildren<QToolButton*>().size(), qsizetype(antes + 1));
+        interligacoes->findChildren<QToolButton*>().back()->click();
+        QCOMPARE(pares(), antes);
+        QCOMPARE(dados.texto(sistema), original);
     }
 
     void referenciasMostramNomeECodigo() {

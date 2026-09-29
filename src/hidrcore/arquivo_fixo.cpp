@@ -129,6 +129,8 @@ Resultado ArquivoFixo::interpretar(const std::string& conteudo, const LayoutArqu
             }
             if (!ignorada(static_cast<int>(p)) && passa(definicao.filtro, static_cast<int>(p))) secao.linhas.push_back(static_cast<int>(p));
         }
+        secao.regiao_inicio = static_cast<int>(regiao_inicio);
+        secao.regiao_fim = static_cast<int>(regiao_fim);
         for (int linha : secao.linhas) {
             std::vector<int> contexto;
             for (const ContextoFixo& c : definicao.contextos) {
@@ -330,5 +332,165 @@ Resultado ArquivoFixo::definir(int secao, int registro, int coluna, const std::s
     if (linha.size() < static_cast<size_t>(c.fim)) linha.append(static_cast<size_t>(c.fim) - linha.size(), ' ');
     linha.replace(static_cast<size_t>(c.inicio - 1), largura, campo);
     modificado_ = true;
+    return Resultado::sucesso();
+}
+
+// Troca as linhas do arquivo e rele as secoes, como substituirTexto.
+void ArquivoFixo::substituirLinhas(const std::vector<std::string>& linhas, const LayoutArquivoFixo& layout) {
+    std::string texto;
+    for (size_t i = 0; i < linhas.size(); ++i) {
+        texto += linhas[i];
+        if (i + 1 < linhas.size() || quebra_final_) texto += '\n';
+    }
+    substituirTexto(texto, layout);
+}
+
+// Deixa em branco as colunas do campo na linha, sem mudar o comprimento dela.
+void ArquivoFixo::apagarCampo(std::string& linha, const ColunaFixa& c) const {
+    if (separador_) {
+        const auto [posicao, tamanho] = limitesCampo(linha, separador_, c.inicio);
+        if (posicao != std::string::npos) linha.replace(posicao, tamanho, tamanho, ' ');
+        return;
+    }
+    const size_t inicio = static_cast<size_t>(c.inicio - 1);
+    if (linha.size() <= inicio) return;
+    const size_t tamanho = std::min(static_cast<size_t>(c.fim - c.inicio + 1), linha.size() - inicio);
+    linha.replace(inicio, tamanho, tamanho, ' ');
+}
+
+// Registros avulsos podem ser inseridos e removidos quando a secao nao tem numero fixo de registros
+// nem coluna Ordinal: nas secoes com uma linha por patamar, a quantidade de linhas acompanha o numero
+// de patamares e so o bloco inteiro se duplica ou remove.
+bool ArquivoFixo::aceitaRegistrosAvulsos(int secao) const {
+    const SecaoFixa& d = secoes_[static_cast<size_t>(secao)].definicao;
+    if (d.max_registros > 0) return false;
+    return std::none_of(d.colunas.begin(), d.colunas.end(), [](const ColunaFixa& c) { return c.tipo == TipoColunaFixa::Ordinal; });
+}
+
+// Linhas do bloco que comeca na linha de contexto inicio, no nivel dado da secao: vao ate a proxima
+// linha da regiao que abre um contexto desse nivel ou de um mais externo, ou ate o fim da regiao
+// (antes do terminador).
+TrechoLinhas ArquivoFixo::blocoDeContexto(const SecaoLida& s, int nivel, int inicio) const {
+    if (inicio < 0) return {};
+    for (int p = inicio + 1; p < s.regiao_fim; ++p) {
+        if (ignorada(p)) continue;
+        for (int k = 0; k <= nivel; ++k)
+            if (passa(s.definicao.contextos[static_cast<size_t>(k)].filtro, p)) return {inicio, p};
+    }
+    return {inicio, s.regiao_fim};
+}
+
+// Bloco que a linha abre numa outra secao da mesma regiao, no nivel de contexto mais externo cujo
+// filtro ela passa (a linha de uma interligacao abre o bloco dos seus limites por ano); vazio se
+// nenhum.
+TrechoLinhas ArquivoFixo::blocoAberto(int secao, int linha) const {
+    TrechoLinhas melhor;
+    int melhor_nivel = -1;
+    for (size_t t = 0; t < secoes_.size(); ++t) {
+        const SecaoLida& s = secoes_[t];
+        if (static_cast<int>(t) == secao || linha < s.regiao_inicio || linha >= s.regiao_fim) continue;
+        for (int k = 0; k < static_cast<int>(s.definicao.contextos.size()); ++k) {
+            if (melhor_nivel >= 0 && k >= melhor_nivel) break;
+            if (!passa(s.definicao.contextos[static_cast<size_t>(k)].filtro, linha)) continue;
+            melhor = blocoDeContexto(s, k, linha);
+            melhor_nivel = k;
+            break;
+        }
+    }
+    return melhor;
+}
+
+// Nivel de contexto que a linha do proprio registro abre (o primeiro registro de cada usina do
+// exph.dat traz o codigo e o nome), ou -1.
+int ArquivoFixo::nivelProprio(int secao, int registro) const {
+    const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
+    const std::vector<int>& contexto = s.linhas_contexto[static_cast<size_t>(registro)];
+    for (size_t k = 0; k < contexto.size(); ++k)
+        if (contexto[k] == s.linhas[static_cast<size_t>(registro)]) return static_cast<int>(k);
+    return -1;
+}
+
+// O registro traz consigo um bloco de outra secao (a interligacao e os seus limites por ano), que
+// duplicar e remover levam junto.
+bool ArquivoFixo::abreBloco(int secao, int registro) const {
+    return nivelProprio(secao, registro) < 0 && !blocoAberto(secao, secoes_[static_cast<size_t>(secao)].linhas[static_cast<size_t>(registro)]).vazio();
+}
+
+int ArquivoFixo::registroNaLinha(int secao, int linha) const {
+    const std::vector<int>& linhas = secoes_[static_cast<size_t>(secao)].linhas;
+    const auto it = std::find(linhas.begin(), linhas.end(), linha);
+    return it == linhas.end() ? -1 : static_cast<int>(it - linhas.begin());
+}
+
+// Insere uma copia logo depois do original. Nivel >= 0 copia o bloco do contexto desse nivel do
+// registro (uma interligacao com todos os anos, um ano com todos os patamares). Nivel -1 copia o
+// registro: se a linha dele abre o proprio contexto, so a linha, com as colunas do contexto em
+// branco, para continuar o mesmo bloco; se abre bloco de outra secao, o bloco inteiro; senao a
+// linha. A copia de um registro que deixaria de ser registro da secao e recusada, e o arquivo fica
+// como estava.
+Resultado ArquivoFixo::duplicar(int secao, int registro, int nivel, const LayoutArquivoFixo& layout, int* primeira_linha_nova) {
+    const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
+    if (s.definicao.max_registros > 0) return Resultado::erro("A secao tem numero fixo de registros");
+    TrechoLinhas origem;
+    std::vector<std::string> copia;
+    bool avulso = false;
+    if (nivel >= 0) {
+        origem = blocoDeContexto(s, nivel, s.linhas_contexto[static_cast<size_t>(registro)][static_cast<size_t>(nivel)]);
+        if (origem.vazio()) return Resultado::erro("O registro nao pertence a um bloco desse nivel");
+    } else {
+        if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta secao acompanham os patamares; duplique o bloco");
+        const int linha = s.linhas[static_cast<size_t>(registro)];
+        if (nivelProprio(secao, registro) < 0) origem = blocoAberto(secao, linha);
+        if (origem.vazio()) {
+            origem = {linha, linha + 1};
+            avulso = true;
+            std::string texto = linhas_[static_cast<size_t>(linha)];
+            const std::vector<int>& contexto = s.linhas_contexto[static_cast<size_t>(registro)];
+            for (const ColunaFixa& c : s.definicao.colunas)
+                if (c.contexto >= 0 && contexto[static_cast<size_t>(c.contexto)] == linha && editavel(c)) apagarCampo(texto, c);
+            copia.push_back(texto);
+        }
+    }
+    if (copia.empty()) copia.assign(linhas_.begin() + origem.inicio, linhas_.begin() + origem.fim);
+    const std::vector<std::string> antes = linhas_;
+    const bool modificado_antes = modificado_;
+    std::vector<std::string> novas = linhas_;
+    novas.insert(novas.begin() + origem.fim, copia.begin(), copia.end());
+    substituirLinhas(novas, layout);
+    if (avulso && registroNaLinha(secao, origem.fim) < 0) {
+        substituirLinhas(antes, layout);
+        modificado_ = modificado_antes;
+        return Resultado::erro("A copia do registro nao seria lida como registro da secao");
+    }
+    if (primeira_linha_nova) *primeira_linha_nova = origem.fim;
+    return Resultado::sucesso();
+}
+
+// Apaga do arquivo o que duplicar copiaria: o bloco do nivel dado ou o registro (com o bloco que a
+// linha dele abre em outra secao). Registro que abre o proprio contexto so sai se for o unico do
+// bloco, e entao sai o bloco inteiro (a usina do exph.dat com o seu 9999).
+Resultado ArquivoFixo::remover(int secao, int registro, int nivel, const LayoutArquivoFixo& layout) {
+    const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
+    if (s.definicao.max_registros > 0) return Resultado::erro("A secao tem numero fixo de registros");
+    TrechoLinhas alvo;
+    if (nivel >= 0) {
+        alvo = blocoDeContexto(s, nivel, s.linhas_contexto[static_cast<size_t>(registro)][static_cast<size_t>(nivel)]);
+        if (alvo.vazio()) return Resultado::erro("O registro nao pertence a um bloco desse nivel");
+    } else {
+        if (!aceitaRegistrosAvulsos(secao)) return Resultado::erro("Os registros desta secao acompanham os patamares; remova o bloco");
+        const int linha = s.linhas[static_cast<size_t>(registro)];
+        const int proprio = nivelProprio(secao, registro);
+        if (proprio >= 0) {
+            alvo = blocoDeContexto(s, proprio, linha);
+            const auto no_bloco = std::count_if(s.linhas.begin(), s.linhas.end(), [&](int q) { return q >= alvo.inicio && q < alvo.fim; });
+            if (no_bloco > 1) return Resultado::erro("O registro abre o bloco dos seguintes; remova-os antes ou remova o bloco inteiro");
+        } else {
+            alvo = blocoAberto(secao, linha);
+            if (alvo.vazio()) alvo = {linha, linha + 1};
+        }
+    }
+    std::vector<std::string> novas = linhas_;
+    novas.erase(novas.begin() + alvo.inicio, novas.begin() + alvo.fim);
+    substituirLinhas(novas, layout);
     return Resultado::sucesso();
 }

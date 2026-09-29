@@ -58,6 +58,14 @@ struct SecaoLida {
     SecaoFixa definicao;
     std::vector<int> linhas;
     std::vector<std::vector<int>> linhas_contexto;
+    int regiao_inicio = 0;
+    int regiao_fim = 0;
+};
+
+struct TrechoLinhas {
+    int inicio = -1;
+    int fim = -1;
+    bool vazio() const { return inicio < 0; }
 };
 
 class ArquivoFixo {
@@ -75,12 +83,25 @@ public:
         return coluna.tipo != TipoColunaFixa::Ordinal && coluna.tipo != TipoColunaFixa::Grupo;
     }
     Resultado definir(int secao, int registro, int coluna, const std::string& texto);
+
+    const std::vector<std::string>& linhas() const { return linhas_; }
+    void substituirLinhas(const std::vector<std::string>& linhas, const LayoutArquivoFixo& layout);
+    bool aceitaRegistrosAvulsos(int secao) const;
+    bool abreBloco(int secao, int registro) const;
+    TrechoLinhas trecho(int secao, int registro, int nivel) const;
+    Resultado duplicar(int secao, int registro, int nivel, const LayoutArquivoFixo& layout, int* primeira_linha_nova = nullptr);
+    Resultado remover(int secao, int registro, int nivel, const LayoutArquivoFixo& layout);
+    int registroNaLinha(int secao, int linha) const;
     bool modificado() const { return modificado_; }
 
 private:
     bool passa(const std::vector<FiltroLinha>& filtro, int linha) const;
     bool ignorada(int linha) const;
     std::string campo(const std::string& linha, int inicio, int fim) const;
+    void apagarCampo(std::string& linha, const ColunaFixa& coluna) const;
+    TrechoLinhas blocoDeContexto(const SecaoLida& secao, int nivel, int inicio) const;
+    TrechoLinhas blocoAberto(int secao, int linha) const;
+    int nivelProprio(int secao, int registro) const;
 
     std::vector<std::string> linhas_;
     std::string quebra_ = "\r\n";

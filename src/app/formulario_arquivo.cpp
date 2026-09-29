@@ -6,6 +6,9 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
+#include <QStyle>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
 #include "dados_deck.h"
@@ -35,8 +38,10 @@ bool registroUnico(const SecaoFixa& s) { return s.max_registros == 1; }
 // listas curtas, como as linhas que abrem os blocos (submercados, interligacoes). Em arquivo de
 // parametros (dger.dat, selcor.dat) sao todas as secoes, uma linha por parametro; nos demais, as
 // secoes marcadas com formulario. Parametros de um valor ficam juntos no grupo Parametros; os de
-// varios valores e as listas ganham grupo proprio, as listas com uma linha por registro. Cada campo
-// grava no repositorio do deck ao terminar a edicao, com a mesma validacao das tabelas.
+// varios valores e as listas ganham grupo proprio, as listas com uma linha por registro, um botao
+// para remover cada uma e um para adicionar a copia da ultima. Cada campo grava no repositorio do
+// deck ao terminar a edicao, com a mesma validacao das tabelas. Os rotulos das listas de cadastro
+// sao refeitos a cada alteracao do deck, porque o nome pode ter mudado em outro arquivo.
 FormularioArquivo::FormularioArquivo(const QString& nome_padrao, const LayoutArquivoFixo& layout, DadosDeck* dados, QWidget* parent)
     : QWidget(parent), nome_(nome_padrao), layout_(layout), dados_(dados) {
     auto* externo = new QVBoxLayout(this);
@@ -45,10 +50,15 @@ FormularioArquivo::FormularioArquivo(const QString& nome_padrao, const LayoutArq
     connect(dados_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
         if (nome == nome_) montar();
     });
-    connect(dados_, &DadosDeck::alterado, this, [this](const QString& nome) {
-        if (nome == nome_) atualizarValores();
-    });
+    connect(dados_, &DadosDeck::alterado, this, &FormularioArquivo::atualizarValores);
     montar();
+}
+
+// Copia do registro inserida logo depois dele, ou o registro removido, com o bloco que ele abre em
+// outra secao; o formulario e refeito pela releitura do arquivo.
+void FormularioArquivo::editarRegistros(int secao, int registro, bool adicionar) {
+    const Resultado r = adicionar ? dados_->duplicar(nome_, secao, registro, -1) : dados_->remover(nome_, secao, registro, -1);
+    if (!r.ok) emit valorRecusado(QString::fromUtf8(r.mensagem));
 }
 
 // Largura do campo pelo numero de colunas do arquivo que ele ocupa; texto pode ser mais largo. Coluna
@@ -192,9 +202,27 @@ void FormularioArquivo::montar() {
                 rotulo->setEnabled(false);
                 grade->addWidget(rotulo, 0, c, numerica(colunas[static_cast<size_t>(c)]) ? Qt::AlignRight : Qt::AlignLeft);
             }
-            for (int r = 0; r < static_cast<int>(secao.linhas.size()); ++r)
-                for (int c = 0; c < static_cast<int>(colunas.size()); ++c) grade->addWidget(novoCampo(*arquivo, s, r, c, grupo), r + 1, c);
-            grade->setColumnStretch(static_cast<int>(colunas.size()), 1);
+            const int n_colunas = static_cast<int>(colunas.size());
+            const int n_registros = static_cast<int>(secao.linhas.size());
+            const bool avulsos = arquivo->aceitaRegistrosAvulsos(s);
+            for (int r = 0; r < n_registros; ++r) {
+                for (int c = 0; c < n_colunas; ++c) grade->addWidget(novoCampo(*arquivo, s, r, c, grupo), r + 1, c);
+                if (!avulsos) continue;
+                auto* remover = new QToolButton(grupo);
+                remover->setIcon(style()->standardIcon(QStyle::SP_LineEditClearButton));
+                remover->setAutoRaise(true);
+                remover->setToolTip(arquivo->abreBloco(s, r) ? QStringLiteral("Remover este registro e os que dependem dele")
+                                                             : QStringLiteral("Remover este registro"));
+                connect(remover, &QToolButton::clicked, this, [this, s, r] { editarRegistros(s, r, false); });
+                grade->addWidget(remover, r + 1, n_colunas);
+            }
+            grade->setColumnStretch(n_colunas + (avulsos ? 1 : 0), 1);
+            if (avulsos) {
+                auto* adicionar = new QPushButton(QStringLiteral("Adicionar"), grupo);
+                adicionar->setToolTip(QStringLiteral("Insere uma cópia do último registro, para editar"));
+                connect(adicionar, &QPushButton::clicked, this, [this, s, n_registros] { editarRegistros(s, n_registros - 1, true); });
+                grade->addWidget(adicionar, n_registros + 1, 0, 1, std::min(2, n_colunas), Qt::AlignLeft);
+            }
         }
     }
     v->addStretch(1);

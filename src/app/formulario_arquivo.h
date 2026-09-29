@@ -28,6 +28,7 @@ private:
     void montar();
     void atualizarValores();
     QWidget* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
+    void editarRegistros(int secao, int registro, bool adicionar);
 
     QString nome_;
     LayoutArquivoFixo layout_;

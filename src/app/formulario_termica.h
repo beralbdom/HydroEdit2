@@ -36,6 +36,7 @@ private:
     QWidget* criarPaginaClasse();
     QLineEdit* ligarEdit(QFormLayout* form, const QString& rotulo, const QString& arquivo, int coluna, bool texto = false);
     QTableView* novaTabela(QSortFilterProxyModel* filtro, QWidget* pai);
+    void ligarMenuRegistros(QTableView* tabela, QSortFilterProxyModel* filtro, const QString& arquivo, int secao);
     void atualizar(const QString& aviso = {});
     void gravar(const QString& arquivo, int coluna, const QString& texto);
     int registro(const QString& arquivo) const;

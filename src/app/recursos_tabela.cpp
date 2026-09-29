@@ -107,6 +107,10 @@ public:
             menu.addAction(QStringLiteral("Copiar"), QKeySequence::Copy, this, &RecursosTabela::copiar);
             menu.addAction(QStringLiteral("Colar"), QKeySequence::Paste, this, &RecursosTabela::colar)
                 ->setEnabled(tabela_->editTriggers() != QAbstractItemView::NoEditTriggers);
+            if (extras_) {
+                menu.addSeparator();
+                extras_(&menu, tabela_->indexAt(ponto));
+            }
             menu.exec(tabela_->viewport()->mapToGlobal(ponto));
         });
         ligarModelo();
@@ -121,6 +125,8 @@ public:
         oculta_ = std::move(oculta);
         aplicar();
     }
+
+    void definirExtras(std::function<void(QMenu*, const QModelIndex&)> extras) { extras_ = std::move(extras); }
 
     // Esconde as linhas que nao passam nos filtros das colunas ou no predicado externo e marca no
     // cabecalho as colunas filtradas.
@@ -380,6 +386,7 @@ private:
     QAbstractItemModel* modelo_ligado_ = nullptr;
     std::map<int, std::set<QString>> filtros_;
     std::function<bool(int)> oculta_;
+    std::function<void(QMenu*, const QModelIndex&)> extras_;
 };
 
 RecursosTabela* recursos(QTableView* tabela) {
@@ -409,4 +416,11 @@ void definirLinhasOcultas(QTableView* tabela, std::function<bool(int)> oculta) {
 // Tira todos os filtros das colunas, para quando o conteudo da tabela e trocado sem refazer o modelo.
 void limparFiltros(QTableView* tabela) {
     if (RecursosTabela* r = recursos(tabela)) r->limpar();
+}
+
+// Acoes que o menu de contexto da tabela acrescenta depois de copiar e colar; recebem o indice (da
+// vista) sob o cursor, invalido fora das linhas.
+void definirAcoesExtras(QTableView* tabela, std::function<void(QMenu*, const QModelIndex&)> acoes) {
+    habilitarRecursos(tabela);
+    recursos(tabela)->definirExtras(std::move(acoes));
 }

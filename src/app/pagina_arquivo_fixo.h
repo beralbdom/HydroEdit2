@@ -4,6 +4,7 @@
 #include "catalogo_newave.h"
 
 class QLabel;
+class QMenu;
 class QPushButton;
 class QStackedWidget;
 class QTabWidget;
@@ -22,6 +23,9 @@ public:
 
 private:
     void atualizar(const QString& aviso = {});
+    QPushButton* novoBotaoRegistros(const QString& texto, bool adicionar);
+    void preencherMenu(QMenu* menu, int registro, bool adicionar);
+    void depoisDaEdicao(const QString& recusa, int linha_nova, int registro_anterior);
 
     ArquivoNewave info_;
     LayoutArquivoFixo layout_;
@@ -29,6 +33,8 @@ private:
     QLabel* titulo_;
     QLabel* detalhes_;
     QPushButton* botao_salvar_;
+    QPushButton* botao_adicionar_;
+    QPushButton* botao_remover_;
     QStackedWidget* pilha_;
     FormularioArquivo* formulario_ = nullptr;
     QTabWidget* painel_formulario_ = nullptr;

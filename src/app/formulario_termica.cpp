@@ -6,6 +6,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSortFilterProxyModel>
@@ -18,6 +19,7 @@
 #include "dados_deck.h"
 #include "delegate_referencia.h"
 #include "formulario_usina.h"
+#include "menu_registros.h"
 #include "modelo_secao_fixa.h"
 
 namespace {
@@ -230,8 +232,21 @@ QWidget* FormularioTermica::criarPaginaRegistros(const QString& arquivo, int sec
     filtro->setSourceModel(modelo);
     filtro->setFilterKeyColumn(0);
     connect(modelo, &ModeloSecaoFixa::valorRecusado, this, [this](const QString& motivo) { atualizar(motivo); });
-    v->addWidget(novaTabela(filtro, pagina), 1);
+    QTableView* tabela = novaTabela(filtro, pagina);
+    ligarMenuRegistros(tabela, filtro, arquivo, secao);
+    v->addWidget(tabela, 1);
     return pagina;
+}
+
+// Adicionar e remover no menu de contexto de uma tabela de registros da usina; a linha da vista e
+// levada ao registro do arquivo pelo filtro da usina.
+void FormularioTermica::ligarMenuRegistros(QTableView* tabela, QSortFilterProxyModel* filtro, const QString& arquivo, int secao) {
+    definirAcoesExtras(tabela, [this, filtro, arquivo, secao](QMenu* menu, const QModelIndex& ix) {
+        const int registro = ix.isValid() ? filtro->mapToSource(ix).row() : -1;
+        const auto depois = [this](const QString& recusa, int) { atualizar(recusa); };
+        preencherMenuRegistros(menu->addMenu(QStringLiteral("Adicionar")), dados_, arquivo, secao, registro, true, depois);
+        preencherMenuRegistros(menu->addMenu(QStringLiteral("Remover")), dados_, arquivo, secao, registro, false, depois);
+    });
 }
 
 // Custo da classe da usina (registro tipo 1 do clast.dat) e as modificacoes de custo dela (tipo 2).
@@ -256,6 +271,7 @@ QWidget* FormularioTermica::criarPaginaClasse() {
             filtro_custo_ = filtro;
         } else {
             filtro_mod_custo_ = filtro;
+            ligarMenuRegistros(tabela, filtro, QStringLiteral("clast.dat"), secao);
         }
         vg->addWidget(tabela, secao == 1 ? 1 : 0);
         v->addWidget(grupo, secao == 1 ? 1 : 0);

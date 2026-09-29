@@ -36,6 +36,8 @@ public:
     QString rotuloReferencia(Referencia referencia, const QString& codigo) const;
     static QString normalizarCodigo(const QString& codigo);
     void substituirTexto(const QString& nome_padrao, const QString& texto);
+    Resultado duplicar(const QString& nome_padrao, int secao, int registro, int nivel, int* primeira_linha_nova = nullptr);
+    Resultado remover(const QString& nome_padrao, int secao, int registro, int nivel);
     bool salvar(const QString& nome_padrao, QString* motivo = nullptr);
     QStringList modificados() const;
 
@@ -60,6 +62,7 @@ private:
     void carregarBinario(const QString& nome_padrao, int tamanho_registro);
     Entrada* binarioLido(const QString& nome_padrao);
     void aplicarPatamares(bool avisar);
+    void concluirReinterpretacao(const QString& nome_padrao);
 
     std::map<QString, Entrada> arquivos_;
     QString dir_;
