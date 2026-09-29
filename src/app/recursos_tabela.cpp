@@ -12,6 +12,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPointer>
 #include <QProxyStyle>
 #include <QPushButton>
 #include <QStyleFactory>
@@ -133,8 +134,10 @@ public:
     void definirExtras(std::function<void(QMenu*, const QModelIndex&)> extras) { extras_ = std::move(extras); }
 
     // Esconde as linhas que nao passam nos filtros das colunas ou no predicado externo e marca no
-    // cabecalho as colunas filtradas.
+    // cabecalho as colunas filtradas. Na destruicao da tabela os cabecalhos saem antes do modelo, que
+    // ainda avisa que foi reiniciado; sem cabecalho nao ha o que fazer.
     void aplicar() {
+        if (!cabecalho_ || !vertical_) return;
         QAbstractItemModel* modelo = tabela_->model();
         if (!modelo) return;
         for (int r = 0; r < modelo->rowCount(); ++r) tabela_->setRowHidden(r, !visivel(r, -1));
@@ -449,6 +452,8 @@ private:
     }
 
     QTableView* tabela_;
+    QPointer<QHeaderView> cabecalho_ = tabela_->horizontalHeader();
+    QPointer<QHeaderView> vertical_ = tabela_->verticalHeader();
     bool ordenavel_;
     QAbstractItemModel* modelo_ligado_ = nullptr;
     std::map<int, std::set<QString>> filtros_;

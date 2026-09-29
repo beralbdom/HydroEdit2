@@ -15,6 +15,7 @@
 #include "delegate_referencia.h"
 #include "deck_newave.h"
 #include "formulario_arquivo.h"
+#include "janela_principal.h"
 #include "layouts_newave.h"
 #include "modelo_secao_fixa.h"
 #include "pagina_arquivo_fixo.h"
@@ -99,6 +100,20 @@ private slots:
         QCOMPARE(modelo.item(0, 1)->text(), QStringLiteral("y"));
         ordenarTabela(&tabela, -1, Qt::AscendingOrder);
         QVERIFY(!tabela.verticalHeader()->sectionsMoved() || tabela.verticalHeader()->visualIndex(2) == 2);
+    }
+
+    void janelaAbreHidrSeguidos() {
+        const fs::path newave = fs::path(DIR_DECK) / "hidr.dat";
+        const fs::path dessem = fs::path(DIR_DECK_DESSEM) / "hidr.dat";
+        if (!fs::exists(newave) || !fs::exists(dessem)) QSKIP("decks ausentes");
+        JanelaPrincipal janela;
+        janela.show();
+        for (const fs::path& caminho : {newave, dessem, newave, newave}) {
+            janela.abrirCaminho(QString::fromStdWString(caminho.wstring()));
+            QCoreApplication::processEvents();
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        }
+        QVERIFY(janela.isVisible());
     }
 
     void formulariosDoDeckReal() {
