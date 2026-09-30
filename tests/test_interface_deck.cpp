@@ -44,6 +44,7 @@ private slots:
 
     void copiaEColaPulandoLinhasEscondidas() {
         QStandardItemModel modelo(4, 2);
+        modelo.setHorizontalHeaderLabels({QStringLiteral("Primeira"), QStringLiteral("Segunda\ncoluna")});
         for (int r = 0; r < 4; ++r)
             for (int c = 0; c < 2; ++c) modelo.setItem(r, c, new QStandardItem(QString::number(10 * r + c)));
         QTableView tabela;
@@ -54,9 +55,9 @@ private slots:
 
         tabela.selectionModel()->select(QItemSelection(modelo.index(0, 0), modelo.index(2, 1)), QItemSelectionModel::Select);
         tecla(tabela, QKeySequence::Copy);
-        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("0\t1\r\n20\t21\r\n"));
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("Primeira\tSegunda coluna\r\n0\t1\r\n20\t21\r\n"));
 
-        QApplication::clipboard()->setText(QStringLiteral("a\tb\nc\td\n"));
+        QApplication::clipboard()->setText(QStringLiteral("Primeira\tSegunda coluna\na\tb\nc\td\n"));
         tabela.selectionModel()->clearSelection();
         tabela.setCurrentIndex(modelo.index(0, 0));
         tecla(tabela, QKeySequence::Paste);
@@ -75,6 +76,7 @@ private slots:
 
     void ordenaNaVistaECopiaNaOrdemMostrada() {
         QStandardItemModel modelo(3, 2);
+        modelo.setHorizontalHeaderLabels({QStringLiteral("Nome"), QStringLiteral("Valor")});
         const QStringList nomes = {QStringLiteral("b"), QStringLiteral("a"), QStringLiteral("c")};
         for (int r = 0; r < 3; ++r) {
             modelo.setItem(r, 0, new QStandardItem(nomes[r]));
@@ -87,11 +89,11 @@ private slots:
         QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("b"));
         tabela.selectAll();
         tecla(tabela, QKeySequence::Copy);
-        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("a\t1\r\nb\t0\r\nc\t2\r\n"));
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("Nome\tValor\r\na\t1\r\nb\t0\r\nc\t2\r\n"));
         ordenarTabela(&tabela, 0, Qt::DescendingOrder);
         tabela.selectAll();
         tecla(tabela, QKeySequence::Copy);
-        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("c\t2\r\nb\t0\r\na\t1\r\n"));
+        QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("Nome\tValor\r\nc\t2\r\nb\t0\r\na\t1\r\n"));
         tabela.clearSelection();
         tabela.setCurrentIndex(modelo.index(2, 1));
         QApplication::clipboard()->setText(QStringLiteral("x\ny"));

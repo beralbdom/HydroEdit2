@@ -368,8 +368,28 @@ private:
         return linhas;
     }
 
-    // Retangulo da selecao na ordem da vista, sem as linhas e colunas escondidas; celula fora da
-    // selecao sai vazia.
+    // Titulo da coluna numa linha so, como vai para o texto copiado.
+    QString titulo(int coluna) const {
+        return tabela_->model()->headerData(coluna, Qt::Horizontal, Qt::DisplayRole).toString().simplified();
+    }
+
+    // Linha copiada so com titulos de colunas da tabela: e o cabecalho que copiar poe no inicio, e
+    // colar a descarta.
+    bool linhaDeCabecalho(const QStringList& linha) const {
+        QAbstractItemModel* modelo = tabela_->model();
+        std::set<QString> titulos;
+        for (int c = 0; c < modelo->columnCount(); ++c) titulos.insert(titulo(c));
+        bool algum = false;
+        for (const QString& celula : linha) {
+            if (celula.trimmed().isEmpty()) continue;
+            if (!titulos.count(celula.trimmed())) return false;
+            algum = true;
+        }
+        return algum;
+    }
+
+    // Retangulo da selecao na ordem da vista, com os titulos das colunas na primeira linha, sem as
+    // linhas e colunas escondidas; celula fora da selecao sai vazia.
     void copiar() {
         QAbstractItemModel* modelo = tabela_->model();
         const QModelIndexList selecao = tabela_->selectionModel()->selectedIndexes();
@@ -384,7 +404,9 @@ private:
             c1 = std::max(c1, ix.column());
             marcadas.insert({ix.row(), ix.column()});
         }
-        std::vector<QStringList> linhas;
+        std::vector<QStringList> linhas(1);
+        for (int c = c0; c <= c1; ++c)
+            if (!tabela_->isColumnHidden(c)) linhas.front() << titulo(c);
         for (int v = v0; v <= v1; ++v) {
             const int r = vertical->logicalIndex(v);
             if (tabela_->isRowHidden(r)) continue;
@@ -396,17 +418,20 @@ private:
         QApplication::clipboard()->setText(formatarTsv(linhas));
     }
 
-    // Cola a partir do canto da selecao, descendo pelas linhas visiveis na ordem da vista; um valor so, com varias
-    // celulas selecionadas, vai para todas elas. Cada valor passa pelo setData do modelo, com a mesma
+    // Cola a partir do canto da selecao, descendo pelas linhas visiveis na ordem da vista; a primeira
+    // linha fica de fora se for o cabecalho que copiar poe. Um valor so, com varias celulas
+    // selecionadas, vai para todas elas. Cada valor passa pelo setData do modelo, com a mesma
     // validacao da edicao celula a celula; celulas que nao se editam ficam de fora, e tabela so de
     // leitura (sem gatilho de edicao) nao recebe nada. Em tabela que seleciona linhas inteiras, a
     // colagem comeca na coluna da celula clicada.
     void colar() {
         if (tabela_->editTriggers() == QAbstractItemView::NoEditTriggers) return;
         QAbstractItemModel* modelo = tabela_->model();
-        const std::vector<QStringList> linhas = lerTsv(QApplication::clipboard()->text());
+        std::vector<QStringList> linhas = lerTsv(QApplication::clipboard()->text());
         QModelIndexList selecao = tabela_->selectionModel()->selectedIndexes();
-        if (!modelo || linhas.empty()) return;
+        if (!modelo) return;
+        if (!linhas.empty() && linhaDeCabecalho(linhas.front())) linhas.erase(linhas.begin());
+        if (linhas.empty()) return;
         if (selecao.isEmpty() && tabela_->currentIndex().isValid()) selecao << tabela_->currentIndex();
         if (selecao.isEmpty()) return;
 
