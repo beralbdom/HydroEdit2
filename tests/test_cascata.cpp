@@ -50,7 +50,7 @@ private slots:
         QVERIFY(n1 && n2 && n3);
         QCOMPARE(n1->coluna, 0.0);
         QCOMPARE(n2->coluna, 1.0);
-        QCOMPARE(n3->coluna, 0.5);
+        QCOMPARE(n3->coluna, 0.0);
         QCOMPARE(n1->linha, 0);
         QCOMPARE(n2->linha, 0);
         QCOMPARE(n3->linha, 1);
@@ -99,7 +99,7 @@ private slots:
         const NoCascata* n2 = noDe(c, 2);
         QVERIFY(n1 && n2);
         QCOMPARE(n1->bacia, n2->bacia);
-        QVERIFY(n1->coluna != n2->coluna);
+        QVERIFY(n1->linha != n2->linha);
     }
     void cicloDeTresNosNaoSobrepoeColunas() {
         std::vector<UsinaHidr> u(3);
@@ -118,14 +118,48 @@ private slots:
         QVERIFY(n1 && n2 && n3);
         QCOMPARE(n1->bacia, n2->bacia);
         QCOMPARE(n2->bacia, n3->bacia);
-        QVERIFY(n1->coluna != n2->coluna);
-        QVERIFY(n2->coluna != n3->coluna);
-        QVERIFY(n1->coluna != n3->coluna);
-        std::vector<double> colunas = {n1->coluna, n2->coluna, n3->coluna};
-        std::sort(colunas.begin(), colunas.end());
-        QCOMPARE(colunas[0], 0.0);
-        QCOMPARE(colunas[1], 1.0);
-        QCOMPARE(colunas[2], 2.0);
+        std::vector<int> linhas = {n1->linha, n2->linha, n3->linha};
+        std::sort(linhas.begin(), linhas.end());
+        QCOMPARE(linhas, (std::vector<int>{0, 1, 2}));
+    }
+
+    void cursoPrincipalRetoEAfluentesSemSobreposicao() {
+        std::vector<UsinaHidr> u(8);
+        for (size_t i = 0; i < u.size(); ++i) u[i].nome = "U" + std::to_string(i + 1);
+        u[0].jusante = 0;
+        u[1].jusante = 1;
+        u[2].jusante = 2;
+        u[3].jusante = 3;
+        u[4].jusante = 2;
+        u[5].jusante = 5;
+        u[6].jusante = 1;
+        u[7].jusante = 4;
+        Cascata c = montarCascata(u);
+        QCOMPARE(noDe(c, 1)->coluna, noDe(c, 2)->coluna);
+        QCOMPARE(noDe(c, 2)->coluna, noDe(c, 3)->coluna);
+        QCOMPARE(noDe(c, 3)->coluna, noDe(c, 4)->coluna);
+        for (const NoCascata& a : c.nos)
+            for (const NoCascata& b : c.nos)
+                if (a.codigo != b.codigo && a.linha == b.linha) QVERIFY(std::abs(a.coluna - b.coluna) >= 1.0);
+        for (const ArestaCascata& aresta : c.arestas) QCOMPARE(noDe(c, aresta.origem)->linha, noDe(c, aresta.destino)->linha - 1);
+    }
+
+    void empacotarBaciasPoeDesviosLadoALado() {
+        std::vector<UsinaHidr> u(7);
+        for (size_t i = 0; i < u.size(); ++i) u[i].nome = "U" + std::to_string(i + 1);
+        u[0].jusante = 2;
+        u[1].jusante = 3;
+        u[2].jusante = 0;
+        u[3].jusante = 4 + 1;
+        u[4].jusante = 0;
+        u[5].jusante = 0;
+        u[6].jusante = 0;
+        u[6].desvio = 1;
+        Cascata r = empacotarBacias(u, 100);
+        const NoCascata* foz_maior = noDe(r, 3);
+        const NoCascata* isolada = noDe(r, 7);
+        QVERIFY(foz_maior && isolada);
+        QCOMPARE(isolada->coluna, foz_maior->coluna + 2.0);
     }
     void desvioGeraArestaSemAlterarColunas() {
         std::vector<UsinaHidr> u(2);
