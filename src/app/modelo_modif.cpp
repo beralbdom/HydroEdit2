@@ -11,8 +11,8 @@ namespace {
 const QString MODIF = QStringLiteral("modif.dat");
 
 QString rotuloUnidade(const QString& codigo) {
-    if (codigo.compare(QStringLiteral("h"), Qt::CaseInsensitive) == 0) return QStringLiteral("hm³ (%1)").arg(codigo);
-    if (codigo == QStringLiteral("%")) return QStringLiteral("% do volume útil (%)");
+    if (codigo.compare(QStringLiteral("h"), Qt::CaseInsensitive) == 0) return QStringLiteral("hm3");
+    if (codigo == QStringLiteral("%")) return QStringLiteral("%vu");
     return codigo;
 }
 

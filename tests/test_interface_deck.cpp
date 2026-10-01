@@ -118,6 +118,7 @@ private slots:
         for (int c = 0; c < 7; ++c) QCOMPARE(modelo.headerData(c, Qt::Horizontal, Qt::DisplayRole).toString(), titulos[c]);
         QVERIFY(modelo.registros() > 100);
         QCOMPARE(modelo.index(0, 5).data(Qt::EditRole).toString(), QStringLiteral("%"));
+        QCOMPARE(modelo.index(0, 5).data(Qt::DisplayRole).toString(), QStringLiteral("%vu"));
         QVERIFY(!(modelo.flags(modelo.index(0, 0)) & Qt::ItemIsEditable));
         QVERIFY(modelo.flags(modelo.index(0, 4)) & Qt::ItemIsEditable);
 

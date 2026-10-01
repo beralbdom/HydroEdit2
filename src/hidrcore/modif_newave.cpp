@@ -131,7 +131,7 @@ Resultado formatarCampoModif(const CampoModif& campo, const std::string& texto_o
         token = std::to_string(n);
         break;
     case TipoCampoModif::Unidade:
-        if (texto != "h" && texto != "H" && texto != "%") return Resultado::erro("Unidade: use h (hm³) ou % (do volume útil)");
+        if (texto != "h" && texto != "H" && texto != "%") return Resultado::erro("Unidade: use h (hm3) ou % (%vu)");
         token = aspas ? "'" + texto + "'" : texto;
         break;
     }
