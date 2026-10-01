@@ -21,7 +21,7 @@ bool numerico(TipoCampoModif tipo) { return tipo != TipoCampoModif::Unidade; }
 
 // Registros do modif.dat numa tabela editavel. Com uma palavra-chave escolhida, cada campo dela vira
 // uma coluna (camposModif, com um patamar por coluna conforme o numero de patamares de carga do
-// deck); com uma categoria ou com todas, as colunas sao as comuns: palavra-chave, mes e ano (das
+// deck); com uma categoria, as colunas sao as comuns: modificador (palavra-chave), mes e ano (das
 // palavras-chave com data) e os demais valores juntos, somente para leitura. Usina e nome nao se
 // editam. Cada edicao reescreve so a linha do registro no repositorio do deck.
 ModeloModif::ModeloModif(DadosDeck* dados, const ModeloHidr* hidr, QObject* parent)
@@ -107,7 +107,7 @@ QVariant ModeloModif::headerData(int secao, Qt::Orientation o, int role) const {
     if (secao == 0) return QStringLiteral("Usina");
     if (secao == 1) return QStringLiteral("Nome");
     if (tipada()) return QString::fromStdString(campos_[static_cast<size_t>(secao - 2)].nome);
-    static const QStringList gerais = {QStringLiteral("Palavra-chave"), QStringLiteral("Mês"), QStringLiteral("Ano"), QStringLiteral("Valores")};
+    static const QStringList gerais = {QStringLiteral("Modificador"), QStringLiteral("Mês"), QStringLiteral("Ano"), QStringLiteral("Valores")};
     return gerais.value(secao - 2);
 }
 
@@ -149,7 +149,7 @@ QVariant ModeloModif::data(const QModelIndex& ix, int role) const {
         if (numero) return ok ? QVariant(v) : QVariant(-std::numeric_limits<double>::infinity());
         return texto();
     }
-    if (role == Qt::ToolTipRole && !tipada() && coluna == 5) return QStringLiteral("Escolha a palavra-chave na árvore para editar estes valores");
+    if (role == Qt::ToolTipRole && !tipada() && coluna == 5) return QStringLiteral("Escolha o modificador na árvore para editar estes valores");
     return {};
 }
 

@@ -48,8 +48,8 @@ QString descricaoDa(const QString& chave) {
 }
 }  // namespace
 
-// Aba Modificacoes: arvore com todas as modificacoes, as categorias e as palavras-chave do modif.dat
-// e ao lado a tabela editavel dos registros do item
+// Aba Modificacoes: arvore com as categorias e as palavras-chave (modificadores) do modif.dat e ao
+// lado a tabela editavel dos registros do item
 // escolhido (ModeloModif). As palavras-chave que o deck nao usa aparecem desabilitadas, para mostrar
 // o que o arquivo admite. Adicionar insere a copia do registro selecionado ou uma modificacao nova
 // para qualquer usina; Remover apaga os registros selecionados.
@@ -157,8 +157,8 @@ void PaginaModificacoes::changeEvent(QEvent* evento) {
 }
 
 // Categorias na ordem da tabela de palavras-chave; palavras-chave que o manual nao lista entram em
-// "Outras". Fica escolhido o item que estava antes (palavra-chave ou categoria) ou a raiz "Todas as
-// modificacoes".
+// "Outras". Fica escolhido o item que estava antes (palavra-chave ou categoria) ou a primeira
+// categoria.
 void PaginaModificacoes::montarArvore() {
     const QString chave_antes = chave_atual_;
     const QString categoria_antes = categoria_atual_;
@@ -172,8 +172,8 @@ void PaginaModificacoes::montarArvore() {
         pai->appendRow(item);
         return item;
     };
-    QStandardItem* raiz = novoItem(itens_->invisibleRootItem(), QStringLiteral("Todas as modificações"));
-    QStandardItem* escolher = raiz;
+    QStandardItem* raiz = itens_->invisibleRootItem();
+    QStandardItem* escolher = nullptr;
 
     std::map<QString, QStandardItem*> categorias;
     auto categoria = [&](const QString& nome) {
@@ -182,7 +182,7 @@ void PaginaModificacoes::montarArvore() {
         QStandardItem* item = novoItem(raiz, nome);
         item->setData(nome, PAPEL_CATEGORIA);
         definirIconeArvore(item, iconeDaCategoria(nome));
-        if (chave_antes.isEmpty() && nome == categoria_antes) escolher = item;
+        if ((chave_antes.isEmpty() && nome == categoria_antes) || !escolher) escolher = item;
         return categorias[nome] = item;
     };
     auto adicionarChave = [&](const QString& chave, const QString& descricao, const QString& nome_categoria) {
@@ -190,13 +190,14 @@ void PaginaModificacoes::montarArvore() {
         item->setData(chave, PAPEL_CHAVE);
         item->setToolTip(descricao);
         item->setEnabled(contagem.count(chave) > 0);
-        if (chave == chave_antes) escolher = item;
+        if (!chave_antes.isEmpty() && chave == chave_antes) escolher = item;
     };
     for (const PalavraChaveModif& p : palavrasChaveModif()) adicionarChave(p.chave, p.descricao, p.categoria);
     for (const auto& [chave, n] : contagem)
         if (categoriaDa(chave) == outras()) adicionarChave(chave, descricaoDa(chave), outras());
 
     arvore_->expandAll();
+    if (!escolher) return;
     arvore_->setCurrentIndex(escolher->index());
     mostrar(escolher->index());
 }
@@ -240,7 +241,7 @@ void PaginaModificacoes::atualizarDetalhes(const QString& aviso) {
     else if (!dados_.erro.empty()) texto = origem + QStringLiteral("  ·  ") + QString::fromStdString(dados_.erro);
     else {
         texto = QStringLiteral("%1  ·  %2 registros em %3 usinas").arg(origem).arg(modelo_->registros()).arg(modelo_->usinas());
-        if (chave_atual_.isEmpty()) texto += QStringLiteral("  ·  escolha a palavra-chave para editar os valores");
+        if (chave_atual_.isEmpty()) texto += QStringLiteral("  ·  escolha o modificador para editar os valores");
         if (modif && modif->modificado()) texto += QStringLiteral("  ·  alterado, não salvo");
     }
     if (!aviso.isEmpty()) texto += QStringLiteral("  ·  ") + aviso;
@@ -318,7 +319,7 @@ void PaginaModificacoes::novaModificacao() {
     connect(botoes, &QDialogButtonBox::accepted, &dialogo, &QDialog::accept);
     connect(botoes, &QDialogButtonBox::rejected, &dialogo, &QDialog::reject);
     form->addRow(QStringLiteral("Usina"), usinas);
-    form->addRow(QStringLiteral("Palavra-chave"), chaves);
+    form->addRow(QStringLiteral("Modificador"), chaves);
     form->addRow(botoes);
     if (dialogo.exec() != QDialog::Accepted || usinas->currentIndex() < 0 || chaves->currentIndex() < 0) return;
 

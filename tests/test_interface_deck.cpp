@@ -135,7 +135,7 @@ private slots:
 
         modelo.definirFiltro({}, [](const QString&) { return true; });
         QCOMPARE(modelo.columnCount(), 6);
-        QCOMPARE(modelo.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Palavra-chave"));
+        QCOMPARE(modelo.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Modificador"));
     }
 
     void janelaAbreHidrSeguidos() {
