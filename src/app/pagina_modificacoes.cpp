@@ -49,7 +49,7 @@ QString descricaoDa(const QString& chave) {
 }  // namespace
 
 // Aba Modificacoes: arvore com todas as modificacoes, as categorias e as palavras-chave do modif.dat
-// com a contagem de registros de cada uma, e ao lado a tabela editavel dos registros do item
+// e ao lado a tabela editavel dos registros do item
 // escolhido (ModeloModif). As palavras-chave que o deck nao usa aparecem desabilitadas, para mostrar
 // o que o arquivo admite. Adicionar insere a copia do registro selecionado ou uma modificacao nova
 // para qualquer usina; Remover apaga os registros selecionados.
@@ -57,13 +57,9 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck
     : QSplitter(Qt::Horizontal, parent), hidr_(modelo), deck_(deck) {
     setHandleWidth(4);
     arvore_ = new QTreeView(this);
-    itens_ = new QStandardItemModel(0, 2, arvore_);
-    itens_->setHorizontalHeaderLabels({QStringLiteral("Tipo"), QStringLiteral("Registros")});
+    itens_ = new QStandardItemModel(arvore_);
     arvore_->setModel(itens_);
-    arvore_->header()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    arvore_->header()->setSectionResizeMode(0, QHeaderView::Stretch);
-    arvore_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    arvore_->header()->setStretchLastSection(false);
+    arvore_->setHeaderHidden(true);
     estilizarArvore(arvore_);
 
     auto* direita = new QWidget(this);
@@ -171,40 +167,30 @@ void PaginaModificacoes::montarArvore() {
     for (const BlocoModif& bloco : dados_.blocos)
         for (const RegistroModif& registro : bloco.registros) ++contagem[QString::fromStdString(registro.palavra_chave)];
 
-    int total = 0;
-    for (const auto& [chave, n] : contagem) total += n;
-    struct Linha {
-        QStandardItem* item;
-        QStandardItem* registros;
+    auto novoItem = [](QStandardItem* pai, const QString& texto) {
+        auto* item = new QStandardItem(texto);
+        pai->appendRow(item);
+        return item;
     };
-    auto novaLinha = [](QStandardItem* pai, const QString& texto, int n) {
-        Linha linha{new QStandardItem(texto), new QStandardItem(QString::number(n))};
-        pai->appendRow({linha.item, linha.registros});
-        return linha;
-    };
-    const Linha raiz = novaLinha(itens_->invisibleRootItem(), QStringLiteral("Todas as modificações"), total);
-    QStandardItem* escolher = raiz.item;
+    QStandardItem* raiz = novoItem(itens_->invisibleRootItem(), QStringLiteral("Todas as modificações"));
+    QStandardItem* escolher = raiz;
 
-    std::map<QString, Linha> categorias;
+    std::map<QString, QStandardItem*> categorias;
     auto categoria = [&](const QString& nome) {
         auto it = categorias.find(nome);
         if (it != categorias.end()) return it->second;
-        Linha linha = novaLinha(raiz.item, nome, 0);
-        linha.item->setData(nome, PAPEL_CATEGORIA);
-        definirIconeArvore(linha.item, iconeDaCategoria(nome));
-        if (chave_antes.isEmpty() && nome == categoria_antes) escolher = linha.item;
-        return categorias[nome] = linha;
+        QStandardItem* item = novoItem(raiz, nome);
+        item->setData(nome, PAPEL_CATEGORIA);
+        definirIconeArvore(item, iconeDaCategoria(nome));
+        if (chave_antes.isEmpty() && nome == categoria_antes) escolher = item;
+        return categorias[nome] = item;
     };
     auto adicionarChave = [&](const QString& chave, const QString& descricao, const QString& nome_categoria) {
-        const Linha pai = categoria(nome_categoria);
-        int n = contagem.count(chave) ? contagem[chave] : 0;
-        const Linha linha = novaLinha(pai.item, chave, n);
-        linha.item->setData(chave, PAPEL_CHAVE);
-        linha.item->setToolTip(descricao);
-        linha.item->setEnabled(n > 0);
-        linha.registros->setEnabled(n > 0);
-        pai.registros->setText(QString::number(pai.registros->text().toInt() + n));
-        if (chave == chave_antes) escolher = linha.item;
+        QStandardItem* item = novoItem(categoria(nome_categoria), chave);
+        item->setData(chave, PAPEL_CHAVE);
+        item->setToolTip(descricao);
+        item->setEnabled(contagem.count(chave) > 0);
+        if (chave == chave_antes) escolher = item;
     };
     for (const PalavraChaveModif& p : palavrasChaveModif()) adicionarChave(p.chave, p.descricao, p.categoria);
     for (const auto& [chave, n] : contagem)

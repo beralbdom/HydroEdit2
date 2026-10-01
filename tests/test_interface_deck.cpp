@@ -112,10 +112,10 @@ private slots:
         dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
         ModeloModif modelo(&dados, nullptr);
         modelo.definirFiltro(QStringLiteral("VMAXT"), {});
-        QCOMPARE(modelo.columnCount(), 7);
+        QCOMPARE(modelo.columnCount(), 6);
         const QStringList titulos = {QStringLiteral("Usina"), QStringLiteral("Nome"), QStringLiteral("Mês"), QStringLiteral("Ano"),
-                                     QStringLiteral("Volume"), QStringLiteral("Unidade"), QStringLiteral("Linha")};
-        for (int c = 0; c < 7; ++c) QCOMPARE(modelo.headerData(c, Qt::Horizontal, Qt::DisplayRole).toString(), titulos[c]);
+                                     QStringLiteral("Volume"), QStringLiteral("Unidade")};
+        for (int c = 0; c < 6; ++c) QCOMPARE(modelo.headerData(c, Qt::Horizontal, Qt::DisplayRole).toString(), titulos[c]);
         QVERIFY(modelo.registros() > 100);
         QCOMPARE(modelo.index(0, 5).data(Qt::EditRole).toString(), QStringLiteral("%"));
         QCOMPARE(modelo.index(0, 5).data(Qt::DisplayRole).toString(), QStringLiteral("%vu"));
@@ -134,7 +134,7 @@ private slots:
         QVERIFY(!modelo.setData(modelo.index(0, 2), QStringLiteral("13"), Qt::EditRole));
 
         modelo.definirFiltro({}, [](const QString&) { return true; });
-        QCOMPARE(modelo.columnCount(), 7);
+        QCOMPARE(modelo.columnCount(), 6);
         QCOMPARE(modelo.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Palavra-chave"));
     }
 

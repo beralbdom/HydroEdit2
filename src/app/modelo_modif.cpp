@@ -22,8 +22,8 @@ bool numerico(TipoCampoModif tipo) { return tipo != TipoCampoModif::Unidade; }
 // Registros do modif.dat numa tabela editavel. Com uma palavra-chave escolhida, cada campo dela vira
 // uma coluna (camposModif, com um patamar por coluna conforme o numero de patamares de carga do
 // deck); com uma categoria ou com todas, as colunas sao as comuns: palavra-chave, mes e ano (das
-// palavras-chave com data) e os demais valores juntos, somente para leitura. Usina, nome e linha do
-// arquivo nao se editam. Cada edicao reescreve so a linha do registro no repositorio do deck.
+// palavras-chave com data) e os demais valores juntos, somente para leitura. Usina e nome nao se
+// editam. Cada edicao reescreve so a linha do registro no repositorio do deck.
 ModeloModif::ModeloModif(DadosDeck* dados, const ModeloHidr* hidr, QObject* parent)
     : QAbstractTableModel(parent), dados_(dados), hidr_(hidr), aceita_([](const QString&) { return true; }) {}
 
@@ -91,7 +91,7 @@ int ModeloModif::rowCount(const QModelIndex& parent) const { return parent.isVal
 
 int ModeloModif::columnCount(const QModelIndex& parent) const {
     if (parent.isValid()) return 0;
-    return tipada() ? 3 + static_cast<int>(campos_.size()) : 7;
+    return tipada() ? 2 + static_cast<int>(campos_.size()) : 6;
 }
 
 // Indice do campo da palavra-chave do registro mostrado na coluna, ou -1: na vista de uma
@@ -106,7 +106,6 @@ QVariant ModeloModif::headerData(int secao, Qt::Orientation o, int role) const {
     if (o != Qt::Horizontal || role != Qt::DisplayRole) return {};
     if (secao == 0) return QStringLiteral("Usina");
     if (secao == 1) return QStringLiteral("Nome");
-    if (secao == columnCount() - 1) return QStringLiteral("Linha");
     if (tipada()) return QString::fromStdString(campos_[static_cast<size_t>(secao - 2)].nome);
     static const QStringList gerais = {QStringLiteral("Palavra-chave"), QStringLiteral("Mês"), QStringLiteral("Ano"), QStringLiteral("Valores")};
     return gerais.value(secao - 2);
@@ -116,13 +115,11 @@ QVariant ModeloModif::data(const QModelIndex& ix, int role) const {
     if (!ix.isValid()) return {};
     const Linha& linha = linhas_[static_cast<size_t>(ix.row())];
     const int coluna = ix.column();
-    const bool ultima = coluna == columnCount() - 1;
     const std::vector<CampoModif> campos_linha = campos(linha.chave);
     const int campo = campoDaColuna(linha, coluna);
     auto texto = [&]() -> QString {
         if (coluna == 0) return QString::number(linha.usina);
         if (coluna == 1) return linha.nome;
-        if (ultima) return QString::number(linha.indice + 1);
         if (campo >= 0) {
             if (campo >= static_cast<int>(linha.tokens.size()) || campo >= static_cast<int>(campos_linha.size())) return {};
             return QString::fromLatin1(valorExibidoModif(campos_linha[static_cast<size_t>(campo)], linha.tokens[static_cast<size_t>(campo)]).c_str()).trimmed();
@@ -143,7 +140,7 @@ QVariant ModeloModif::data(const QModelIndex& ix, int role) const {
     if (role == PAPEL_OPCOES && unidade)
         return QVariantList{QStringList{QStringLiteral("h"), rotuloUnidade(QStringLiteral("h"))},
                             QStringList{QStringLiteral("%"), rotuloUnidade(QStringLiteral("%"))}};
-    const bool numero = coluna == 0 || ultima ||
+    const bool numero = coluna == 0 ||
                         (campo >= 0 && campo < static_cast<int>(campos_linha.size()) && numerico(campos_linha[static_cast<size_t>(campo)].tipo));
     if (role == Qt::TextAlignmentRole) return int((numero ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignVCenter);
     if (role == Qt::UserRole) {
