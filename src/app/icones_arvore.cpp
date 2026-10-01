@@ -12,6 +12,7 @@
 
 namespace {
 constexpr int PAPEL_ICONE = Qt::UserRole + 20;
+constexpr int PAPEL_ESMAECIDO = Qt::UserRole + 21;
 constexpr char TRACO[] = "#262626";
 
 const std::pair<const char*, const char*> DESTAQUES_ESCUROS[] = {
@@ -66,9 +67,16 @@ QString iconeDaCategoria(const QString& categoria) {
 // Icone das arvores (src/app/icones/<chave>.svg), desenhado em 24 x 24 com as cores do tema claro. O
 // traco toma a cor do texto da paleta e, com fundo escuro, as cores de destaque (agua, termica, rede
 // eletrica, risco) trocam pelas versoes claras. O SVG e desenhado em 16, 24 e 32 px, para escalas de
-// tela de 100, 150 e 200 %, e o resultado fica guardado por chave e cores.
-QIcon iconeArvore(const QString& chave) {
+// tela de 100, 150 e 200 %, e o resultado fica guardado por chave e cores. Esmaecido e a versao
+// desabilitada que o estilo gera, para item sem dados.
+QIcon iconeArvore(const QString& chave, bool esmaecido) {
     if (chave.isEmpty()) return {};
+    if (esmaecido) {
+        const QIcon normal = iconeArvore(chave);
+        QIcon apagado;
+        for (int tamanho : {16, 24, 32}) apagado.addPixmap(normal.pixmap(QSize(tamanho, tamanho), QIcon::Disabled));
+        return apagado;
+    }
     const QPalette paleta = QApplication::palette();
     const bool escuro = paleta.color(QPalette::Base).lightness() < 128;
     const QString texto = paleta.color(QPalette::Text).name();
@@ -104,6 +112,15 @@ void definirIconeArvore(QStandardItem* item, const QString& chave) {
     item->setIcon(iconeArvore(chave));
 }
 
+// Troca o icone do item pela versao esmaecida (ou volta a normal), guardando o estado para a troca de
+// tema refazer o icone certo.
+void esmaecerIconeArvore(QStandardItem* item, bool esmaecido) {
+    const QString chave = item->data(PAPEL_ICONE).toString();
+    if (chave.isEmpty() || item->data(PAPEL_ESMAECIDO).toBool() == esmaecido) return;
+    item->setData(esmaecido, PAPEL_ESMAECIDO);
+    item->setIcon(iconeArvore(chave, esmaecido));
+}
+
 // Refaz os icones de todos os itens do modelo com as cores da paleta atual.
 void atualizarIconesArvore(QStandardItemModel* modelo) {
     std::vector<QStandardItem*> pendentes = {modelo->invisibleRootItem()};
@@ -113,6 +130,6 @@ void atualizarIconesArvore(QStandardItemModel* modelo) {
         for (int r = 0; r < item->rowCount(); ++r)
             if (QStandardItem* filho = item->child(r)) pendentes.push_back(filho);
         const QString chave = item->data(PAPEL_ICONE).toString();
-        if (!chave.isEmpty()) item->setIcon(iconeArvore(chave));
+        if (!chave.isEmpty()) item->setIcon(iconeArvore(chave, item->data(PAPEL_ESMAECIDO).toBool()));
     }
 }

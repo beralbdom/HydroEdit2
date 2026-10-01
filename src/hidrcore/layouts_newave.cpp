@@ -972,12 +972,13 @@ LayoutArquivoFixo agrint() {
           .linhas_cabecalho = 3,
           .terminador = "999",
           .colunas = {inteiro("Agrupamento", 2, 4), ref(inteiro("Submercado origem", 6, 8), Referencia::Submercado),
-                      ref(inteiro("Submercado destino", 10, 12), Referencia::Submercado), real("Coeficiente", 14, 20, 4)}},
+                      ref(inteiro("Submercado destino", 10, 12), Referencia::Submercado), real("Coeficiente", 14, 20, 4)},
+          .formulario = true},
          {.titulo = "Limites dos agrupamentos",
           .linhas_cabecalho = 3,
           .terminador = "999",
           .colunas = {
-              inteiro("Agrupamento", 2, 4), inteiro("Mês início", 7, 8), inteiro("Ano início", 10, 13),
+              ref(inteiro("Agrupamento", 2, 4), Referencia::Agrupamento), inteiro("Mês início", 7, 8), inteiro("Ano início", 10, 13),
               inteiro("Mês fim", 15, 16), inteiro("Ano fim", 18, 21), deCarga(real("Limite pat. 1 (MWmédio)", 23, 29, 0), 1),
               deCarga(real("Limite pat. 2 (MWmédio)", 31, 37, 0), 2), deCarga(real("Limite pat. 3 (MWmédio)", 39, 45, 0), 3),
               deCarga(real("Limite pat. 4 (MWmédio)", 47, 53, 0), 4), deCarga(real("Limite pat. 5 (MWmédio)", 55, 61, 0), 5)}}}};

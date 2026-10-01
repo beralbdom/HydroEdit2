@@ -152,6 +152,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
     }
     connect(dados_, &DadosDeck::alterado, this, &NavegadorDeck::atualizarItens);
     connect(dados_, &DadosDeck::recarregado, this, &NavegadorDeck::atualizarItens);
+    connect(dados_, &DadosDeck::reinterpretado, this, &NavegadorDeck::atualizarItens);
 }
 
 // Le o arquivos.dat da pasta do deck e repassa ao repositorio, que resolve por ele o nome real dos
@@ -183,7 +184,9 @@ void NavegadorDeck::aplicarEdicoesPendentes() {
 }
 
 // Estado de cada item: com um deck aberto, arquivo que nao esta nele fica esmaecido e em italico;
-// arquivo alterado e nao salvo fica em italico, com a cor normal, e ganha um ponto depois do titulo. O hidr.dat, aberto pelo proprio
+// arquivo alterado e nao salvo fica em italico, com a cor normal, e ganha um ponto depois do titulo.
+// Secao (tabela) sem registro no arquivo fica esmaecida, e o arquivo tambem, quando nenhuma secao dele
+// tem registro. O hidr.dat, aberto pelo proprio
 // editor, nunca aparece como ausente.
 void NavegadorDeck::atualizarItens() {
     const QStringList alterados = dados_->modificados();
@@ -193,13 +196,29 @@ void NavegadorDeck::atualizarItens() {
         bool ausente = false;
         if (dados_->carregado() && i.nome_padrao != QStringLiteral("hidr.dat"))
             ausente = !dados_->lido(i.nome_padrao);
+        const ArquivoFixo* arquivo = dados_->carregado() ? dados_->arquivo(i.nome_padrao) : nullptr;
+        auto secaoVazia = [arquivo](int secao) {
+            return arquivo && secao >= 0 && secao < static_cast<int>(arquivo->secoes().size()) &&
+                   arquivo->secoes()[static_cast<size_t>(secao)].linhas.empty();
+        };
+        bool sem_registros = arquivo && !arquivo->secoes().empty();
+        if (arquivo)
+            for (int s = 0; s < static_cast<int>(arquivo->secoes().size()); ++s)
+                if (!secaoVazia(s)) sem_registros = false;
         const QPalette& paleta = arvore->palette();
-        const QColor cor = ausente ? paleta.color(QPalette::Disabled, QPalette::Text) : paleta.color(QPalette::Text);
+        const QColor normal = paleta.color(QPalette::Text);
+        const QColor esmaecida = paleta.color(QPalette::Disabled, QPalette::Text);
         QFont fonte = arvore->font();
         fonte.setItalic(ausente || alterado);
         i.item->setFont(fonte);
-        i.item->setForeground(cor);
-        for (int f = 0; f < i.item->rowCount(); ++f) i.item->child(f)->setForeground(cor);
+        i.item->setForeground(ausente || sem_registros ? esmaecida : normal);
+        esmaecerIconeArvore(i.item, ausente || sem_registros);
+        for (int f = 0; f < i.item->rowCount(); ++f) {
+            QStandardItem* filho = i.item->child(f);
+            const bool vazio = ausente || secaoVazia(filho->data(PAPEL_SECAO).toInt());
+            filho->setForeground(vazio ? esmaecida : normal);
+            esmaecerIconeArvore(filho, vazio);
+        }
         i.item->setText(alterado ? i.titulo + QStringLiteral("  •") : i.titulo);
     }
 }

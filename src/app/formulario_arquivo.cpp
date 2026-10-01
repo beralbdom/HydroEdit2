@@ -10,6 +10,7 @@
 #include <QMessageBox>
 #include <QAbstractItemView>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QStyle>
 #include <QStackedWidget>
 #include <QToolButton>
@@ -35,6 +36,7 @@ QFormLayout* novoForm(QWidget* pai) {
 }
 
 constexpr int LARGURA_MAXIMA_LISTA = 280;
+constexpr int MAXIMO_BLOCOS_LISTA = 4;
 
 // Grupos de um formulario em duas colunas quando cabem lado a lado, na largura natural, dentro da
 // largura disponivel (a da area de rolagem); senao, um embaixo do outro. A largura minima pedida e a
@@ -248,6 +250,7 @@ void FormularioArquivo::montar() {
         layout()->addWidget(conteudo_);
         atualizando_ = false;
         atualizarValores();
+        emit montado();
         return;
     }
     auto* interno = new QWidget;
@@ -294,18 +297,17 @@ void FormularioArquivo::montar() {
                 continue;
             }
             if (ao_lado.count(secao.definicao.titulo)) continue;
-            QGroupBox* grupo = novoGrupo(*arquivo, s, interno);
             const auto vizinha = std::find_if(arquivo->secoes().begin(), arquivo->secoes().end(), [&](const SecaoLida& o) {
                 return !secao.definicao.formulario_ao_lado.empty() && o.definicao.titulo == secao.definicao.formulario_ao_lado;
             });
             if (vizinha == arquivo->secoes().end()) {
-                v->addWidget(grupo);
+                v->addWidget(novoGrupo(*arquivo, s, interno));
                 continue;
             }
             auto* lado_a_lado = new QHBoxLayout;
             lado_a_lado->setSpacing(v->spacing());
-            lado_a_lado->addWidget(grupo);
-            lado_a_lado->addWidget(novoGrupo(*arquivo, static_cast<int>(vizinha - arquivo->secoes().begin()), interno), 1);
+            lado_a_lado->addWidget(novoGrupo(*arquivo, s, interno, false));
+            lado_a_lado->addWidget(novoGrupo(*arquivo, static_cast<int>(vizinha - arquivo->secoes().begin()), interno, false), 1);
             v->addLayout(lado_a_lado);
         }
     }
@@ -315,6 +317,14 @@ void FormularioArquivo::montar() {
     layout()->addWidget(conteudo_);
     atualizando_ = false;
     atualizarValores();
+    emit montado();
+}
+
+// Altura que o formulario precisa para mostrar todo o conteudo sem rolagem.
+int FormularioArquivo::alturaIdeal() const {
+    if (const auto* rolagem = qobject_cast<const QScrollArea*>(conteudo_); rolagem && rolagem->widget())
+        return rolagem->widget()->sizeHint().height() + 2 * rolagem->frameWidth();
+    return conteudo_ ? conteudo_->sizeHint().height() : 0;
 }
 
 // Campo de um parametro (secao de um registro) ou, com varias colunas, os campos com o nome de cada
@@ -433,8 +443,12 @@ void FormularioArquivo::mostrarTema(int tema) {
 
 // Grupo de uma secao do formulario: aviso se o arquivo nao tem registros dela, pares rotulo e campo
 // se ela tem um registro so e, nas listas, uma linha de campos por registro, com o botao de remover
-// cada uma e o de adicionar a copia da ultima quando a secao aceita registros avulsos.
-QGroupBox* FormularioArquivo::novoGrupo(const ArquivoFixo& arquivo, int s, QWidget* pai) {
+// cada uma e o de adicionar a copia da ultima quando a secao aceita registros avulsos. Lista de
+// registros estreitos (um ou dois campos, como submercados ou REEs) com mais de tres registros se
+// distribui em colunas, de cima para baixo, com cerca de tres registros por coluna e no maximo
+// MAXIMO_BLOCOS_LISTA colunas; sem em_colunas (grupo que ja divide a linha com outro, ao lado), fica
+// numa coluna so.
+QGroupBox* FormularioArquivo::novoGrupo(const ArquivoFixo& arquivo, int s, QWidget* pai, bool em_colunas) {
     const SecaoLida& secao = arquivo.secoes()[static_cast<size_t>(s)];
     const auto& colunas = secao.definicao.colunas;
     auto* grupo = new QGroupBox(QString::fromStdString(secao.definicao.titulo), pai);
@@ -456,16 +470,24 @@ QGroupBox* FormularioArquivo::novoGrupo(const ArquivoFixo& arquivo, int s, QWidg
     grade->setContentsMargins(8, 6, 8, 6);
     grade->setHorizontalSpacing(6);
     grade->setVerticalSpacing(4);
-    for (int c = 0; c < static_cast<int>(colunas.size()); ++c) {
-        auto* rotulo = new QLabel(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), grupo);
-        rotulo->setEnabled(false);
-        grade->addWidget(rotulo, 0, c, numerica(colunas[static_cast<size_t>(c)]) ? Qt::AlignRight : Qt::AlignLeft);
-    }
     const int n_colunas = static_cast<int>(colunas.size());
     const int n_registros = static_cast<int>(secao.linhas.size());
     const bool avulsos = arquivo.aceitaRegistrosAvulsos(s);
+    const int largura_bloco = n_colunas + (avulsos ? 1 : 0) + 1;
+    const int blocos = em_colunas && n_colunas <= 2 && n_registros > 3 ? std::min(MAXIMO_BLOCOS_LISTA, (n_registros + 2) / 3) : 1;
+    const int por_bloco = (n_registros + blocos - 1) / blocos;
+    for (int b = 0; b < blocos; ++b) {
+        for (int c = 0; c < n_colunas; ++c) {
+            auto* rotulo = new QLabel(QString::fromStdString(colunas[static_cast<size_t>(c)].nome), grupo);
+            rotulo->setEnabled(false);
+            grade->addWidget(rotulo, 0, b * largura_bloco + c, numerica(colunas[static_cast<size_t>(c)]) ? Qt::AlignRight : Qt::AlignLeft);
+        }
+        if (b > 0) grade->setColumnMinimumWidth(b * largura_bloco - 1, 18);
+    }
     for (int r = 0; r < n_registros; ++r) {
-        for (int c = 0; c < n_colunas; ++c) grade->addWidget(novoCampo(arquivo, s, r, c, grupo), r + 1, c);
+        const int linha = r % por_bloco + 1;
+        const int base = r / por_bloco * largura_bloco;
+        for (int c = 0; c < n_colunas; ++c) grade->addWidget(novoCampo(arquivo, s, r, c, grupo), linha, base + c);
         if (!avulsos) continue;
         auto* remover = new QToolButton(grupo);
         remover->setIcon(style()->standardIcon(QStyle::SP_LineEditClearButton));
@@ -473,16 +495,16 @@ QGroupBox* FormularioArquivo::novoGrupo(const ArquivoFixo& arquivo, int s, QWidg
         remover->setToolTip(arquivo.abreBloco(s, r) ? QStringLiteral("Remover este registro e os que dependem dele")
                                                      : QStringLiteral("Remover este registro"));
         connect(remover, &QToolButton::clicked, this, [this, s, r] { editarRegistros(s, r, false); });
-        grade->addWidget(remover, r + 1, n_colunas);
+        grade->addWidget(remover, linha, base + n_colunas);
     }
-    grade->setColumnStretch(n_colunas + (avulsos ? 1 : 0), 1);
+    grade->setColumnStretch(blocos * largura_bloco, 1);
     if (avulsos) {
         auto* adicionar = new QPushButton(QStringLiteral("Adicionar"), grupo);
         adicionar->setToolTip(QStringLiteral("Insere uma cópia do último registro, para editar"));
         connect(adicionar, &QPushButton::clicked, this, [this, s, n_registros] { editarRegistros(s, n_registros - 1, true); });
-        grade->addWidget(adicionar, n_registros + 1, 0, 1, std::min(2, n_colunas), Qt::AlignLeft);
+        grade->addWidget(adicionar, por_bloco + 1, 0, 1, std::min(2, n_colunas), Qt::AlignLeft);
     }
-    grade->setRowStretch(n_registros + 2, 1);
+    grade->setRowStretch(por_bloco + 2, 1);
     return grupo;
 }
 

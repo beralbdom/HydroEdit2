@@ -23,8 +23,12 @@ public:
     static bool paginaUnica(const LayoutArquivoFixo& layout);
     void mostrarSecao(int secao);
 
+protected:
+    void showEvent(QShowEvent* evento) override;
+
 private:
     void atualizar(const QString& aviso = {});
+    void ajustarDivisor();
     QPushButton* novoBotaoRegistros(const QString& texto, bool adicionar);
     void preencherMenu(QMenu* menu, int registro, bool adicionar);
     void depoisDaEdicao(const QString& recusa, int linha_nova, int registro_anterior);
@@ -43,6 +47,7 @@ private:
     QTableView* tabela_ = nullptr;
     QSplitter* divisor_ = nullptr;
     int primeira_tabela_ = -1;
+    bool divisor_pendente_ = true;
     ModeloSecaoFixa* modelo_ = nullptr;
     bool mostrando_formulario_ = false;
 };

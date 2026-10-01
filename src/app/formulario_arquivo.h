@@ -14,9 +14,11 @@ public:
     FormularioArquivo(const QString& nome_padrao, const LayoutArquivoFixo& layout, DadosDeck* dados, QWidget* parent = nullptr);
     int campos() const { return static_cast<int>(campos_.size()); }
     void mostrarTema(int tema);
+    int alturaIdeal() const;
 
 signals:
     void valorRecusado(const QString& motivo);
+    void montado();
 
 private:
     struct Campo {
@@ -31,7 +33,7 @@ private:
     void atualizarValores();
     QWidget* novoCampo(const ArquivoFixo& arquivo, int secao, int registro, int coluna, QWidget* pai);
     void editarRegistros(int secao, int registro, bool adicionar);
-    QGroupBox* novoGrupo(const ArquivoFixo& arquivo, int secao, QWidget* pai);
+    QGroupBox* novoGrupo(const ArquivoFixo& arquivo, int secao, QWidget* pai, bool em_colunas = true);
     QWidget* linhaParametro(const ArquivoFixo& arquivo, int secao, QWidget* pai);
     QGroupBox* areaParametro(const ArquivoFixo& arquivo, int secao, QWidget* pai);
     QWidget* novosTemas(const ArquivoFixo& arquivo);

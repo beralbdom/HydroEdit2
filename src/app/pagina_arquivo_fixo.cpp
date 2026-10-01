@@ -103,8 +103,9 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
             divisor_->addWidget(tabela_);
             divisor_->setStretchFactor(0, 0);
             divisor_->setStretchFactor(1, 1);
-            divisor_->setSizes({painel_formulario_->sizeHint().height(), 100000});
             pilha_->addWidget(divisor_);
+            connect(formulario_, &FormularioArquivo::montado, this, &PaginaArquivoFixo::ajustarDivisor);
+            ajustarDivisor();
         } else {
             pilha_->addWidget(tabela_);
         }
@@ -170,6 +171,25 @@ void PaginaArquivoFixo::mostrarSecao(int secao) {
         ajustarColunas(tabela_);
     }
     atualizar();
+}
+
+// Na pagina unica, o formulario fica com a altura do conteudo, ate 60 % da pagina (o resto e da
+// tabela). Refeito a cada montagem do formulario, porque o conteudo depende do deck carregado; com a
+// pagina escondida (altura ainda desconhecida), fica para quando ela aparecer.
+void PaginaArquivoFixo::ajustarDivisor() {
+    if (!divisor_) return;
+    divisor_pendente_ = !isVisible();
+    if (divisor_pendente_) return;
+    const int moldura = painel_formulario_->height() - formulario_->height();
+    const int desejada = formulario_->alturaIdeal() + std::max(moldura, 8);
+    const int total = divisor_->height() > 0 ? divisor_->height() : height();
+    const int altura = total > 0 ? std::min(desejada, total * 3 / 5) : desejada;
+    divisor_->setSizes({altura, std::max(total - altura, 100)});
+}
+
+void PaginaArquivoFixo::showEvent(QShowEvent* evento) {
+    QWidget::showEvent(evento);
+    if (divisor_pendente_) ajustarDivisor();
 }
 
 // Botao do cabecalho com o menu de adicionar ou remover o registro selecionado na tabela ou o bloco

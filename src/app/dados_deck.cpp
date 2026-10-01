@@ -2,6 +2,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <filesystem>
+#include <algorithm>
 #include <limits>
 #include "catalogo_newave.h"
 #include "layouts_newave.h"
@@ -181,7 +182,9 @@ QString DadosDeck::normalizarCodigo(const QString& codigo) {
 
 // Itens do cadastro referenciado, na ordem do arquivo, com rotulo "NOME (codigo)": submercados do
 // sistema.dat, REEs do ree.dat, usinas do confhd.dat e do conft.dat, classes do clast.dat,
-// tecnologias do tecno.dat e postos com nome do postos.dat. A lista e refeita depois de qualquer
+// tecnologias do tecno.dat e postos com nome do postos.dat. Os agrupamentos do agrint.dat tem por
+// nome as interligacoes que os compoem ("SUDESTE→NORDESTE + NOFICT1→NORDESTE", com o coeficiente
+// antes quando nao e 1), lidas do bloco 1 do proprio arquivo. A lista e refeita depois de qualquer
 // edicao, porque um nome ou codigo pode ter mudado.
 const std::vector<OpcaoReferencia>& DadosDeck::opcoes(Referencia referencia) const {
     auto it = referencias_.find(referencia);
@@ -190,7 +193,30 @@ const std::vector<OpcaoReferencia>& DadosDeck::opcoes(Referencia referencia) con
     auto rotulo = [](const QString& nome, const QString& codigo) {
         return nome.isEmpty() ? codigo : QStringLiteral("%1 (%2)").arg(nome, codigo);
     };
-    if (referencia == Referencia::Posto) {
+    if (referencia == Referencia::Agrupamento) {
+        const ArquivoFixo* agrint = arquivo(QStringLiteral("agrint.dat"));
+        if (agrint && !agrint->secoes().empty()) {
+            auto nomeSubmercado = [this](const QString& codigo) {
+                const QString rotulo = rotuloReferencia(Referencia::Submercado, codigo);
+                const QString sufixo = QStringLiteral(" (%1)").arg(normalizarCodigo(codigo));
+                return rotulo.endsWith(sufixo) ? rotulo.chopped(sufixo.size()) : rotulo;
+            };
+            std::vector<std::pair<QString, QStringList>> grupos;
+            for (int r = 0; r < static_cast<int>(agrint->secoes()[0].linhas.size()); ++r) {
+                const QString codigo = normalizarCodigo(QString::fromLatin1(agrint->valor(0, r, 0).c_str()));
+                if (codigo.isEmpty()) continue;
+                QString parte = nomeSubmercado(QString::fromLatin1(agrint->valor(0, r, 1).c_str())) + QStringLiteral("→") +
+                                nomeSubmercado(QString::fromLatin1(agrint->valor(0, r, 2).c_str()));
+                bool ok = false;
+                const double coeficiente = QString::fromLatin1(agrint->valor(0, r, 3).c_str()).toDouble(&ok);
+                if (ok && coeficiente != 1.0) parte = QString::number(coeficiente) + QStringLiteral("·") + parte;
+                auto grupo = std::find_if(grupos.begin(), grupos.end(), [&](const auto& g) { return g.first == codigo; });
+                if (grupo == grupos.end()) grupos.push_back({codigo, {parte}});
+                else grupo->second << parte;
+            }
+            for (const auto& [codigo, partes] : grupos) lista.push_back({codigo, rotulo(partes.join(QStringLiteral(" + ")), codigo)});
+        }
+    } else if (referencia == Referencia::Posto) {
         if (const ArquivoBinario* postos = arquivoBinario(QStringLiteral("postos.dat")))
             for (int r = 0; r < postos->registros(); ++r) {
                 const QString nome = QString::fromLatin1(postos->texto(r, postos_dat::NOME, postos_dat::TAMANHO_NOME).c_str()).trimmed();

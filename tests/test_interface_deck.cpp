@@ -224,6 +224,8 @@ private slots:
         QVERIFY(!dados.opcoes(Referencia::UsinaHidro).empty());
         QVERIFY(!dados.opcoes(Referencia::UsinaTermica).empty());
         QVERIFY(!dados.opcoes(Referencia::Posto).empty());
+        QCOMPARE(dados.rotuloReferencia(Referencia::Agrupamento, QStringLiteral("1")),
+                 QStringLiteral("SUDESTE→NORDESTE + NOFICT1→NORDESTE (1)"));
 
         ModeloSecaoFixa intercambio(&dados, QStringLiteral("sistema.dat"), 2);
         const QModelIndex a = intercambio.index(0, 0);
