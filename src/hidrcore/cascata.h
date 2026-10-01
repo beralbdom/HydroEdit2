@@ -1,4 +1,5 @@
 #pragma once
+#include <utility>
 #include <vector>
 #include "usina_hidr.h"
 
@@ -13,6 +14,7 @@ struct ArestaCascata {
     int origem;
     int destino;
     bool desvio;
+    std::vector<std::pair<double, double>> rota;
 };
 
 struct BaciaCascata {

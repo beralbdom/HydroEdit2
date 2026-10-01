@@ -4,6 +4,7 @@
 #include <QGraphicsPathItem>
 #include <QPalette>
 #include <QPointF>
+#include <QPolygonF>
 #include <map>
 #include <QString>
 #include <functional>
@@ -51,6 +52,5 @@ QPointF centroDoNo(double coluna, int linha);
 ItensNoCascata criarPontoCascata(QGraphicsScene* cena, const NoCascata& no, const QString& texto_codigo,
                                  const QString& texto_nome, const QColor& cor, bool reservatorio, const QPalette& paleta,
                                  const QFont& fonte, std::function<void(int, bool)> ao_pairar);
-ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPointF& origem, const QPointF& destino,
-                                      bool desvio, double curvatura, const QPalette& paleta);
+ItensArestaCascata criarArestaCascata(QGraphicsScene* cena, const QPolygonF& rota, bool desvio, const QPalette& paleta);
 void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& paleta);

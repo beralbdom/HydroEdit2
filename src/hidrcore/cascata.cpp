@@ -1,9 +1,12 @@
 #include "cascata.h"
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <limits>
 #include <map>
 #include <numeric>
+#include <set>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 
@@ -14,6 +17,130 @@ int alvoValido(const std::vector<UsinaHidr>& usinas, int codigo, int32_t alvo) {
     if (alvo == codigo) return 0;
     if (usinas[static_cast<size_t>(alvo - 1)].vazia()) return 0;
     return alvo;
+}
+
+// Rota de cada aresta em coordenadas de grade (coluna, linha), da origem ao destino, sem passar sobre
+// nenhuma usina. As usinas ficam em colunas e linhas inteiras, entao as meias linhas (faixas) e as
+// meias colunas (corredores) estao sempre livres. A aresta de jusante liga linhas vizinhas: desce ate
+// a faixa entre elas, corre na horizontal ate a coluna da usina de jusante e desce nela, e os
+// afluentes de uma mesma usina dividem esse trecho horizontal. O desvio sai pela lateral da origem
+// ate o corredor vizinho, segue por ele ate uma linha sem usinas entre os dois corredores, atravessa
+// por ela ate o corredor vizinho do destino e entra no destino pela lateral; com origem e destino na
+// mesma coluna ou em colunas vizinhas, um corredor so basta. Entre as linhas livres vale a de menor
+// percurso vertical, e acima e abaixo do desenho sempre ha uma. Pontos repetidos e pontos no meio de
+// um trecho reto saem da rota. Trechos internos de desvios diferentes que correm sobre a mesma reta e
+// se sobrepoem vao para vias paralelas (deslocamento 0, +1 ou -1 vezes 0,15 coluna ou 0,25 linha),
+// para cada tracejado ficar visivel; a partir do quarto trecho sobreposto volta a via central.
+void tracarRotas(Cascata& cascata) {
+    std::unordered_map<int, std::pair<int, int>> posicao;
+    std::set<std::pair<int, int>> ocupadas;
+    for (const NoCascata& no : cascata.nos) {
+        const int coluna = static_cast<int>(std::lround(no.coluna));
+        posicao[no.codigo] = {coluna, no.linha};
+        ocupadas.insert({coluna, no.linha});
+    }
+    auto linhaLivre = [&](int linha, double de, double ate) {
+        const int primeira = static_cast<int>(std::ceil(std::min(de, ate)));
+        const int ultima = static_cast<int>(std::floor(std::max(de, ate)));
+        for (int coluna = primeira; coluna <= ultima; ++coluna)
+            if (ocupadas.contains({coluna, linha})) return false;
+        return true;
+    };
+
+    for (ArestaCascata& aresta : cascata.arestas) {
+        aresta.rota.clear();
+        auto it_origem = posicao.find(aresta.origem);
+        auto it_destino = posicao.find(aresta.destino);
+        if (it_origem == posicao.end() || it_destino == posicao.end()) continue;
+        const auto [co, lo] = it_origem->second;
+        const auto [cd, ld] = it_destino->second;
+
+        std::vector<std::pair<double, double>> rota = {{co, lo}};
+        if (!aresta.desvio) {
+            const double faixa = ld - 0.5;
+            rota.push_back({co, faixa});
+            rota.push_back({cd, faixa});
+        } else {
+            const double corredor_origem = cd >= co ? co + 0.5 : co - 0.5;
+            const double corredor_destino = cd > co ? cd - 0.5 : cd + 0.5;
+            int travessia = lo;
+            if (corredor_origem != corredor_destino) {
+                int menor_percurso = std::numeric_limits<int>::max();
+                for (int linha = -1; linha <= cascata.num_linhas; ++linha) {
+                    if (!linhaLivre(linha, corredor_origem, corredor_destino)) continue;
+                    const int percurso = std::abs(lo - linha) + std::abs(linha - ld);
+                    if (percurso < menor_percurso) {
+                        menor_percurso = percurso;
+                        travessia = linha;
+                    }
+                }
+            }
+            rota.push_back({corredor_origem, lo});
+            rota.push_back({corredor_origem, travessia});
+            rota.push_back({corredor_destino, travessia});
+            rota.push_back({corredor_destino, ld});
+        }
+        rota.push_back({cd, ld});
+
+        std::vector<std::pair<double, double>> limpa;
+        for (const auto& ponto : rota) {
+            if (!limpa.empty() && limpa.back() == ponto) continue;
+            if (limpa.size() >= 2) {
+                const auto& a = limpa[limpa.size() - 2];
+                const auto& b = limpa.back();
+                if ((a.first == b.first && b.first == ponto.first) || (a.second == b.second && b.second == ponto.second))
+                    limpa.pop_back();
+            }
+            limpa.push_back(ponto);
+        }
+        aresta.rota = std::move(limpa);
+    }
+
+    struct Trecho {
+        std::vector<std::pair<double, double>>* rota;
+        size_t indice;
+        double de;
+        double ate;
+    };
+    std::map<std::pair<bool, double>, std::vector<Trecho>> trechosPorReta;
+    for (ArestaCascata& aresta : cascata.arestas) {
+        if (!aresta.desvio) continue;
+        auto& rota = aresta.rota;
+        for (size_t i = 1; i + 2 < rota.size(); ++i) {
+            const bool vertical = rota[i].first == rota[i + 1].first;
+            const double de = vertical ? rota[i].second : rota[i].first;
+            const double ate = vertical ? rota[i + 1].second : rota[i + 1].first;
+            trechosPorReta[{vertical, vertical ? rota[i].first : rota[i].second}].push_back(
+                {&rota, i, std::min(de, ate), std::max(de, ate)});
+        }
+    }
+    constexpr int VIAS[] = {0, 1, -1};
+    std::vector<std::tuple<Trecho, bool, int>> deslocamentos;
+    for (const auto& [reta, trechos] : trechosPorReta) {
+        std::vector<int> via(trechos.size(), 0);
+        for (size_t t = 0; t < trechos.size(); ++t) {
+            std::set<int> usadas;
+            for (size_t anterior = 0; anterior < t; ++anterior)
+                if (trechos[t].de < trechos[anterior].ate && trechos[anterior].de < trechos[t].ate) usadas.insert(via[anterior]);
+            via[t] = VIAS[0];
+            for (int candidata : VIAS)
+                if (!usadas.contains(candidata)) {
+                    via[t] = candidata;
+                    break;
+                }
+            if (via[t] != 0) deslocamentos.push_back({trechos[t], reta.first, via[t]});
+        }
+    }
+    for (const auto& [trecho, vertical, via] : deslocamentos) {
+        auto& rota = *trecho.rota;
+        if (vertical) {
+            rota[trecho.indice].first += via * 0.15;
+            rota[trecho.indice + 1].first += via * 0.15;
+        } else {
+            rota[trecho.indice].second += via * 0.25;
+            rota[trecho.indice + 1].second += via * 0.25;
+        }
+    }
 }
 
 }  // namespace
@@ -157,6 +284,7 @@ Cascata montarCascata(const std::vector<UsinaHidr>& usinas) {
     int linhaMaxima = -1;
     for (const NoCascata& no : cascata.nos) linhaMaxima = std::max(linhaMaxima, no.linha);
     cascata.num_linhas = linhaMaxima + 1;
+    tracarRotas(cascata);
 
     return cascata;
 }
@@ -266,5 +394,6 @@ Cascata empacotarBacias(const std::vector<UsinaHidr>& usinas, int largura_maxima
 
     cascata.num_colunas = numColunas;
     cascata.num_linhas = numLinhas;
+    tracarRotas(cascata);
     return cascata;
 }

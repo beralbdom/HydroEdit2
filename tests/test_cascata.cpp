@@ -1,6 +1,8 @@
 #include <QtTest>
 #include <algorithm>
+#include <filesystem>
 #include <vector>
+#include "arquivo_hidr.h"
 #include "cascata.h"
 
 class TestCascata : public QObject {
@@ -14,6 +16,65 @@ class TestCascata : public QObject {
         for (const ArestaCascata& a : c.arestas)
             if (a.origem == origem && a.destino == destino && a.desvio == desvio) return true;
         return false;
+    }
+    static const ArestaCascata* arestaDe(const Cascata& c, int origem, int destino, bool desvio) {
+        for (const ArestaCascata& a : c.arestas)
+            if (a.origem == origem && a.destino == destino && a.desvio == desvio) return &a;
+        return nullptr;
+    }
+    using Rota = std::vector<std::pair<double, double>>;
+
+    // Toda rota vai da origem ao destino em trechos horizontais ou verticais, e nenhuma usina fica
+    // sobre um trecho, a nao ser a origem no primeiro ponto e o destino no ultimo. Trechos horizontais
+    // de jusante so se sobrepoem quando chegam a mesma usina, e trechos internos de desvios diferentes
+    // nunca correm um sobre o outro.
+    static void conferirRotas(const Cascata& c) {
+        for (const ArestaCascata& a : c.arestas) {
+            const NoCascata* o = noDe(c, a.origem);
+            const NoCascata* d = noDe(c, a.destino);
+            QVERIFY(a.rota.size() >= 2);
+            QCOMPARE(a.rota.front(), std::make_pair(o->coluna, static_cast<double>(o->linha)));
+            QCOMPARE(a.rota.back(), std::make_pair(d->coluna, static_cast<double>(d->linha)));
+            for (size_t i = 0; i + 1 < a.rota.size(); ++i) {
+                const auto [x1, y1] = a.rota[i];
+                const auto [x2, y2] = a.rota[i + 1];
+                QVERIFY(x1 == x2 || y1 == y2);
+                for (const NoCascata& no : c.nos) {
+                    const double x = no.coluna;
+                    const double y = no.linha;
+                    const bool sobre = (x1 == x2 ? x == x1 : y == y1) && x >= std::min(x1, x2) && x <= std::max(x1, x2) &&
+                                       y >= std::min(y1, y2) && y <= std::max(y1, y2);
+                    if (!sobre) continue;
+                    const bool ponta = (i == 0 && no.codigo == a.origem && x == x1 && y == y1) ||
+                                       (i + 2 == a.rota.size() && no.codigo == a.destino && x == x2 && y == y2);
+                    QVERIFY2(ponta, qPrintable(QStringLiteral("aresta %1->%2 passa sobre a usina %3")
+                                                   .arg(a.origem).arg(a.destino).arg(no.codigo)));
+                }
+            }
+        }
+        for (const ArestaCascata& a : c.arestas)
+            for (const ArestaCascata& b : c.arestas) {
+                if (a.desvio || b.desvio || &a == &b || a.destino == b.destino || a.rota.size() < 4 || b.rota.size() < 4) continue;
+                if (a.rota[1].second != b.rota[1].second) continue;
+                const double a1 = std::min(a.rota[1].first, a.rota[2].first), a2 = std::max(a.rota[1].first, a.rota[2].first);
+                const double b1 = std::min(b.rota[1].first, b.rota[2].first), b2 = std::max(b.rota[1].first, b.rota[2].first);
+                QVERIFY(a2 < b1 || b2 < a1);
+            }
+        for (const ArestaCascata& a : c.arestas)
+            for (const ArestaCascata& b : c.arestas) {
+                if (!a.desvio || !b.desvio || &a == &b) continue;
+                for (size_t i = 1; i + 2 < a.rota.size(); ++i)
+                    for (size_t j = 1; j + 2 < b.rota.size(); ++j) {
+                        const auto [ax1, ay1] = a.rota[i];
+                        const auto [ax2, ay2] = a.rota[i + 1];
+                        const auto [bx1, by1] = b.rota[j];
+                        const auto [bx2, by2] = b.rota[j + 1];
+                        if (ax1 == ax2 && bx1 == bx2 && ax1 == bx1)
+                            QVERIFY(std::max(ay1, ay2) <= std::min(by1, by2) || std::max(by1, by2) <= std::min(ay1, ay2));
+                        if (ay1 == ay2 && by1 == by2 && ay1 == by1)
+                            QVERIFY(std::max(ax1, ax2) <= std::min(bx1, bx2) || std::max(bx1, bx2) <= std::min(ax1, ax2));
+                    }
+            }
     }
 private slots:
     void cadeiaLinearUmaBacia() {
@@ -142,6 +203,50 @@ private slots:
             for (const NoCascata& b : c.nos)
                 if (a.codigo != b.codigo && a.linha == b.linha) QVERIFY(std::abs(a.coluna - b.coluna) >= 1.0);
         for (const ArestaCascata& aresta : c.arestas) QCOMPARE(noDe(c, aresta.origem)->linha, noDe(c, aresta.destino)->linha - 1);
+    }
+
+    void rotaDeJusanteDesceAteAFaixa() {
+        std::vector<UsinaHidr> u(3);
+        u[0].nome = "A";
+        u[1].nome = "B";
+        u[2].nome = "C";
+        u[0].jusante = 3;
+        u[1].jusante = 3;
+        Cascata c = montarCascata(u);
+        QCOMPARE(arestaDe(c, 1, 3, false)->rota, (Rota{{0, 0}, {0, 1}}));
+        QCOMPARE(arestaDe(c, 2, 3, false)->rota, (Rota{{1, 0}, {1, 0.5}, {0, 0.5}, {0, 1}}));
+    }
+
+    void rotaDeDesvioNaMesmaColunaContornaPeloCorredor() {
+        std::vector<UsinaHidr> u(2);
+        u[0].nome = "A";
+        u[1].nome = "B";
+        u[0].jusante = 2;
+        u[0].desvio = 2;
+        Cascata c = montarCascata(u);
+        QCOMPARE(arestaDe(c, 1, 2, false)->rota, (Rota{{0, 0}, {0, 1}}));
+        QCOMPARE(arestaDe(c, 1, 2, true)->rota, (Rota{{0, 0}, {0.5, 0}, {0.5, 1}, {0, 1}}));
+    }
+
+    void rotaDeDesvioAtravessaPorLinhaLivre() {
+        std::vector<UsinaHidr> u(5);
+        for (size_t i = 0; i < u.size(); ++i) u[i].nome = "U" + std::to_string(i + 1);
+        u[0].jusante = 3;
+        u[1].jusante = 3;
+        u[3].jusante = 3;
+        u[4].desvio = 4;
+        Cascata c = empacotarBacias(u, 0);
+        conferirRotas(c);
+        QCOMPARE(arestaDe(c, 5, 4, true)->rota, (Rota{{4, 0}, {3.5, 0}, {3.5, -1}, {0.5, -1}, {0.5, 0}, {0, 0}}));
+    }
+
+    void rotasDoDeckNaoPassamSobreUsinas() {
+        const std::filesystem::path caminho = std::filesystem::path(DIR_DECK) / "hidr.dat";
+        if (!std::filesystem::exists(caminho)) QSKIP("deck nao encontrado");
+        ArquivoHidr arquivo;
+        QVERIFY(arquivo.carregar(caminho).ok);
+        conferirRotas(empacotarBacias(arquivo.usinas, 37));
+        conferirRotas(empacotarBacias(arquivo.usinas, 0));
     }
 
     void empacotarBaciasPoeDesviosLadoALado() {
