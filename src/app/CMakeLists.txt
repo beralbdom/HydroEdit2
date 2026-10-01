@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Charts Svg)
 qt_standard_project_setup()
 
 qt_add_library(hydroedit_ui STATIC
@@ -23,6 +23,7 @@ qt_add_library(hydroedit_ui STATIC
     modelo_secao_fixa.cpp modelo_secao_fixa.h
     delegate_referencia.cpp delegate_referencia.h
     menu_registros.cpp menu_registros.h
+    icones_arvore.cpp icones_arvore.h
     formulario_arquivo.cpp formulario_arquivo.h
     recursos_tabela.cpp recursos_tabela.h
     pagina_arquivo_fixo.cpp pagina_arquivo_fixo.h
@@ -34,7 +35,11 @@ qt_add_library(hydroedit_ui STATIC
     ajuste_colunas.cpp ajuste_colunas.h
 )
 target_include_directories(hydroedit_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts)
+target_link_libraries(hydroedit_ui PUBLIC hidrcore Qt6::Widgets Qt6::Charts Qt6::Svg)
+file(GLOB ICONES_ARVORE RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/icones/*.svg")
+qt_add_resources(hydroedit_ui "icones_arvore"
+    PREFIX "/"
+    FILES ${ICONES_ARVORE})
 
 qt_add_executable(HydroEdit2 WIN32 main.cpp hydroedit.rc)
 qt_add_resources(HydroEdit2 "icone"

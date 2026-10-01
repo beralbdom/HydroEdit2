@@ -1,17 +1,20 @@
 #include "navegador_deck.h"
 #include <QDir>
+#include <QEvent>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStandardItemModel>
 #include <QTreeView>
 #include <algorithm>
 #include <filesystem>
+#include <set>
 #include "catalogo_newave.h"
 #include "dados_deck.h"
 #include "deck_newave.h"
 #include "editor_termicas.h"
 #include "editor_texto_arquivo.h"
 #include "estilo_arvore.h"
+#include "icones_arvore.h"
 #include "layouts_newave.h"
 #include "pagina_binaria.h"
 #include "pagina_arquivo_fixo.h"
@@ -21,6 +24,7 @@ namespace {
 constexpr int PAPEL_PAGINA = Qt::UserRole;
 constexpr int PAPEL_SECAO = Qt::UserRole + 1;
 constexpr int PAPEL_TEXTO = Qt::UserRole + 2;
+constexpr int LARGURA_ICONE = 20;
 }  // namespace
 
 // Uma aba por secao do catalogo, cada uma com a arvore dos arquivos a esquerda e a pagina do item
@@ -86,6 +90,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 auto* item = new QStandardItem(arquivo.titulo);
                 cabecalho->appendRow(item);
                 item->setToolTip(arquivo.nome_padrao);
+                definirIconeArvore(item, iconeDoArquivo(arquivo.nome_padrao));
                 std::vector<int> tabelas;
                 if (layout && !termicas)
                     for (int s = 0; s < static_cast<int>(layout->secoes.size()); ++s)
@@ -96,7 +101,7 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                 item->setData(indice_texto, PAPEL_TEXTO);
                 itens_.push_back({lista, item, arquivo.titulo, arquivo.nome_padrao});
                 if (!primeiro) primeiro = item;
-                largura = std::max(largura, recuo + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
+                largura = std::max(largura, recuo + LARGURA_ICONE + lista->fontMetrics().horizontalAdvance(arquivo.titulo));
                 if (com_formulario && !layout->abas.empty()) {
                     for (int k = 0; k < static_cast<int>(layout->abas.size()); ++k) {
                         const QString titulo = QString::fromStdString(layout->abas[static_cast<size_t>(k)].titulo);
@@ -105,7 +110,8 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                         filho->setData(indice, PAPEL_PAGINA);
                         filho->setData(-2 - k, PAPEL_SECAO);
                         filho->setData(indice_texto, PAPEL_TEXTO);
-                        largura = std::max(largura, recuo + lista->indentation() + lista->fontMetrics().horizontalAdvance(titulo));
+                        definirIconeArvore(filho, iconeDoTema(titulo));
+                        largura = std::max(largura, recuo + lista->indentation() + LARGURA_ICONE + lista->fontMetrics().horizontalAdvance(titulo));
                     }
                 } else if (com_formulario ? !tabelas.empty() && !PaginaArquivoFixo::paginaUnica(*layout) : tabelas.size() > 1) {
                     for (int s : tabelas) {
@@ -115,7 +121,8 @@ NavegadorDeck::NavegadorDeck(QWidget* editor_hidr, const ModeloHidr* modelo, QWi
                         filho->setData(indice, PAPEL_PAGINA);
                         filho->setData(s, PAPEL_SECAO);
                         filho->setData(indice_texto, PAPEL_TEXTO);
-                        largura = std::max(largura, recuo + lista->indentation() + lista->fontMetrics().horizontalAdvance(titulo));
+                        definirIconeArvore(filho, QStringLiteral("tabela"));
+                        largura = std::max(largura, recuo + lista->indentation() + LARGURA_ICONE + lista->fontMetrics().horizontalAdvance(titulo));
                     }
                 }
             }
@@ -195,6 +202,16 @@ void NavegadorDeck::atualizarItens() {
         for (int f = 0; f < i.item->rowCount(); ++f) i.item->child(f)->setForeground(cor);
         i.item->setText(alterado ? i.titulo + QStringLiteral("  •") : i.titulo);
     }
+}
+
+// Com a troca de tema do sistema, os icones das arvores sao refeitos com as cores novas.
+void NavegadorDeck::changeEvent(QEvent* evento) {
+    QTabWidget::changeEvent(evento);
+    if (evento->type() != QEvent::PaletteChange) return;
+    std::set<QStandardItemModel*> modelos;
+    for (const ItemArquivo& i : itens_)
+        if (auto* modelo = qobject_cast<QStandardItemModel*>(i.arvore->model())) modelos.insert(modelo);
+    for (QStandardItemModel* modelo : modelos) atualizarIconesArvore(modelo);
 }
 
 QStringList NavegadorDeck::arquivosModificados() const {

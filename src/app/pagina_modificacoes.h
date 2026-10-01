@@ -15,6 +15,9 @@ class PaginaModificacoes : public QSplitter {
 public:
     PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck, QWidget* parent = nullptr);
 
+protected:
+    void changeEvent(QEvent* evento) override;
+
 private:
     void recarregar();
     void montarArvore();

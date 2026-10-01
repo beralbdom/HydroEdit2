@@ -24,6 +24,9 @@ public:
     QStringList arquivosModificados() const;
     bool salvarTodos();
 
+protected:
+    void changeEvent(QEvent* evento) override;
+
 private:
     struct ItemArquivo {
         QTreeView* arvore;

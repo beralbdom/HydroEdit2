@@ -1,4 +1,5 @@
 #include "pagina_modificacoes.h"
+#include <QEvent>
 #include <QHeaderView>
 #include <QLabel>
 #include <QTableWidget>
@@ -10,6 +11,7 @@
 #include "catalogo_newave.h"
 #include "dados_deck.h"
 #include "estilo_arvore.h"
+#include "icones_arvore.h"
 #include "recursos_tabela.h"
 #include "modelo_hidr.h"
 
@@ -104,6 +106,12 @@ void PaginaModificacoes::recarregar() {
 
 // Categorias na ordem da tabela de palavras-chave; palavras-chave que o manual nao lista entram em
 // "Outras". A raiz "Todas as modificacoes" fica selecionada ao carregar.
+// Com a troca de tema do sistema, os icones das categorias sao refeitos com as cores novas.
+void PaginaModificacoes::changeEvent(QEvent* evento) {
+    QSplitter::changeEvent(evento);
+    if (evento->type() == QEvent::PaletteChange) atualizarIconesArvore(itens_);
+}
+
 void PaginaModificacoes::montarArvore() {
     itens_->removeRows(0, itens_->rowCount());
     std::map<QString, int> contagem;
@@ -129,6 +137,7 @@ void PaginaModificacoes::montarArvore() {
         if (it != categorias.end()) return it->second;
         Linha linha = novaLinha(raiz.item, nome, 0);
         linha.item->setData(nome, PAPEL_CATEGORIA);
+        definirIconeArvore(linha.item, iconeDaCategoria(nome));
         return categorias[nome] = linha;
     };
     auto adicionarChave = [&](const QString& chave, const QString& descricao, const QString& nome_categoria) {
