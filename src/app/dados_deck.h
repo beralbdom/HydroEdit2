@@ -39,6 +39,8 @@ public:
     QString rotulo(const ColunaFixa& coluna, const QString& codigo) const;
     static QString normalizarCodigo(const QString& codigo);
     void substituirTexto(const QString& nome_padrao, const QString& texto);
+    Resultado substituirLinha(const QString& nome_padrao, int indice, const QString& texto);
+    int numeroPatamaresDeCarga() const { return patamares_.carga; }
     Resultado duplicar(const QString& nome_padrao, int secao, int registro, int nivel, int* primeira_linha_nova = nullptr,
                        bool em_branco = false);
     Resultado remover(const QString& nome_padrao, int secao, int registro, int nivel);

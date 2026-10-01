@@ -1,23 +1,37 @@
 #include "pagina_modificacoes.h"
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QEvent>
+#include <QFormLayout>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
-#include <QTableWidget>
+#include <QMenu>
+#include <QPushButton>
 #include <QStandardItemModel>
+#include <QTableView>
 #include <QTreeView>
 #include <QVBoxLayout>
+#include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <set>
+#include "ajuste_colunas.h"
 #include "catalogo_newave.h"
 #include "dados_deck.h"
+#include "delegate_referencia.h"
 #include "estilo_arvore.h"
 #include "icones_arvore.h"
-#include "recursos_tabela.h"
 #include "modelo_hidr.h"
+#include "modelo_modif.h"
+#include "modif_newave.h"
+#include "recursos_tabela.h"
 
 namespace {
 constexpr int PAPEL_CHAVE = Qt::UserRole;
 constexpr int PAPEL_CATEGORIA = Qt::UserRole + 1;
+const QString MODIF = QStringLiteral("modif.dat");
 
 QString outras() { return QStringLiteral("Outras"); }
 
@@ -35,10 +49,12 @@ QString descricaoDa(const QString& chave) {
 }  // namespace
 
 // Aba Modificacoes: arvore com todas as modificacoes, as categorias e as palavras-chave do modif.dat
-// com a contagem de registros de cada uma, e ao lado a tabela dos registros do item escolhido. As
-// palavras-chave que o deck nao usa aparecem desabilitadas, para mostrar o que o arquivo admite.
+// com a contagem de registros de cada uma, e ao lado a tabela editavel dos registros do item
+// escolhido (ModeloModif). As palavras-chave que o deck nao usa aparecem desabilitadas, para mostrar
+// o que o arquivo admite. Adicionar insere a copia do registro selecionado ou uma modificacao nova
+// para qualquer usina; Remover apaga os registros selecionados.
 PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck, QWidget* parent)
-    : QSplitter(Qt::Horizontal, parent), modelo_(modelo), deck_(deck) {
+    : QSplitter(Qt::Horizontal, parent), hidr_(modelo), deck_(deck) {
     setHandleWidth(4);
     arvore_ = new QTreeView(this);
     itens_ = new QStandardItemModel(0, 2, arvore_);
@@ -54,27 +70,44 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck
     auto* layout = new QVBoxLayout(direita);
     layout->setContentsMargins(6, 4, 6, 4);
     layout->setSpacing(4);
+    auto* topo = new QHBoxLayout;
     cabecalho_ = new QLabel(direita);
     QFont fonte = cabecalho_->font();
     fonte.setPointSize(fonte.pointSize() + 1);
     fonte.setBold(true);
     cabecalho_->setFont(fonte);
+    botao_adicionar_ = new QPushButton(QStringLiteral("Adicionar"), direita);
+    auto* menu_adicionar = new QMenu(botao_adicionar_);
+    botao_adicionar_->setMenu(menu_adicionar);
+    connect(menu_adicionar, &QMenu::aboutToShow, this, [this, menu_adicionar] {
+        menu_adicionar->clear();
+        preencherMenu(menu_adicionar);
+    });
+    botao_remover_ = new QPushButton(QStringLiteral("Remover"), direita);
+    botao_salvar_ = new QPushButton(QStringLiteral("Salvar"), direita);
+    topo->addWidget(cabecalho_, 1);
+    topo->addWidget(botao_adicionar_);
+    topo->addWidget(botao_remover_);
+    topo->addWidget(botao_salvar_);
     detalhes_ = new QLabel(direita);
     detalhes_->setEnabled(false);
-    tabela_ = new QTableWidget(direita);
-    tabela_->setColumnCount(5);
-    tabela_->setHorizontalHeaderLabels({QStringLiteral("Usina"), QStringLiteral("Nome"), QStringLiteral("Palavra-chave"),
-                                        QStringLiteral("Valores"), QStringLiteral("Linha")});
-    tabela_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    tabela_->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+    modelo_ = new ModeloModif(deck_, hidr_, this);
+    tabela_ = new QTableView(direita);
+    tabela_->setModel(modelo_);
+    tabela_->setItemDelegate(new DelegateReferencia(tabela_));
+    tabela_->setEditTriggers(QAbstractItemView::DoubleClicked | QAbstractItemView::EditKeyPressed | QAbstractItemView::AnyKeyPressed);
     tabela_->setAlternatingRowColors(true);
     tabela_->verticalHeader()->setVisible(false);
     tabela_->verticalHeader()->setDefaultSectionSize(20);
     tabela_->horizontalHeader()->setFixedHeight(22);
-    tabela_->horizontalHeader()->setStretchLastSection(false);
-    tabela_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
-    habilitarRecursos(tabela_, true);
-    layout->addWidget(cabecalho_);
+    preencherLargura(tabela_);
+    habilitarRecursos(tabela_);
+    definirAcoesExtras(tabela_, [this](QMenu* menu, const QModelIndex&) {
+        preencherMenu(menu->addMenu(QStringLiteral("Adicionar")));
+        menu->addAction(QStringLiteral("Remover"), this, &PaginaModificacoes::remover)->setEnabled(!linhasSelecionadas().empty());
+    });
+    layout->addLayout(topo);
     layout->addWidget(detalhes_);
     layout->addWidget(tabela_, 1);
 
@@ -87,32 +120,52 @@ PaginaModificacoes::PaginaModificacoes(const ModeloHidr* modelo, DadosDeck* deck
         const QModelIndexList selecionados = arvore_->selectionModel()->selectedRows();
         if (!selecionados.isEmpty()) mostrar(selecionados.first());
     });
+    connect(modelo_, &ModeloModif::valorRecusado, this, [this](const QString& motivo) { atualizarDetalhes(motivo); });
+    connect(botao_remover_, &QPushButton::clicked, this, &PaginaModificacoes::remover);
+    connect(botao_salvar_, &QPushButton::clicked, this, [this] {
+        QString motivo;
+        atualizarDetalhes(deck_->salvar(MODIF, &motivo) ? QStringLiteral("salvo") : motivo);
+    });
+    connect(tabela_->selectionModel(), &QItemSelectionModel::selectionChanged, this,
+            [this] { botao_remover_->setEnabled(!linhasSelecionadas().empty()); });
     connect(deck_, &DadosDeck::recarregado, this, &PaginaModificacoes::recarregar);
     connect(deck_, &DadosDeck::reinterpretado, this, [this](const QString& nome) {
-        if (nome == QStringLiteral("modif.dat")) recarregar();
+        if (nome == MODIF) recarregar();
+        else if (nome == QStringLiteral("patamar.dat") && !chave_atual_.isEmpty()) modelo_->recarregar();
+    });
+    connect(deck_, &DadosDeck::alterado, this, [this](const QString& nome) {
+        if (nome != MODIF) return;
+        const ArquivoFixo* modif = deck_->arquivo(MODIF);
+        dados_ = modif ? interpretarModif(modif->conteudo()) : ResultadoModif{};
+        modelo_->atualizarValores();
+        atualizarDetalhes();
     });
     recarregar();
 }
 
-// O modif.dat vem do repositorio do deck, e a arvore se refaz quando o texto dele e editado no
-// editor textual.
+// O modif.dat vem do repositorio do deck; a arvore se refaz quando o arquivo e relido com outras
+// linhas (registro inserido ou removido, edicao no editor textual), voltando ao item que estava
+// escolhido.
 void PaginaModificacoes::recarregar() {
-    const ArquivoFixo* modif = deck_->arquivo(QStringLiteral("modif.dat"));
-    caminho_ = deck_->carregado() ? deck_->nomeNoDeck(QStringLiteral("modif.dat")) : QString();
+    const ArquivoFixo* modif = deck_->arquivo(MODIF);
+    caminho_ = deck_->carregado() ? deck_->nomeNoDeck(MODIF) : QString();
     dados_ = modif ? interpretarModif(modif->conteudo()) : ResultadoModif{};
-    if (deck_->carregado() && !modif) dados_.erro = deck_->erro(QStringLiteral("modif.dat")).toStdString();
+    if (deck_->carregado() && !modif) dados_.erro = deck_->erro(MODIF).toStdString();
     montarArvore();
 }
 
-// Categorias na ordem da tabela de palavras-chave; palavras-chave que o manual nao lista entram em
-// "Outras". A raiz "Todas as modificacoes" fica selecionada ao carregar.
 // Com a troca de tema do sistema, os icones das categorias sao refeitos com as cores novas.
 void PaginaModificacoes::changeEvent(QEvent* evento) {
     QSplitter::changeEvent(evento);
     if (evento->type() == QEvent::PaletteChange) atualizarIconesArvore(itens_);
 }
 
+// Categorias na ordem da tabela de palavras-chave; palavras-chave que o manual nao lista entram em
+// "Outras". Fica escolhido o item que estava antes (palavra-chave ou categoria) ou a raiz "Todas as
+// modificacoes".
 void PaginaModificacoes::montarArvore() {
+    const QString chave_antes = chave_atual_;
+    const QString categoria_antes = categoria_atual_;
     itens_->removeRows(0, itens_->rowCount());
     std::map<QString, int> contagem;
     for (const BlocoModif& bloco : dados_.blocos)
@@ -130,6 +183,7 @@ void PaginaModificacoes::montarArvore() {
         return linha;
     };
     const Linha raiz = novaLinha(itens_->invisibleRootItem(), QStringLiteral("Todas as modificações"), total);
+    QStandardItem* escolher = raiz.item;
 
     std::map<QString, Linha> categorias;
     auto categoria = [&](const QString& nome) {
@@ -138,6 +192,7 @@ void PaginaModificacoes::montarArvore() {
         Linha linha = novaLinha(raiz.item, nome, 0);
         linha.item->setData(nome, PAPEL_CATEGORIA);
         definirIconeArvore(linha.item, iconeDaCategoria(nome));
+        if (chave_antes.isEmpty() && nome == categoria_antes) escolher = linha.item;
         return categorias[nome] = linha;
     };
     auto adicionarChave = [&](const QString& chave, const QString& descricao, const QString& nome_categoria) {
@@ -149,74 +204,165 @@ void PaginaModificacoes::montarArvore() {
         linha.item->setEnabled(n > 0);
         linha.registros->setEnabled(n > 0);
         pai.registros->setText(QString::number(pai.registros->text().toInt() + n));
+        if (chave == chave_antes) escolher = linha.item;
     };
     for (const PalavraChaveModif& p : palavrasChaveModif()) adicionarChave(p.chave, p.descricao, p.categoria);
     for (const auto& [chave, n] : contagem)
         if (categoriaDa(chave) == outras()) adicionarChave(chave, descricaoDa(chave), outras());
 
     arvore_->expandAll();
-    arvore_->setCurrentIndex(raiz.item->index());
+    arvore_->setCurrentIndex(escolher->index());
+    mostrar(escolher->index());
 }
 
 void PaginaModificacoes::mostrar(const QModelIndex& item) {
     if (!item.isValid()) return;
-    const QString chave = item.data(PAPEL_CHAVE).toString();
-    const QString categoria = item.data(PAPEL_CATEGORIA).toString();
-    if (!chave.isEmpty()) cabecalho_->setText(QStringLiteral("%1: %2").arg(chave, descricaoDa(chave)));
-    else if (!categoria.isEmpty()) cabecalho_->setText(categoria);
-    else cabecalho_->setText(QStringLiteral("Todas as modificações"));
-
-    struct Linha {
-        const BlocoModif* bloco;
-        const RegistroModif* registro;
-    };
-    std::vector<Linha> linhas;
-    std::set<int> usinas;
-    for (const BlocoModif& bloco : dados_.blocos) {
-        for (const RegistroModif& registro : bloco.registros) {
-            const QString chave_registro = QString::fromStdString(registro.palavra_chave);
-            bool entra = !chave.isEmpty() ? chave_registro == chave
-                         : !categoria.isEmpty() ? categoriaDa(chave_registro) == categoria
-                                                : true;
-            if (!entra) continue;
-            linhas.push_back({&bloco, &registro});
-            usinas.insert(bloco.usina);
-        }
+    chave_atual_ = item.data(PAPEL_CHAVE).toString();
+    categoria_atual_ = item.data(PAPEL_CATEGORIA).toString();
+    if (!chave_atual_.isEmpty()) {
+        cabecalho_->setText(QStringLiteral("%1: %2").arg(chave_atual_, descricaoDa(chave_atual_)));
+        modelo_->definirFiltro(chave_atual_, {});
+    } else if (!categoria_atual_.isEmpty()) {
+        cabecalho_->setText(categoria_atual_);
+        const QString categoria = categoria_atual_;
+        modelo_->definirFiltro({}, [categoria](const QString& chave) { return categoriaDa(chave) == categoria; });
+    } else {
+        cabecalho_->setText(QStringLiteral("Todas as modificações"));
+        modelo_->definirFiltro({}, [](const QString&) { return true; });
     }
-
-    const QString origem = caminho_.isEmpty() ? QStringLiteral("modif.dat") : caminho_.section('/', -1).section('\\', -1);
-    if (caminho_.isEmpty()) detalhes_->setText(origem + QStringLiteral("  ·  abra o hidr.dat de um deck para ver as modificações"));
-    else if (!dados_.erro.empty()) detalhes_->setText(origem + QStringLiteral("  ·  ") + QString::fromStdString(dados_.erro));
-    else
-        detalhes_->setText(QStringLiteral("%1  ·  %2 registros em %3 usinas  ·  somente leitura")
-                               .arg(origem)
-                               .arg(linhas.size())
-                               .arg(usinas.size()));
-
     limparFiltros(tabela_);
-    tabela_->setRowCount(static_cast<int>(linhas.size()));
-    for (int i = 0; i < static_cast<int>(linhas.size()); ++i) {
-        const BlocoModif& bloco = *linhas[static_cast<size_t>(i)].bloco;
-        const RegistroModif& registro = *linhas[static_cast<size_t>(i)].registro;
-        QString nome = QString::fromLatin1(bloco.comentario.c_str());
-        if (modelo_ && bloco.usina >= 1 && bloco.usina <= modelo_->numUsinas()) {
-            QString do_cadastro = QString::fromLatin1(modelo_->usina(bloco.usina - 1).nome.c_str()).trimmed();
-            if (!do_cadastro.isEmpty()) nome = do_cadastro;
-        }
-        QStringList valores;
-        for (const std::string& v : registro.valores) valores << QString::fromLatin1(v.c_str());
-
-        auto* codigo = new QTableWidgetItem;
-        codigo->setData(Qt::DisplayRole, bloco.usina);
-        codigo->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        auto* linha = new QTableWidgetItem;
-        linha->setData(Qt::DisplayRole, registro.linha);
-        linha->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        tabela_->setItem(i, 0, codigo);
-        tabela_->setItem(i, 1, new QTableWidgetItem(nome));
-        tabela_->setItem(i, 2, new QTableWidgetItem(QString::fromStdString(registro.palavra_chave)));
-        tabela_->setItem(i, 3, new QTableWidgetItem(valores.join(QStringLiteral("  "))));
-        tabela_->setItem(i, 4, linha);
+    ajustarColunas(tabela_);
+    if (selecionar_linha_ >= 0) {
+        for (int r = 0; r < modelo_->registros(); ++r)
+            if (modelo_->linhaDoArquivo(r) == selecionar_linha_) {
+                const QModelIndex ix = modelo_->index(r, std::min(2, modelo_->columnCount() - 1));
+                tabela_->setCurrentIndex(ix);
+                tabela_->scrollTo(ix);
+                break;
+            }
+        selecionar_linha_ = -1;
     }
-    for (int c : {0, 1, 2, 4}) tabela_->resizeColumnToContents(c);
+    botao_remover_->setEnabled(!linhasSelecionadas().empty());
+    atualizarDetalhes();
+}
+
+void PaginaModificacoes::atualizarDetalhes(const QString& aviso) {
+    const ArquivoFixo* modif = deck_->arquivo(MODIF);
+    const QString origem = caminho_.isEmpty() ? MODIF : caminho_.section('/', -1).section('\\', -1);
+    QString texto;
+    if (caminho_.isEmpty()) texto = origem + QStringLiteral("  ·  abra o hidr.dat de um deck para ver as modificações");
+    else if (!dados_.erro.empty()) texto = origem + QStringLiteral("  ·  ") + QString::fromStdString(dados_.erro);
+    else {
+        texto = QStringLiteral("%1  ·  %2 registros em %3 usinas").arg(origem).arg(modelo_->registros()).arg(modelo_->usinas());
+        if (chave_atual_.isEmpty()) texto += QStringLiteral("  ·  escolha a palavra-chave para editar os valores");
+        if (modif && modif->modificado()) texto += QStringLiteral("  ·  alterado, não salvo");
+    }
+    if (!aviso.isEmpty()) texto += QStringLiteral("  ·  ") + aviso;
+    detalhes_->setText(texto);
+    botao_salvar_->setEnabled(modif && modif->modificado());
+    botao_adicionar_->setEnabled(modif != nullptr);
+}
+
+// Linhas do arquivo (indice a partir de 0) dos registros selecionados na tabela.
+std::vector<int> PaginaModificacoes::linhasSelecionadas() const {
+    std::set<int> registros;
+    for (const QModelIndex& ix : tabela_->selectionModel()->selectedIndexes()) registros.insert(ix.row());
+    if (registros.empty() && tabela_->currentIndex().isValid()) registros.insert(tabela_->currentIndex().row());
+    std::vector<int> linhas;
+    for (int r : registros)
+        if (r < modelo_->registros()) linhas.push_back(modelo_->linhaDoArquivo(r));
+    return linhas;
+}
+
+// Troca o texto do modif.dat pelas linhas dadas (o repositorio rele o arquivo e a arvore se refaz) e
+// deixa selecionado o registro na linha selecionar.
+void PaginaModificacoes::substituirLinhas(const std::vector<std::string>& linhas, int selecionar) {
+    QStringList texto;
+    for (const std::string& l : linhas) texto << QString::fromLatin1(l.c_str());
+    QString conteudo = texto.join(QLatin1Char('\n'));
+    if (deck_->texto(MODIF).endsWith(QLatin1Char('\n'))) conteudo += QLatin1Char('\n');
+    selecionar_linha_ = selecionar;
+    deck_->substituirTexto(MODIF, conteudo);
+}
+
+void PaginaModificacoes::preencherMenu(QMenu* menu) {
+    const bool carregado = deck_->arquivo(MODIF) != nullptr;
+    menu->addAction(QStringLiteral("Cópia do registro selecionado"), this, &PaginaModificacoes::adicionarCopia)
+        ->setEnabled(carregado && tabela_->currentIndex().isValid());
+    menu->addAction(QStringLiteral("Nova modificação..."), this, &PaginaModificacoes::novaModificacao)->setEnabled(carregado);
+}
+
+// Copia do registro atual logo depois dele, no mesmo bloco de usina.
+void PaginaModificacoes::adicionarCopia() {
+    const QModelIndex atual = tabela_->currentIndex();
+    const ArquivoFixo* modif = deck_->arquivo(MODIF);
+    if (!atual.isValid() || !modif) return;
+    const int linha = modelo_->linhaDoArquivo(atual.row());
+    std::vector<std::string> linhas = modif->linhas();
+    linhas.insert(linhas.begin() + linha + 1, linhas[static_cast<size_t>(linha)]);
+    substituirLinhas(linhas, linha + 1);
+}
+
+// Pergunta a usina (do cadastro de usinas) e a palavra-chave e insere o registro com valores
+// iniciais validos (valoresPadraoModif, com o ano de inicio do estudo do dger.dat), no bloco da
+// usina ou num bloco novo no fim do arquivo.
+void PaginaModificacoes::novaModificacao() {
+    const ArquivoFixo* modif = deck_->arquivo(MODIF);
+    if (!modif) return;
+    QDialog dialogo(this);
+    dialogo.setWindowTitle(QStringLiteral("Nova modificação"));
+    auto* form = new QFormLayout(&dialogo);
+    auto* usinas = new QComboBox(&dialogo);
+    usinas->setMaxVisibleItems(20);
+    if (hidr_)
+        for (int i = 0; i < hidr_->numUsinas(); ++i) {
+            const QString nome = QString::fromLatin1(hidr_->usina(i).nome.c_str()).trimmed();
+            if (!nome.isEmpty()) usinas->addItem(QStringLiteral("%1 (%2)").arg(nome).arg(i + 1), i + 1);
+        }
+    if (tabela_->currentIndex().isValid()) {
+        const int indice = usinas->findData(modelo_->usinaDoRegistro(tabela_->currentIndex().row()));
+        if (indice >= 0) usinas->setCurrentIndex(indice);
+    }
+    auto* chaves = new QComboBox(&dialogo);
+    chaves->setMaxVisibleItems(25);
+    for (const PalavraChaveModif& p : palavrasChaveModif())
+        if (!camposModif(p.chave.toStdString(), 1).empty()) chaves->addItem(QStringLiteral("%1: %2").arg(p.chave, p.descricao), p.chave);
+    if (const int indice = chaves->findData(chave_atual_); indice >= 0) chaves->setCurrentIndex(indice);
+    auto* botoes = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialogo);
+    connect(botoes, &QDialogButtonBox::accepted, &dialogo, &QDialog::accept);
+    connect(botoes, &QDialogButtonBox::rejected, &dialogo, &QDialog::reject);
+    form->addRow(QStringLiteral("Usina"), usinas);
+    form->addRow(QStringLiteral("Palavra-chave"), chaves);
+    form->addRow(botoes);
+    if (dialogo.exec() != QDialog::Accepted || usinas->currentIndex() < 0 || chaves->currentIndex() < 0) return;
+
+    const int usina = usinas->currentData().toInt();
+    const QString chave = chaves->currentData().toString();
+    int ano = 2000;
+    if (const ArquivoFixo* dger = deck_->arquivo(QStringLiteral("dger.dat")))
+        for (size_t s = 0; s < dger->secoes().size(); ++s)
+            if (dger->secoes()[s].definicao.titulo == "Ano de início do estudo" && !dger->secoes()[s].linhas.empty())
+                ano = std::atoi(dger->valor(static_cast<int>(s), 0, 0).c_str());
+    std::string registro;
+    const Resultado r = montarLinhaModif(" " + chave.toStdString(), valoresPadraoModif(chave.toStdString(), ano),
+                                         camposModif(chave.toStdString(), deck_->numeroPatamaresDeCarga()), registro);
+    if (!r.ok) {
+        atualizarDetalhes(QString::fromUtf8(r.mensagem));
+        return;
+    }
+    const QString nome = hidr_ ? QString::fromLatin1(hidr_->usina(usina - 1).nome.c_str()).trimmed() : QString();
+    int nova = -1;
+    const std::vector<std::string> linhas = inserirModificacao(modif->linhas(), usina, nome.toLatin1().toStdString(), registro, nova);
+    chave_atual_ = chave;
+    categoria_atual_.clear();
+    substituirLinhas(linhas, nova);
+}
+
+// Apaga os registros selecionados; bloco de usina que fica vazio sai junto.
+void PaginaModificacoes::remover() {
+    const ArquivoFixo* modif = deck_->arquivo(MODIF);
+    const std::vector<int> linhas = linhasSelecionadas();
+    if (!modif || linhas.empty()) return;
+    const int primeira = *std::min_element(linhas.begin(), linhas.end());
+    substituirLinhas(removerModificacoes(modif->linhas(), linhas), primeira);
 }

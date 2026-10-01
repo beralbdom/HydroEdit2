@@ -24,6 +24,7 @@ qt_add_library(hydroedit_ui STATIC
     delegate_referencia.cpp delegate_referencia.h
     menu_registros.cpp menu_registros.h
     icones_arvore.cpp icones_arvore.h
+    modelo_modif.cpp modelo_modif.h
     formulario_arquivo.cpp formulario_arquivo.h
     recursos_tabela.cpp recursos_tabela.h
     pagina_arquivo_fixo.cpp pagina_arquivo_fixo.h

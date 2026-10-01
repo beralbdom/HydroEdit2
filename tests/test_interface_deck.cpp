@@ -17,6 +17,7 @@
 #include "formulario_arquivo.h"
 #include "janela_principal.h"
 #include "layouts_newave.h"
+#include "modelo_modif.h"
 #include "modelo_secao_fixa.h"
 #include "pagina_arquivo_fixo.h"
 #include "recursos_tabela.h"
@@ -102,6 +103,38 @@ private slots:
         QCOMPARE(modelo.item(0, 1)->text(), QStringLiteral("y"));
         ordenarTabela(&tabela, -1, Qt::AscendingOrder);
         QVERIFY(!tabela.verticalHeader()->sectionsMoved() || tabela.verticalHeader()->visualIndex(2) == 2);
+    }
+
+    void editorDoModif() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "modif.dat")) QSKIP("deck ausente");
+        DadosDeck dados;
+        dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        ModeloModif modelo(&dados, nullptr);
+        modelo.definirFiltro(QStringLiteral("VMAXT"), {});
+        QCOMPARE(modelo.columnCount(), 7);
+        const QStringList titulos = {QStringLiteral("Usina"), QStringLiteral("Nome"), QStringLiteral("Mês"), QStringLiteral("Ano"),
+                                     QStringLiteral("Volume"), QStringLiteral("Unidade"), QStringLiteral("Linha")};
+        for (int c = 0; c < 7; ++c) QCOMPARE(modelo.headerData(c, Qt::Horizontal, Qt::DisplayRole).toString(), titulos[c]);
+        QVERIFY(modelo.registros() > 100);
+        QCOMPARE(modelo.index(0, 5).data(Qt::EditRole).toString(), QStringLiteral("%"));
+        QVERIFY(!(modelo.flags(modelo.index(0, 0)) & Qt::ItemIsEditable));
+        QVERIFY(modelo.flags(modelo.index(0, 4)) & Qt::ItemIsEditable);
+
+        const int linha = modelo.linhaDoArquivo(0);
+        const QStringList antes = dados.texto(QStringLiteral("modif.dat")).split(QLatin1Char('\n'));
+        QVERIFY(modelo.setData(modelo.index(0, 4), QStringLiteral("55,5"), Qt::EditRole));
+        const QStringList depois = dados.texto(QStringLiteral("modif.dat")).split(QLatin1Char('\n'));
+        QCOMPARE(depois.size(), antes.size());
+        for (int i = 0; i < antes.size(); ++i)
+            if (i != linha) QCOMPARE(depois[i], antes[i]);
+        QVERIFY(depois[linha].contains(QStringLiteral(" 55.5 '%'")));
+        QVERIFY(depois[linha].startsWith(antes[linha].left(10)));
+        QVERIFY(!modelo.setData(modelo.index(0, 2), QStringLiteral("13"), Qt::EditRole));
+
+        modelo.definirFiltro({}, [](const QString&) { return true; });
+        QCOMPARE(modelo.columnCount(), 7);
+        QCOMPARE(modelo.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Palavra-chave"));
     }
 
     void janelaAbreHidrSeguidos() {

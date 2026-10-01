@@ -262,6 +262,20 @@ void DadosDeck::substituirTexto(const QString& nome_padrao, const QString& texto
     concluirReinterpretacao(nome_padrao);
 }
 
+// Troca uma linha do arquivo (indice a partir de 0) sem mudar o numero de linhas; as vistas recebem
+// so alterado, porque os registros continuam nas mesmas linhas.
+Resultado DadosDeck::substituirLinha(const QString& nome_padrao, int indice, const QString& texto) {
+    auto it = arquivos_.find(nome_padrao);
+    if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo não carregado");
+    std::vector<std::string> linhas = it->second.arquivo.linhas();
+    if (indice < 0 || indice >= static_cast<int>(linhas.size())) return Resultado::erro("Linha fora do arquivo");
+    linhas[static_cast<size_t>(indice)] = texto.toLatin1().toStdString();
+    it->second.arquivo.substituirLinhas(linhas, it->second.layout);
+    referencias_.clear();
+    emit alterado(nome_padrao);
+    return Resultado::sucesso();
+}
+
 // Avisa as vistas de um arquivo relido com outras linhas; se o numero de patamares mudou, os
 // arquivos que dependem dele sao relidos tambem.
 void DadosDeck::concluirReinterpretacao(const QString& nome_padrao) {
