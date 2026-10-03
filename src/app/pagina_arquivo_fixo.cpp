@@ -137,7 +137,8 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
 
 // Secao -1 (ou secao que nao e de tabela) mostra o formulario; as demais, a tabela da secao. Na
 // pagina unica, formulario e tabela aparecem sempre juntos. No formulario de parametros agrupados
-// por tema, secao -2 - k mostra o tema k (a secao -1, o primeiro).
+// por tema, secao -2 - k mostra o tema k (a secao -1, o primeiro). Sem formulario, uma secao que nao
+// e de tabela (ou fora do layout) mostra a primeira tabela.
 void PaginaArquivoFixo::mostrarSecao(int secao) {
     if (divisor_) {
         mostrando_formulario_ = false;
@@ -150,7 +151,9 @@ void PaginaArquivoFixo::mostrarSecao(int secao) {
         atualizar();
         return;
     }
-    mostrando_formulario_ = formulario_ && (secao < 0 || !secaoEmTabela(layout_, secao));
+    const bool secao_de_tabela = secao >= 0 && secao < static_cast<int>(layout_.secoes.size()) && secaoEmTabela(layout_, secao);
+    if (!secao_de_tabela && !formulario_) secao = primeira_tabela_;
+    mostrando_formulario_ = formulario_ && !secao_de_tabela;
     botao_adicionar_->setVisible(tabela_ && !mostrando_formulario_);
     botao_remover_->setVisible(tabela_ && !mostrando_formulario_);
     if (mostrando_formulario_ || !tabela_) {

@@ -194,11 +194,16 @@ private slots:
         dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
         for (const ArquivoNewave& arquivo : catalogoNewave()) {
             const LayoutArquivoFixo* layout = layoutNewave(arquivo.nome_padrao.toStdString());
-            if (!layout || !PaginaArquivoFixo::temFormulario(*layout)) continue;
-            FormularioArquivo formulario(arquivo.nome_padrao, *layout, &dados);
-            QVERIFY2(formulario.campos() >= 0, qPrintable(arquivo.nome_padrao));
+            if (!layout) continue;
+            const bool com_formulario = PaginaArquivoFixo::temFormulario(*layout);
+            const bool sem_formulario_testado = arquivo.nome_padrao == QStringLiteral("term.dat") || arquivo.nome_padrao == QStringLiteral("clast.dat");
+            if (!com_formulario && !sem_formulario_testado) continue;
+            if (com_formulario) {
+                FormularioArquivo formulario(arquivo.nome_padrao, *layout, &dados);
+                QVERIFY2(formulario.campos() >= 0, qPrintable(arquivo.nome_padrao));
+            }
             PaginaArquivoFixo pagina(arquivo, *layout, &dados);
-            for (int s = -1; s < static_cast<int>(layout->secoes.size()); ++s) pagina.mostrarSecao(s);
+            for (int s = -2; s <= static_cast<int>(layout->secoes.size()); ++s) pagina.mostrarSecao(s);
         }
         FormularioArquivo patamar(QStringLiteral("patamar.dat"), *layoutNewave("patamar.dat"), &dados);
         QCOMPARE(patamar.campos(), 1 + 4 + 12 * 2);
