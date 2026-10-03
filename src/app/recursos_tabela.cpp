@@ -373,21 +373,6 @@ private:
         return tabela_->model()->headerData(coluna, Qt::Horizontal, Qt::DisplayRole).toString().simplified();
     }
 
-    // Linha copiada so com titulos de colunas da tabela: e o cabecalho que copiar poe no inicio, e
-    // colar a descarta.
-    bool linhaDeCabecalho(const QStringList& linha) const {
-        QAbstractItemModel* modelo = tabela_->model();
-        std::set<QString> titulos;
-        for (int c = 0; c < modelo->columnCount(); ++c) titulos.insert(titulo(c));
-        bool algum = false;
-        for (const QString& celula : linha) {
-            if (celula.trimmed().isEmpty()) continue;
-            if (!titulos.count(celula.trimmed())) return false;
-            algum = true;
-        }
-        return algum;
-    }
-
     // Retangulo da selecao na ordem da vista, com os titulos das colunas na primeira linha, sem as
     // linhas e colunas escondidas; celula fora da selecao sai vazia.
     void copiar() {
@@ -418,8 +403,8 @@ private:
         QApplication::clipboard()->setText(formatarTsv(linhas));
     }
 
-    // Cola a partir do canto da selecao, descendo pelas linhas visiveis na ordem da vista; a primeira
-    // linha fica de fora se for o cabecalho que copiar poe. Um valor so, com varias celulas
+    // Cola a partir do canto da selecao, descendo pelas linhas visiveis na ordem da vista; o texto
+    // entra como esta, inclusive uma linha de titulos copiada junto. Um valor so, com varias celulas
     // selecionadas, vai para todas elas. Cada valor passa pelo setData do modelo, com a mesma
     // validacao da edicao celula a celula; celulas que nao se editam ficam de fora, e tabela so de
     // leitura (sem gatilho de edicao) nao recebe nada. Em tabela que seleciona linhas inteiras, a
@@ -430,7 +415,6 @@ private:
         std::vector<QStringList> linhas = lerTsv(QApplication::clipboard()->text());
         QModelIndexList selecao = tabela_->selectionModel()->selectedIndexes();
         if (!modelo) return;
-        if (!linhas.empty() && linhaDeCabecalho(linhas.front())) linhas.erase(linhas.begin());
         if (linhas.empty()) return;
         if (selecao.isEmpty() && tabela_->currentIndex().isValid()) selecao << tabela_->currentIndex();
         if (selecao.isEmpty()) return;

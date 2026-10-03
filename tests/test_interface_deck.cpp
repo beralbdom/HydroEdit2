@@ -58,21 +58,21 @@ private slots:
         tecla(tabela, QKeySequence::Copy);
         QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("Primeira\tSegunda coluna\r\n0\t1\r\n20\t21\r\n"));
 
-        QApplication::clipboard()->setText(QStringLiteral("Primeira\tSegunda coluna\na\tb\nc\td\n"));
+        QApplication::clipboard()->setText(QStringLiteral("Primeira\tSegunda coluna\na\tb\n"));
         tabela.selectionModel()->clearSelection();
         tabela.setCurrentIndex(modelo.index(0, 0));
         tecla(tabela, QKeySequence::Paste);
-        QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("a"));
-        QCOMPARE(modelo.item(0, 1)->text(), QStringLiteral("b"));
+        QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("Primeira"));
+        QCOMPARE(modelo.item(0, 1)->text(), QStringLiteral("Segunda coluna"));
         QCOMPARE(modelo.item(1, 0)->text(), QStringLiteral("10"));
-        QCOMPARE(modelo.item(2, 0)->text(), QStringLiteral("c"));
-        QCOMPARE(modelo.item(2, 1)->text(), QStringLiteral("d"));
+        QCOMPARE(modelo.item(2, 0)->text(), QStringLiteral("a"));
+        QCOMPARE(modelo.item(2, 1)->text(), QStringLiteral("b"));
 
         tabela.setEditTriggers(QAbstractItemView::NoEditTriggers);
         tecla(tabela, QKeySequence::Paste);
         QApplication::clipboard()->setText(QStringLiteral("x"));
         tecla(tabela, QKeySequence::Paste);
-        QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("a"));
+        QCOMPARE(modelo.item(0, 0)->text(), QStringLiteral("Primeira"));
     }
 
     void ordenaNaVistaECopiaNaOrdemMostrada() {
