@@ -82,7 +82,15 @@ private slots:
 
         std::string linha;
         QVERIFY(montarLinhaModif(" VMAXT    12 2026  80.600 '%'", {" 9", "2027", "70", "'%'"}, vmaxt, linha).ok);
-        QCOMPARE(linha, std::string(" VMAXT     9 2027 70 '%'"));
+        QCOMPARE(linha, std::string(" VMAXT     9 2027      70 '%'"));
+        QVERIFY(montarLinhaModif(" VMAXT     1 2027  83.600 '%'          ", {"1", "2027", "83.600", "'%'"}, vmaxt, linha).ok);
+        QCOMPARE(linha, std::string(" VMAXT     1 2027  83.600 '%'          "));
+        QVERIFY(montarLinhaModif(" VMAXT     1 2027  83.600 '%'", {"1", "2027", "1234567.5", "'%'"}, vmaxt, linha).ok);
+        QCOMPARE(linha, std::string(" VMAXT     1 2027 1234567.5 '%'"));
+        QVERIFY(montarLinhaModif(" VMAXT     1 2027  83.600 '%'", {"1", "2027", "83.600"}, vmaxt, linha).ok);
+        QCOMPARE(linha, std::string(" VMAXT     1 2027  83.600"));
+        QVERIFY(montarLinhaModif(" VMAXT     1 2027", {"1", "2027", "83.6", "'h'"}, vmaxt, linha).ok);
+        QCOMPARE(linha, std::string(" VMAXT     1 2027 83.6 'h'"));
         const auto turb = camposModif("TURBMAXT", 3);
         QVERIFY(montarLinhaModif(" TURBMAXT", {" 9", "2026", "100", "", ""}, turb, linha).ok);
         QCOMPARE(linha, std::string(" TURBMAXT  9 2026 100"));

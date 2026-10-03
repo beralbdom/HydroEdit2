@@ -138,10 +138,14 @@ Resultado formatarCampoModif(const CampoModif& campo, const std::string& texto_o
     return Resultado::sucesso();
 }
 
-// Linha do registro com os valores novos: as colunas 1 a 10 da linha original (a palavra-chave como
-// o usuario escreveu) e os valores separados por espaco a partir da coluna 11, sem os opcionais
-// vazios do fim. Opcional vazio antes de um preenchido (patamar 2 vazio com o 3 preenchido) e valores
-// alem da coluna 70 sao recusados.
+// Linha do registro com os valores novos, mexendo o minimo na original: as colunas 1 a 10 (a
+// palavra-chave como o usuario escreveu) ficam, e cada valor que mudou toma o lugar do antigo,
+// alinhado a direita no mesmo espaco; se nao couber, avanca sobre os espacos a esquerda (deixando um
+// depois do valor anterior) e, em ultimo caso, empurra o resto da linha. Valores que a original nao
+// tinha entram no fim, separados por um espaco; opcionais vazios do fim saem da linha. O manual
+// (secao 3.12) le os valores em formato livre nas colunas 11 a 70, entao as posicoes so importam para
+// a linha mudar o menos possivel. Opcional vazio antes de um preenchido (patamar 2 vazio com o 3
+// preenchido) e valores alem da coluna 70 sao recusados.
 Resultado montarLinhaModif(const std::string& original, std::vector<std::string> tokens, const std::vector<CampoModif>& campos,
                            std::string& linha) {
     while (!tokens.empty() && aparar(tokens.back()).empty()) tokens.pop_back();
@@ -149,15 +153,43 @@ Resultado montarLinhaModif(const std::string& original, std::vector<std::string>
         if (aparar(tokens[i]).empty())
             return Resultado::erro((i < campos.size() ? campos[i].nome : "Valor " + std::to_string(i + 1)) +
                                    " está vazio antes de um valor preenchido");
-    std::string valores;
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        if (i > 0) valores += ' ';
-        valores += tokens[i];
+
+    std::string valores = original.size() > 10 ? original.substr(10) : std::string();
+    std::vector<std::pair<size_t, size_t>> trechos;
+    for (size_t p = 0; p < valores.size();) {
+        if (std::isspace(static_cast<unsigned char>(valores[p]))) {
+            ++p;
+            continue;
+        }
+        size_t q = p;
+        while (q < valores.size() && !std::isspace(static_cast<unsigned char>(valores[q]))) ++q;
+        trechos.push_back({p, q});
+        p = q;
     }
-    if (valores.size() > 60) return Resultado::erro("Os valores passam da coluna 70 do registro");
-    std::string prefixo = original.substr(0, std::min<size_t>(10, original.size()));
-    prefixo.resize(10, ' ');
-    linha = prefixo + valores;
+    if (tokens.size() < trechos.size() || tokens.size() > trechos.size()) {
+        const size_t mantidos = std::min(tokens.size(), trechos.size());
+        valores.erase(mantidos == 0 ? 0 : trechos[mantidos - 1].second);
+        trechos.resize(mantidos);
+    }
+    for (size_t i = trechos.size(); i < tokens.size(); ++i) valores += (valores.empty() ? "" : " ") + tokens[i];
+    for (size_t i = trechos.size(); i-- > 0;) {
+        const std::string novo = aparar(tokens[i]);
+        auto [inicio, fim] = trechos[i];
+        if (valores.compare(inicio, fim - inicio, novo) == 0) continue;
+        size_t largura = fim - inicio;
+        if (novo.size() > largura) {
+            const size_t limite = i == 0 ? 0 : trechos[i - 1].second + 1;
+            const size_t avanco = std::min(novo.size() - largura, inicio > limite ? inicio - limite : size_t(0));
+            inicio -= avanco;
+            largura += avanco;
+        }
+        valores.replace(inicio, largura, std::string(largura > novo.size() ? largura - novo.size() : 0, ' ') + novo);
+    }
+    const size_t ultimo = valores.find_last_not_of(' ');
+    if (ultimo != std::string::npos && ultimo + 1 > 60) return Resultado::erro("Os valores passam da coluna 70 do registro");
+    linha = original.substr(0, std::min<size_t>(10, original.size()));
+    linha.resize(10, ' ');
+    linha += valores;
     return Resultado::sucesso();
 }
 
