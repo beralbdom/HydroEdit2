@@ -16,7 +16,6 @@
 #include <QPointer>
 #include <QProxyStyle>
 #include <QPushButton>
-#include <QSortFilterProxyModel>
 #include <QStyleFactory>
 #include <QStyleOptionHeader>
 #include <QTableView>
@@ -142,7 +141,10 @@ public:
         if (!cabecalho_ || !vertical_) return;
         QAbstractItemModel* modelo = tabela_->model();
         if (!modelo) return;
-        for (int r = 0; r < modelo->rowCount(); ++r) tabela_->setRowHidden(r, !visivel(r, -1));
+        for (int r = 0; r < modelo->rowCount(); ++r) {
+            const bool oculta = !visivel(r, -1);
+            if (tabela_->isRowHidden(r) != oculta) tabela_->setRowHidden(r, oculta);
+        }
         QVariantList filtradas;
         for (const auto& [coluna, valores] : filtros_) filtradas << coluna;
         tabela_->horizontalHeader()->setProperty(PROP_FILTRADAS, filtradas);
@@ -410,10 +412,10 @@ private:
     // selecionadas, vai para todas elas. Cada valor passa pelo setData do modelo, com a mesma
     // validacao da edicao celula a celula; celulas que nao se editam ficam de fora, e tabela so de
     // leitura (sem gatilho de edicao) nao recebe nada. Em tabela que seleciona linhas inteiras, a
-    // colagem comeca na coluna da celula clicada. Modelo com EdicaoEmLote, direto ou atras de
-    // proxies, recebe a colagem inteira como um lote, para avisar as vistas uma vez so. A ordenacao e
-    // o filtro dinamicos dos proxies ficam parados ate o fim: sem isso, um valor colado na coluna da
-    // ordenacao mudaria a linha em que o valor seguinte cai.
+    // colagem comeca na coluna da celula clicada. O destino de cada valor e decidido antes de gravar,
+    // ja no modelo de origem (atras dos proxies de ordenacao e filtro), para um valor colado na coluna
+    // da ordenacao nao mudar a linha em que o seguinte cai. Modelo com EdicaoEmLote recebe a colagem
+    // inteira como um lote, para avisar as vistas uma vez so.
     void colar() {
         if (tabela_->editTriggers() == QAbstractItemView::NoEditTriggers) return;
         QAbstractItemModel* modelo = tabela_->model();
@@ -424,30 +426,14 @@ private:
         if (selecao.isEmpty() && tabela_->currentIndex().isValid()) selecao << tabela_->currentIndex();
         if (selecao.isEmpty()) return;
 
-        EdicaoEmLote* lote = nullptr;
-        std::vector<QSortFilterProxyModel*> congelados;
-        for (QAbstractItemModel* m = modelo; m;) {
-            if (!lote) lote = dynamic_cast<EdicaoEmLote*>(m);
-            auto* ordenacao = qobject_cast<QSortFilterProxyModel*>(m);
-            if (ordenacao && ordenacao->dynamicSortFilter()) {
-                ordenacao->setDynamicSortFilter(false);
-                congelados.push_back(ordenacao);
-            }
-            auto* proxy = qobject_cast<QAbstractProxyModel*>(m);
-            m = proxy ? proxy->sourceModel() : nullptr;
-        }
-        if (lote) lote->iniciarLote();
-        int gravados = 0;
-        int recusados = 0;
-        auto gravar = [&](const QModelIndex& ix, const QString& valor) {
-            if (!(modelo->flags(ix) & Qt::ItemIsEditable)) return;
-            if (modelo->setData(ix, valor, Qt::EditRole)) ++gravados;
-            else if (valor.trimmed() != texto(ix.row(), ix.column())) ++recusados;
+        std::vector<std::pair<QPersistentModelIndex, QString>> destinos;
+        auto destinar = [&](QModelIndex ix, const QString& valor) {
+            while (const auto* proxy = qobject_cast<const QAbstractProxyModel*>(ix.model())) ix = proxy->mapToSource(ix);
+            if (ix.isValid() && (ix.model()->flags(ix) & Qt::ItemIsEditable)) destinos.push_back({ix, valor});
         };
-
         if (linhas.size() == 1 && linhas.front().size() == 1 && selecao.size() > 1) {
             for (const QModelIndex& ix : selecao)
-                if (!tabela_->isRowHidden(ix.row())) gravar(ix, linhas.front().front());
+                if (!tabela_->isRowHidden(ix.row())) destinar(ix, linhas.front().front());
         } else {
             QHeaderView* vertical = tabela_->verticalHeader();
             const std::vector<int> ordem = linhasNaVista();
@@ -467,17 +453,25 @@ private:
                 for (const QString& valor : linha) {
                     while (c < modelo->columnCount() && tabela_->isColumnHidden(c)) ++c;
                     if (c >= modelo->columnCount()) break;
-                    gravar(modelo->index(r, c), valor);
+                    destinar(modelo->index(r, c), valor);
                     ++c;
                 }
                 ++v;
             }
         }
-        if (lote) lote->concluirLote();
-        for (QSortFilterProxyModel* ordenacao : congelados) {
-            ordenacao->setDynamicSortFilter(true);
-            ordenacao->invalidate();
+        if (destinos.empty()) return;
+
+        auto* origem = const_cast<QAbstractItemModel*>(destinos.front().first.model());
+        auto* lote = dynamic_cast<EdicaoEmLote*>(origem);
+        if (lote) lote->iniciarLote();
+        int gravados = 0;
+        int recusados = 0;
+        for (const auto& [ix, valor] : destinos) {
+            if (!ix.isValid()) continue;
+            if (origem->setData(ix, valor, Qt::EditRole)) ++gravados;
+            else if (valor.trimmed() != ix.data(Qt::EditRole).toString().trimmed()) ++recusados;
         }
+        if (lote) lote->concluirLote();
         QString resumo = QStringLiteral("%1 valores colados").arg(gravados);
         if (recusados > 0) resumo += QStringLiteral(", %1 recusados").arg(recusados);
         QToolTip::showText(tabela_->viewport()->mapToGlobal(tabela_->visualRect(tabela_->currentIndex()).bottomLeft()), resumo, tabela_);
