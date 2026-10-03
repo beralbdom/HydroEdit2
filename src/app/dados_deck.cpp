@@ -121,10 +121,28 @@ Resultado DadosDeck::definir(const QString& nome_padrao, int secao, int registro
     Resultado r = it->second.arquivo.definir(secao, registro, coluna, texto.toLatin1().toStdString());
     if (r.ok) {
         referencias_.clear();
-        emit alterado(nome_padrao);
-        aplicarPatamares(true);
+        avisarAlterado(nome_padrao);
+        if (lote_ == 0) aplicarPatamares(true);
     }
     return r;
+}
+
+// Edicoes em lote (colar um bloco na tabela): entre iniciarLote e concluirLote as gravacoes valem na
+// hora, mas o aviso alterado de cada arquivo sai uma vez so, no fim, junto com a releitura pelos
+// patamares, em vez de a cada celula refazer as vistas do arquivo. Lotes aninhados valem como um so.
+void DadosDeck::iniciarLote() { ++lote_; }
+
+void DadosDeck::concluirLote() {
+    if (lote_ == 0 || --lote_ > 0) return;
+    const std::set<QString> alterados = std::move(alterados_no_lote_);
+    alterados_no_lote_.clear();
+    for (const QString& nome : alterados) emit alterado(nome);
+    if (!alterados.empty()) aplicarPatamares(true);
+}
+
+void DadosDeck::avisarAlterado(const QString& nome_padrao) {
+    if (lote_ > 0) alterados_no_lote_.insert(nome_padrao);
+    else emit alterado(nome_padrao);
 }
 
 // O numero de patamares de carga (patamar.dat) e de deficit (sistema.dat) decide quantas colunas de
@@ -154,7 +172,7 @@ Resultado DadosDeck::definirTextoBinario(const QString& nome_padrao, int registr
     Resultado r = entrada->binario.definirTexto(registro, inicio, tamanho, texto.trimmed().toLatin1().toStdString());
     if (r.ok) {
         referencias_.clear();
-        emit alterado(nome_padrao);
+        avisarAlterado(nome_padrao);
     }
     return r;
 }
@@ -168,7 +186,7 @@ Resultado DadosDeck::definirInteiroBinario(const QString& nome_padrao, int regis
     if (!ok || valor < std::numeric_limits<int32_t>::min() || valor > std::numeric_limits<int32_t>::max())
         return Resultado::erro("Valor invalido: " + texto.toStdString());
     entrada->binario.definirInteiro(registro, inicio, static_cast<int32_t>(valor));
-    emit alterado(nome_padrao);
+    avisarAlterado(nome_padrao);
     return Resultado::sucesso();
 }
 
@@ -298,7 +316,7 @@ Resultado DadosDeck::substituirLinha(const QString& nome_padrao, int indice, con
     linhas[static_cast<size_t>(indice)] = texto.toLatin1().toStdString();
     it->second.arquivo.substituirLinhas(linhas, it->second.layout);
     referencias_.clear();
-    emit alterado(nome_padrao);
+    avisarAlterado(nome_padrao);
     return Resultado::sucesso();
 }
 

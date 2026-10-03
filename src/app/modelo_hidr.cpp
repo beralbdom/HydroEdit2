@@ -1,5 +1,6 @@
 #include "modelo_hidr.h"
 #include <QLocale>
+#include <algorithm>
 #include <map>
 #include "comandos.h"
 #include "texto.h"
@@ -116,7 +117,50 @@ const Campo* ModeloHidr::campoDaColuna(int coluna) const {
 void ModeloHidr::definirValor(int linha, const Campo& c, int i, const Valor& v) {
     Valor antigo = valor(linha, c, i);
     if (antigo == v) return;
+    if (lote_) {
+        new ComandoDefinirValor(this, linha, &c, i, antigo, v, lote_);
+        aplicarValor(linha, c, i, v);
+        return;
+    }
     pilha_.push(new ComandoDefinirValor(this, linha, &c, i, antigo, v));
+}
+
+// Colagem: as edicoes entram como filhas de um so comando, que se desfaz de uma vez, e os avisos de
+// usina alterada ficam para o fim (liberarAvisos).
+void ModeloHidr::iniciarLote() {
+    if (profundidade_lote_++ > 0) return;
+    lote_ = new ComandoLote(this, QStringLiteral("Colar"));
+    adiarAvisos();
+}
+
+void ModeloHidr::concluirLote() {
+    if (profundidade_lote_ == 0 || --profundidade_lote_ > 0) return;
+    QUndoCommand* lote = std::exchange(lote_, nullptr);
+    if (lote->childCount() > 0) pilha_.push(lote);
+    else delete lote;
+    liberarAvisos();
+}
+
+void ModeloHidr::adiarAvisos() { ++adiando_; }
+
+// Fim de um lote: uma edicao so sai como de costume; varias da mesma usina saem como a usina inteira
+// alterada (campo nulo), e de usinas diferentes como linha -1, para quem escuta refazer o que depende
+// de qualquer usina (lista de nomes, cascata, validacao) uma vez so.
+void ModeloHidr::liberarAvisos() {
+    if (adiando_ == 0 || --adiando_ > 0) return;
+    const auto avisos = std::exchange(avisos_adiados_, {});
+    if (avisos.empty()) return;
+    if (avisos.size() == 1) {
+        emit usinaAlterada(avisos.front().first, avisos.front().second);
+        return;
+    }
+    const bool mesma_usina = std::all_of(avisos.begin(), avisos.end(), [&](const auto& a) { return a.first == avisos.front().first; });
+    emit usinaAlterada(mesma_usina ? avisos.front().first : -1, nullptr);
+}
+
+void ModeloHidr::avisarUsina(int linha, const Campo* campo) {
+    if (adiando_ > 0) avisos_adiados_.push_back({linha, campo});
+    else emit usinaAlterada(linha, campo);
 }
 
 void ModeloHidr::substituirUsina(int linha, const UsinaHidr& nova, const QString& rotulo) {
@@ -129,13 +173,13 @@ void ModeloHidr::aplicarValor(int linha, const Campo& c, int i, const Valor& v) 
         QModelIndex ix = index(linha, colunaDoCampo(c.nome));
         emit dataChanged(ix, ix);
     }
-    emit usinaAlterada(linha, &c);
+    avisarUsina(linha, &c);
 }
 
 void ModeloHidr::aplicarUsina(int linha, const UsinaHidr& u) {
     arquivo_.usinas[static_cast<size_t>(linha)] = u;
     emit dataChanged(index(linha, 0), index(linha, columnCount() - 1));
-    emit usinaAlterada(linha, nullptr);
+    avisarUsina(linha, nullptr);
 }
 
 QString ModeloHidr::nomeLookup(const Campo& c, int32_t codigo) const {

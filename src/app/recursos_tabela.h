@@ -9,6 +9,13 @@ class QMenu;
 class QModelIndex;
 class QTableView;
 
+class EdicaoEmLote {
+public:
+    virtual ~EdicaoEmLote() = default;
+    virtual void iniciarLote() = 0;
+    virtual void concluirLote() = 0;
+};
+
 std::vector<QStringList> lerTsv(const QString& texto);
 QString formatarTsv(const std::vector<QStringList>& linhas);
 

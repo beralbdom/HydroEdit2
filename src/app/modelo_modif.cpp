@@ -162,9 +162,14 @@ Qt::ItemFlags ModeloModif::flags(const QModelIndex& ix) const {
     return f;
 }
 
+void ModeloModif::iniciarLote() { dados_->iniciarLote(); }
+void ModeloModif::concluirLote() { dados_->concluirLote(); }
+
 // Valida o valor contra o campo (formatarCampoModif), remonta a linha do registro e a grava no
 // repositorio do deck; a unidade conserva as aspas que a linha ja usava (e ganha aspas num campo novo).
-// Valor igual ao atual nao regrava a linha, para colar o que ja esta la nao mudar o espacamento.
+// Valor igual ao atual nao regrava a linha, para colar o que ja esta la nao mudar o espacamento. O
+// registro guarda os campos novos na hora: num lote o aviso do repositorio so vem no fim, e a proxima
+// celula da mesma linha parte deles.
 bool ModeloModif::setData(const QModelIndex& ix, const QVariant& valor, int role) {
     if (!ix.isValid() || role != Qt::EditRole) return false;
     if (valor.toString().trimmed() == data(ix, Qt::EditRole).toString()) return false;
@@ -183,7 +188,10 @@ bool ModeloModif::setData(const QModelIndex& ix, const QVariant& valor, int role
         const std::string original = dados_->arquivo(MODIF)->linhas()[static_cast<size_t>(linha.indice)];
         std::string nova;
         r = montarLinhaModif(original, tokens, campos_linha, nova);
-        if (r.ok && nova != original) r =dados_->substituirLinha(MODIF, linha.indice, QString::fromLatin1(nova.c_str()));
+        const int indice = linha.indice;
+        if (r.ok && nova != original) r = dados_->substituirLinha(MODIF, indice, QString::fromLatin1(nova.c_str()));
+        if (r.ok && ix.row() < rowCount() && linhas_[static_cast<size_t>(ix.row())].indice == indice)
+            linhas_[static_cast<size_t>(ix.row())].tokens = tokens;
     }
     if (!r.ok) {
         emit valorRecusado(QString::fromUtf8(r.mensagem));

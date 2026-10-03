@@ -138,6 +138,41 @@ private slots:
         QCOMPARE(modelo.headerData(2, Qt::Horizontal, Qt::DisplayRole).toString(), QStringLiteral("Modificador"));
     }
 
+    void colarAvisaODeckUmaVezENaoRegravaValorIgual() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "modif.dat")) QSKIP("deck ausente");
+        DadosDeck dados;
+        dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        ModeloModif modelo(&dados, nullptr);
+        modelo.definirFiltro(QStringLiteral("VMAXT"), {});
+        QTableView tabela;
+        tabela.setModel(&modelo);
+        tabela.setEditTriggers(QAbstractItemView::DoubleClicked);
+        habilitarRecursos(&tabela);
+        const QString original = dados.texto(QStringLiteral("modif.dat"));
+
+        tabela.setCurrentIndex(modelo.index(0, 2));
+        tabela.selectionModel()->select(QItemSelection(modelo.index(0, 2), modelo.index(1, 4)), QItemSelectionModel::ClearAndSelect);
+        tecla(tabela, QKeySequence::Copy);
+        const QString copiado = QApplication::clipboard()->text();
+        QApplication::clipboard()->setText(copiado.mid(copiado.indexOf(QLatin1Char('\n')) + 1));
+        QSignalSpy alterado(&dados, &DadosDeck::alterado);
+        tecla(tabela, QKeySequence::Paste);
+        QCOMPARE(alterado.count(), 0);
+        QCOMPARE(dados.texto(QStringLiteral("modif.dat")), original);
+
+        const QString mes = modelo.index(0, 2).data(Qt::EditRole).toString() == QStringLiteral("5") ? QStringLiteral("6") : QStringLiteral("5");
+        QApplication::clipboard()->setText(mes + QStringLiteral("\t2031\t50\n") + mes + QStringLiteral("\t2032\t60\n"));
+        tabela.clearSelection();
+        tabela.setCurrentIndex(modelo.index(0, 2));
+        tecla(tabela, QKeySequence::Paste);
+        QCOMPARE(alterado.count(), 1);
+        QCOMPARE(modelo.index(0, 2).data(Qt::EditRole).toString(), mes);
+        QCOMPARE(modelo.index(0, 3).data(Qt::EditRole).toString(), QStringLiteral("2031"));
+        QCOMPARE(modelo.index(1, 3).data(Qt::EditRole).toString(), QStringLiteral("2032"));
+        QCOMPARE(modelo.index(1, 4).data(Qt::EditRole).toString().toDouble(), 60.0);
+    }
+
     void janelaAbreHidrSeguidos() {
         const fs::path newave = fs::path(DIR_DECK) / "hidr.dat";
         const fs::path dessem = fs::path(DIR_DECK_DESSEM) / "hidr.dat";

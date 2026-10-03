@@ -7,7 +7,7 @@ class ModeloHidr;
 
 class ComandoDefinirValor : public QUndoCommand {
 public:
-    ComandoDefinirValor(ModeloHidr* m, int linha, const Campo* c, int i, Valor antigo, Valor novo);
+    ComandoDefinirValor(ModeloHidr* m, int linha, const Campo* c, int i, Valor antigo, Valor novo, QUndoCommand* pai = nullptr);
     void undo() override;
     void redo() override;
 private:
@@ -17,6 +17,16 @@ private:
     int indice_;
     Valor antigo_;
     Valor novo_;
+};
+
+class ComandoLote : public QUndoCommand {
+public:
+    ComandoLote(ModeloHidr* m, const QString& rotulo);
+    void undo() override;
+    void redo() override;
+private:
+    ModeloHidr* m_;
+    bool aplicado_ = true;
 };
 
 class ComandoSubstituirUsina : public QUndoCommand {

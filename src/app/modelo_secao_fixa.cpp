@@ -89,6 +89,9 @@ bool ModeloSecaoFixa::setData(const QModelIndex& ix, const QVariant& valor, int 
     return true;
 }
 
+void ModeloSecaoFixa::iniciarLote() { dados_->iniciarLote(); }
+void ModeloSecaoFixa::concluirLote() { dados_->concluirLote(); }
+
 // O cabecalho mostra o nome da coluna; a dica, as colunas do arquivo e o formato, como no manual, ou
 // de onde vem o valor das colunas somente leitura.
 QVariant ModeloSecaoFixa::headerData(int secao, Qt::Orientation o, int role) const {

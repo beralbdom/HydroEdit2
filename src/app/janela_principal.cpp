@@ -95,7 +95,7 @@ JanelaPrincipal::JanelaPrincipal(QWidget* parent) : QMainWindow(parent) {
         formulario_->focarCampo(campo.toStdString());
     });
     connect(modelo_, &ModeloHidr::usinaAlterada, this, [this](int linha, const Campo*) {
-        if (linha == formulario_->linha()) marcarProblemasDaLinha(linha);
+        if (linha < 0 || linha == formulario_->linha()) marcarProblemasDaLinha(formulario_->linha());
     });
     connect(tabela_->selectionModel(), &QItemSelectionModel::currentRowChanged, this,
             [this](const QModelIndex&, const QModelIndex&) { marcarProblemasDaLinha(linhaSelecionada()); });

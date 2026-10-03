@@ -48,6 +48,37 @@ private slots:
         m.pilhaUndo()->redo();
         QCOMPARE(m.usina(0).volume_minimo, 130.5f);
     }
+    void loteDesfazJuntoEAvisaUmaVez() {
+        ModeloHidr m;
+        m.definirArquivo(arquivoDeTeste(), QStringLiteral("x.dat"));
+        const int volume = m.colunaDoCampo("volume_minimo");
+        const int nome = m.colunaDoCampo("nome");
+        QSignalSpy spy(&m, &ModeloHidr::usinaAlterada);
+        m.iniciarLote();
+        QVERIFY(m.setData(m.index(0, volume), QStringLiteral("10")));
+        QVERIFY(m.setData(m.index(2, volume), QStringLiteral("20")));
+        QVERIFY(m.setData(m.index(2, nome), QStringLiteral("NOVA")));
+        QCOMPARE(m.usina(2).volume_minimo, 20.0f);
+        QCOMPARE(spy.count(), 0);
+        m.concluirLote();
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.takeFirst().at(0).toInt(), -1);
+        QCOMPARE(m.pilhaUndo()->count(), 1);
+        m.pilhaUndo()->undo();
+        QCOMPARE(m.usina(0).volume_minimo, 120.0f);
+        QCOMPARE(m.usina(2).nome, std::string("FURNAS"));
+        QCOMPARE(spy.count(), 1);
+        QVERIFY(m.pilhaUndo()->isClean());
+        m.pilhaUndo()->redo();
+        QCOMPARE(m.usina(2).volume_minimo, 20.0f);
+        QCOMPARE(m.usina(2).nome, std::string("NOVA"));
+        QCOMPARE(spy.count(), 2);
+
+        m.iniciarLote();
+        QVERIFY(m.setData(m.index(0, volume), QStringLiteral("10")));
+        m.concluirLote();
+        QCOMPARE(m.pilhaUndo()->count(), 1);
+    }
     void setDataInvalidoEhRejeitado() {
         ModeloHidr m;
         m.definirArquivo(arquivoDeTeste(), QStringLiteral("x.dat"));

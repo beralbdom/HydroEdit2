@@ -2,15 +2,17 @@
 #include <QAbstractTableModel>
 #include <QUndoStack>
 #include <optional>
+#include <utility>
 #include <vector>
 #include "arquivo_hidr.h"
 #include "campos.h"
 #include "deck_lookup.h"
+#include "recursos_tabela.h"
 
 QString textoValor(const Valor& v);
 std::optional<Valor> valorDeTexto(const Campo& c, const QString& texto);
 
-class ModeloHidr : public QAbstractTableModel {
+class ModeloHidr : public QAbstractTableModel, public EdicaoEmLote {
     Q_OBJECT
 public:
     explicit ModeloHidr(QObject* parent = nullptr);
@@ -38,6 +40,8 @@ public:
     bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
     QVariant headerData(int section, Qt::Orientation o, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex& index) const override;
+    void iniciarLote() override;
+    void concluirLote() override;
 
 signals:
     void usinaAlterada(int linha, const Campo* campo);
@@ -45,6 +49,10 @@ signals:
 private:
     friend class ComandoDefinirValor;
     friend class ComandoSubstituirUsina;
+    friend class ComandoLote;
+    void adiarAvisos();
+    void liberarAvisos();
+    void avisarUsina(int linha, const Campo* campo);
     void aplicarValor(int linha, const Campo& c, int i, const Valor& v);
     void aplicarUsina(int linha, const UsinaHidr& u);
     QString nomeLookup(const Campo& c, int32_t codigo) const;
@@ -54,4 +62,8 @@ private:
     QUndoStack pilha_;
     DeckLookup lookup_;
     std::vector<const Campo*> colunas_;
+    QUndoCommand* lote_ = nullptr;
+    int profundidade_lote_ = 0;
+    int adiando_ = 0;
+    std::vector<std::pair<int, const Campo*>> avisos_adiados_;
 };

@@ -4,11 +4,12 @@
 #include <string>
 #include <vector>
 #include "modif_newave.h"
+#include "recursos_tabela.h"
 
 class DadosDeck;
 class ModeloHidr;
 
-class ModeloModif : public QAbstractTableModel {
+class ModeloModif : public QAbstractTableModel, public EdicaoEmLote {
     Q_OBJECT
 public:
     ModeloModif(DadosDeck* dados, const ModeloHidr* hidr, QObject* parent = nullptr);
@@ -27,6 +28,8 @@ public:
     QVariant headerData(int secao, Qt::Orientation o, int role) const override;
     Qt::ItemFlags flags(const QModelIndex& ix) const override;
     bool setData(const QModelIndex& ix, const QVariant& valor, int role) override;
+    void iniciarLote() override;
+    void concluirLote() override;
 
 signals:
     void valorRecusado(const QString& motivo);

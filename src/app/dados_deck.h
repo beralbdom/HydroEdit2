@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QStringList>
 #include <map>
+#include <set>
 #include <vector>
 #include <string>
 #include "arquivo_binario.h"
@@ -47,6 +48,8 @@ public:
     Resultado mudarPatamares(Patamares tipo, int delta, QStringList* avisos = nullptr);
     bool salvar(const QString& nome_padrao, QString* motivo = nullptr);
     QStringList modificados() const;
+    void iniciarLote();
+    void concluirLote();
 
 signals:
     void recarregado();
@@ -70,9 +73,12 @@ private:
     Entrada* binarioLido(const QString& nome_padrao);
     void aplicarPatamares(bool avisar);
     void concluirReinterpretacao(const QString& nome_padrao);
+    void avisarAlterado(const QString& nome_padrao);
 
     std::map<QString, Entrada> arquivos_;
     QString dir_;
     NumeroPatamares patamares_;
     mutable std::map<Referencia, std::vector<OpcaoReferencia>> referencias_;
+    int lote_ = 0;
+    std::set<QString> alterados_no_lote_;
 };

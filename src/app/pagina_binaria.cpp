@@ -43,7 +43,7 @@ bool postoVazio(const ArquivoBinario* postos, int registro) {
 // Tabela do postos.dat, um posto por linha: codigo (a posicao do registro), nome e anos inicial e
 // final do historico de vazoes. Os numeros saem como texto para a edicao usar um campo de texto, como
 // nas outras tabelas, e nao a caixa numerica com setas que o Qt poe para inteiros.
-class ModeloPostos : public QAbstractTableModel {
+class ModeloPostos : public QAbstractTableModel, public EdicaoEmLote {
 public:
     enum Coluna { POSTO, NOME, ANO_INICIAL, ANO_FINAL, COLUNAS };
 
@@ -95,6 +95,9 @@ public:
         return r.ok;
     }
 
+    void iniciarLote() override { dados_->iniciarLote(); }
+    void concluirLote() override { dados_->concluirLote(); }
+
     QVariant headerData(int secao, Qt::Orientation o, int role) const override {
         if (o != Qt::Horizontal || role != Qt::DisplayRole) return {};
         switch (secao) {
@@ -116,7 +119,7 @@ private:
 // Vazoes de um posto do vazoes.dat, uma linha por ano e uma coluna por mes, em m3/s. O registro k do
 // arquivo e o mes k a partir de janeiro do primeiro ano do historico; meses depois do ultimo registro
 // ficam vazios e nao se editam. As vazoes saem como texto, pelo mesmo motivo da tabela de postos.
-class ModeloVazoes : public QAbstractTableModel {
+class ModeloVazoes : public QAbstractTableModel, public EdicaoEmLote {
 public:
     ModeloVazoes(DadosDeck* dados, QObject* parent) : QAbstractTableModel(parent), dados_(dados) {
         QObject::connect(dados_, &DadosDeck::recarregado, this, [this] {
@@ -165,6 +168,9 @@ public:
         if (!r.ok && recusado) recusado(QString::fromUtf8(r.mensagem));
         return r.ok;
     }
+
+    void iniciarLote() override { dados_->iniciarLote(); }
+    void concluirLote() override { dados_->concluirLote(); }
 
     QVariant headerData(int secao, Qt::Orientation o, int role) const override {
         static const char* meses[] = {"Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"};

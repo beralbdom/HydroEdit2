@@ -1,5 +1,6 @@
 #include "recursos_tabela.h"
 #include <QAbstractItemModel>
+#include <QAbstractProxyModel>
 #include <QApplication>
 #include <QClipboard>
 #include <QCollator>
@@ -408,7 +409,8 @@ private:
     // selecionadas, vai para todas elas. Cada valor passa pelo setData do modelo, com a mesma
     // validacao da edicao celula a celula; celulas que nao se editam ficam de fora, e tabela so de
     // leitura (sem gatilho de edicao) nao recebe nada. Em tabela que seleciona linhas inteiras, a
-    // colagem comeca na coluna da celula clicada.
+    // colagem comeca na coluna da celula clicada. Modelo com EdicaoEmLote, direto ou atras de
+    // proxies, recebe a colagem inteira como um lote, para avisar as vistas uma vez so.
     void colar() {
         if (tabela_->editTriggers() == QAbstractItemView::NoEditTriggers) return;
         QAbstractItemModel* modelo = tabela_->model();
@@ -419,6 +421,13 @@ private:
         if (selecao.isEmpty() && tabela_->currentIndex().isValid()) selecao << tabela_->currentIndex();
         if (selecao.isEmpty()) return;
 
+        EdicaoEmLote* lote = nullptr;
+        for (QAbstractItemModel* m = modelo; m && !lote;) {
+            lote = dynamic_cast<EdicaoEmLote*>(m);
+            auto* proxy = qobject_cast<QAbstractProxyModel*>(m);
+            m = proxy ? proxy->sourceModel() : nullptr;
+        }
+        if (lote) lote->iniciarLote();
         int gravados = 0;
         int recusados = 0;
         auto gravar = [&](const QModelIndex& ix, const QString& valor) {
@@ -455,6 +464,7 @@ private:
                 ++v;
             }
         }
+        if (lote) lote->concluirLote();
         QString resumo = QStringLiteral("%1 valores colados").arg(gravados);
         if (recusados > 0) resumo += QStringLiteral(", %1 recusados").arg(recusados);
         QToolTip::showText(tabela_->viewport()->mapToGlobal(tabela_->visualRect(tabela_->currentIndex()).bottomLeft()), resumo, tabela_);

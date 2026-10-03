@@ -1,12 +1,13 @@
 #pragma once
 #include <QAbstractTableModel>
 #include "arquivo_fixo.h"
+#include "recursos_tabela.h"
 
 class DadosDeck;
 
 constexpr int PAPEL_OPCOES = Qt::UserRole + 1;
 
-class ModeloSecaoFixa : public QAbstractTableModel {
+class ModeloSecaoFixa : public QAbstractTableModel, public EdicaoEmLote {
     Q_OBJECT
 public:
     ModeloSecaoFixa(DadosDeck* dados, const QString& nome_padrao, int secao, QObject* parent = nullptr);
@@ -19,6 +20,8 @@ public:
     bool setData(const QModelIndex& ix, const QVariant& valor, int role = Qt::EditRole) override;
     QVariant headerData(int secao, Qt::Orientation o, int role = Qt::DisplayRole) const override;
     Qt::ItemFlags flags(const QModelIndex& ix) const override;
+    void iniciarLote() override;
+    void concluirLote() override;
 
 signals:
     void valorRecusado(const QString& motivo);
