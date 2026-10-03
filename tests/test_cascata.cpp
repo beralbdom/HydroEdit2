@@ -237,7 +237,7 @@ private slots:
         u[4].desvio = 4;
         Cascata c = empacotarBacias(u, 0);
         conferirRotas(c);
-        QCOMPARE(arestaDe(c, 5, 4, true)->rota, (Rota{{4, 0}, {3.5, 0}, {3.5, -1}, {0.5, -1}, {0.5, 0}, {0, 0}}));
+        QCOMPARE(arestaDe(c, 5, 4, true)->rota, (Rota{{4, 0}, {2.5, 0}, {2.5, -1}, {0.5, -1}, {0.5, 0}, {0, 0}}));
     }
 
     void rotasDoDeckNaoPassamSobreUsinas() {

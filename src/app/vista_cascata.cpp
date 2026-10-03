@@ -3,6 +3,7 @@
 #include <QGraphicsPolygonItem>
 #include <QGraphicsScene>
 #include <QGraphicsSimpleTextItem>
+#include <QLineF>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QResizeEvent>
@@ -99,7 +100,7 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
             rota << QPointF(coluna * ESPACO_COLUNA_CASCATA, linha * ESPACO_LINHA_CASCATA);
 
         ItensArestaCascata itens = criarArestaCascata(cena_, rota, aresta.desvio, palette());
-        arestas_.push_back({itens.traco, itens.seta, aresta.origem, aresta.destino});
+        arestas_.push_back({itens.traco, itens.seta, aresta.origem, aresta.destino, QLineF(rota[rota.size() - 2], rota.back()).length()});
     }
 }
 
@@ -219,6 +220,7 @@ void VistaCascata::reconstruir() {
         ajustar_no_proximo_ = false;
     }
     atualizarRotulos();
+    atualizarSetas();
 }
 
 QString VistaCascata::descricaoDoNo(int codigo) const {
@@ -331,6 +333,18 @@ void VistaCascata::atualizarRotulos() {
     }
 }
 
+// A ponta de seta tem tamanho fixo em pixels, mas o ultimo trecho do desvio (meia coluna, quando
+// entra pela lateral) encolhe com o zoom; abaixo do tamanho dela a seta passaria do canto da rota,
+// entao encolhe junto, ate 35% do tamanho normal.
+void VistaCascata::atualizarSetas() {
+    const double escala = transform().m11();
+    for (const ItemAresta& aresta : arestas_) {
+        if (!aresta.seta) continue;
+        const double disponivel = aresta.ultimo_trecho * escala - 1.0;
+        aresta.seta->setScale(std::clamp(disponivel / comprimentoSetaCascata(), 0.35, 1.0));
+    }
+}
+
 // Enquadra o sceneRect, e nao so os itens: e ele que carrega a margem de cima em que os titulos das
 // faixas sao desenhados. fitInView pode fazer as barras de rolagem aparecerem ou sumirem, o que
 // redimensiona o viewport e volta aqui pelo resizeEvent; a trava corta essa recursao no primeiro
@@ -352,6 +366,7 @@ void VistaCascata::ajustar() {
 
     ajustando_ = false;
     atualizarRotulos();
+    atualizarSetas();
     posicionarLegenda();
 }
 
@@ -383,6 +398,7 @@ void VistaCascata::wheelEvent(QWheelEvent* ev) {
     scale(fator, fator);
     usuario_mexeu_zoom_ = true;
     atualizarRotulos();
+    atualizarSetas();
 }
 
 int VistaCascata::codigoNoPonto(const QPoint& ponto) const {

@@ -144,6 +144,9 @@ void aplicarEstiloPonto(PontoCascata* ponto, bool selecionado, const QPalette& p
     }
 }
 
+// Espaco que a ponta de seta ocupa antes do centro do no, em pixels: o recuo mais o triangulo.
+double comprimentoSetaCascata() { return RECUO_SETA + TAMANHO_SETA; }
+
 // O traco usa caneta cosmetica (espessura constante em pixels) para nao sumir quando a cena e
 // reduzida a poucos pixels por coluna, na cor do texto com alpha para ter contraste com o fundo sem
 // competir com os pontos. Segue a rota (pontos de cena, da origem ao destino) com os cantos

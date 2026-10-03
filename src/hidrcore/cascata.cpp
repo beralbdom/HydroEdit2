@@ -5,6 +5,7 @@
 #include <limits>
 #include <map>
 #include <numeric>
+#include <queue>
 #include <set>
 #include <tuple>
 #include <unordered_map>
@@ -23,12 +24,13 @@ int alvoValido(const std::vector<UsinaHidr>& usinas, int codigo, int32_t alvo) {
 // nenhuma usina. As usinas ficam em colunas e linhas inteiras, entao as meias linhas (faixas) e as
 // meias colunas (corredores) estao sempre livres. A aresta de jusante liga linhas vizinhas: desce ate
 // a faixa entre elas, corre na horizontal ate a coluna da usina de jusante e desce nela, e os
-// afluentes de uma mesma usina dividem esse trecho horizontal. O desvio sai pela lateral da origem
-// ate o corredor vizinho, segue por ele ate uma linha sem usinas entre os dois corredores, atravessa
-// por ela ate o corredor vizinho do destino e entra no destino pela lateral; com origem e destino na
-// mesma coluna ou em colunas vizinhas, um corredor so basta. Entre as linhas livres vale a de menor
-// percurso vertical, e acima e abaixo do desenho sempre ha uma. Pontos repetidos e pontos no meio de
-// um trecho reto saem da rota. Trechos internos de desvios diferentes que correm sobre a mesma reta e
+// afluentes de uma mesma usina dividem esse trecho horizontal. O desvio sai pela lateral da origem e
+// entra no destino pela lateral, e no meio anda na vertical so pelos corredores e na horizontal so
+// pelas linhas das usinas, nos trechos sem usina; assim nunca corre sobre uma ligacao de jusante (que
+// fica nas faixas e nas colunas das usinas), so a cruza. Entre esses caminhos vale o mais curto,
+// contando cada curva como uma linha a mais (busca de menor custo na grade de meias colunas e linhas,
+// que vai de uma coluna e uma linha antes a uma depois do desenho). Pontos repetidos e pontos no meio
+// de um trecho reto saem da rota. Trechos internos de desvios diferentes que correm sobre a mesma reta e
 // se sobrepoem vao para vias paralelas (deslocamento 0, +1 ou -1 vezes 0,15 coluna ou 0,25 linha),
 // para cada tracejado ficar visivel; a partir do quarto trecho sobreposto volta a via central.
 void tracarRotas(Cascata& cascata) {
@@ -39,12 +41,70 @@ void tracarRotas(Cascata& cascata) {
         posicao[no.codigo] = {coluna, no.linha};
         ocupadas.insert({coluna, no.linha});
     }
-    auto linhaLivre = [&](int linha, double de, double ate) {
-        const int primeira = static_cast<int>(std::ceil(std::min(de, ate)));
-        const int ultima = static_cast<int>(std::floor(std::max(de, ate)));
-        for (int coluna = primeira; coluna <= ultima; ++coluna)
-            if (ocupadas.contains({coluna, linha})) return false;
-        return true;
+    const int x_min = -2;
+    const int x_max = 2 * cascata.num_colunas;
+    const int y_min = -2;
+    const int y_max = 2 * cascata.num_linhas;
+    const int largura = x_max - x_min + 1;
+    const int altura = y_max - y_min + 1;
+    constexpr double PASSO_HORIZONTAL = 0.7;
+    constexpr double PASSO_VERTICAL = 1.0;
+    constexpr double CURVA = 1.0;
+    constexpr double LADO_PREFERIDO = 1e-6;
+    auto caminhoDoDesvio = [&](int co, int lo, int cd, int ld) {
+        const int alvo_x = 2 * cd;
+        const int alvo_y = 2 * ld;
+        auto estado = [&](int x, int y, int vertical) { return ((y - y_min) * largura + (x - x_min)) * 2 + vertical; };
+        const size_t total = static_cast<size_t>(largura) * static_cast<size_t>(altura) * 2;
+        std::vector<double> custo(total, std::numeric_limits<double>::infinity());
+        std::vector<int> anterior(total, -1);
+        using Entrada = std::tuple<double, long, int>;
+        std::priority_queue<Entrada, std::vector<Entrada>, std::greater<>> fila;
+        long ordem = 0;
+        auto visitar = [&](int x, int y, int vertical, double c, int de) {
+            if (x < x_min || x > x_max || y < y_min || y > y_max) return;
+            const int s = estado(x, y, vertical);
+            if (c >= custo[static_cast<size_t>(s)]) return;
+            custo[static_cast<size_t>(s)] = c;
+            anterior[static_cast<size_t>(s)] = de;
+            fila.push({c, ordem++, s});
+        };
+        const int lado = cd >= co ? 1 : -1;
+        visitar(2 * co + lado, 2 * lo, 0, PASSO_HORIZONTAL, -1);
+        visitar(2 * co - lado, 2 * lo, 0, PASSO_HORIZONTAL + LADO_PREFERIDO, -1);
+        int chegada = -1;
+        while (!fila.empty()) {
+            const auto [c, n, s] = fila.top();
+            fila.pop();
+            if (c > custo[static_cast<size_t>(s)]) continue;
+            const int vertical = s % 2;
+            const int x = (s / 2) % largura + x_min;
+            const int y = (s / 2) / largura + y_min;
+            if (x == alvo_x && y == alvo_y) {
+                chegada = s;
+                break;
+            }
+            if (vertical) {
+                for (int dy : {-2, 2}) visitar(x, y + dy, 1, c + PASSO_VERTICAL, s);
+                if (y % 2 == 0) visitar(x, y, 0, c + CURVA, s);
+                continue;
+            }
+            for (int dx : {-1, 1}) {
+                const int nx = x + dx;
+                const bool destino = nx == alvo_x && y == alvo_y;
+                if (nx % 2 == 0 && !destino && ocupadas.contains({nx / 2, y / 2})) continue;
+                visitar(nx, y, 0, c + PASSO_HORIZONTAL, s);
+            }
+            if (x % 2 != 0) visitar(x, y, 1, c + CURVA, s);
+        }
+        std::vector<std::pair<double, double>> pontos;
+        if (chegada < 0) return pontos;
+        for (int s = chegada; s >= 0; s = anterior[static_cast<size_t>(s)]) {
+            const std::pair<double, double> ponto{((s / 2) % largura + x_min) / 2.0, ((s / 2) / largura + y_min) / 2.0};
+            if (pontos.empty() || pontos.back() != ponto) pontos.push_back(ponto);
+        }
+        std::reverse(pontos.begin(), pontos.end());
+        return pontos;
     };
 
     for (ArestaCascata& aresta : cascata.arestas) {
@@ -61,24 +121,7 @@ void tracarRotas(Cascata& cascata) {
             rota.push_back({co, faixa});
             rota.push_back({cd, faixa});
         } else {
-            const double corredor_origem = cd >= co ? co + 0.5 : co - 0.5;
-            const double corredor_destino = cd > co ? cd - 0.5 : cd + 0.5;
-            int travessia = lo;
-            if (corredor_origem != corredor_destino) {
-                int menor_percurso = std::numeric_limits<int>::max();
-                for (int linha = -1; linha <= cascata.num_linhas; ++linha) {
-                    if (!linhaLivre(linha, corredor_origem, corredor_destino)) continue;
-                    const int percurso = std::abs(lo - linha) + std::abs(linha - ld);
-                    if (percurso < menor_percurso) {
-                        menor_percurso = percurso;
-                        travessia = linha;
-                    }
-                }
-            }
-            rota.push_back({corredor_origem, lo});
-            rota.push_back({corredor_origem, travessia});
-            rota.push_back({corredor_destino, travessia});
-            rota.push_back({corredor_destino, ld});
+            for (const auto& ponto : caminhoDoDesvio(co, lo, cd, ld)) rota.push_back(ponto);
         }
         rota.push_back({cd, ld});
 

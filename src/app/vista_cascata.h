@@ -46,12 +46,14 @@ private:
         QGraphicsPolygonItem* seta;
         int origem;
         int destino;
+        double ultimo_trecho;
     };
 
     void mapasDeRee(std::map<int, int>& ree_da_usina, std::map<int, std::string>& nome_do_ree) const;
     void desenhar(const Cascata& c, const std::unordered_map<int, QColor>& cor_do_no);
     void aplicarFiltro();
     void atualizarRotulos();
+    void atualizarSetas();
     void posicionarLegenda();
     int codigoNoPonto(const QPoint& ponto) const;
     QString descricaoDoNo(int codigo) const;
