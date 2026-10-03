@@ -16,6 +16,7 @@
 #include <QPointer>
 #include <QProxyStyle>
 #include <QPushButton>
+#include <QSortFilterProxyModel>
 #include <QStyleFactory>
 #include <QStyleOptionHeader>
 #include <QTableView>
@@ -410,7 +411,9 @@ private:
     // validacao da edicao celula a celula; celulas que nao se editam ficam de fora, e tabela so de
     // leitura (sem gatilho de edicao) nao recebe nada. Em tabela que seleciona linhas inteiras, a
     // colagem comeca na coluna da celula clicada. Modelo com EdicaoEmLote, direto ou atras de
-    // proxies, recebe a colagem inteira como um lote, para avisar as vistas uma vez so.
+    // proxies, recebe a colagem inteira como um lote, para avisar as vistas uma vez so. A ordenacao e
+    // o filtro dinamicos dos proxies ficam parados ate o fim: sem isso, um valor colado na coluna da
+    // ordenacao mudaria a linha em que o valor seguinte cai.
     void colar() {
         if (tabela_->editTriggers() == QAbstractItemView::NoEditTriggers) return;
         QAbstractItemModel* modelo = tabela_->model();
@@ -422,8 +425,14 @@ private:
         if (selecao.isEmpty()) return;
 
         EdicaoEmLote* lote = nullptr;
-        for (QAbstractItemModel* m = modelo; m && !lote;) {
-            lote = dynamic_cast<EdicaoEmLote*>(m);
+        std::vector<QSortFilterProxyModel*> congelados;
+        for (QAbstractItemModel* m = modelo; m;) {
+            if (!lote) lote = dynamic_cast<EdicaoEmLote*>(m);
+            auto* ordenacao = qobject_cast<QSortFilterProxyModel*>(m);
+            if (ordenacao && ordenacao->dynamicSortFilter()) {
+                ordenacao->setDynamicSortFilter(false);
+                congelados.push_back(ordenacao);
+            }
             auto* proxy = qobject_cast<QAbstractProxyModel*>(m);
             m = proxy ? proxy->sourceModel() : nullptr;
         }
@@ -465,6 +474,10 @@ private:
             }
         }
         if (lote) lote->concluirLote();
+        for (QSortFilterProxyModel* ordenacao : congelados) {
+            ordenacao->setDynamicSortFilter(true);
+            ordenacao->invalidate();
+        }
         QString resumo = QStringLiteral("%1 valores colados").arg(gravados);
         if (recusados > 0) resumo += QStringLiteral(", %1 recusados").arg(recusados);
         QToolTip::showText(tabela_->viewport()->mapToGlobal(tabela_->visualRect(tabela_->currentIndex()).bottomLeft()), resumo, tabela_);

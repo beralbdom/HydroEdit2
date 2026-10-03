@@ -1,8 +1,13 @@
 #include <QtTest>
 #include <QAbstractItemModelTester>
+#include <QApplication>
+#include <QClipboard>
+#include <QKeyEvent>
 #include <QSignalSpy>
+#include <QTableView>
 #include "filtro_usinas.h"
 #include "modelo_hidr.h"
+#include "recursos_tabela.h"
 
 class TestModeloHidr : public QObject {
     Q_OBJECT
@@ -140,6 +145,28 @@ private slots:
         QCOMPARE(m.data(m.index(0, m.colunaDoCampo("jusante")), Qt::TextAlignmentRole).toInt(), esquerda);
         QCOMPARE(m.data(m.index(0, m.colunaDoCampo("volume_minimo")), Qt::TextAlignmentRole).toInt(), direita);
         QCOMPARE(m.data(m.index(0, m.colunaDoCampo("num_conjuntos")), Qt::TextAlignmentRole).toInt(), direita);
+    }
+    void colarEmTabelaOrdenadaNaoTrocaAsUsinas() {
+        ModeloHidr m;
+        m.definirArquivo(arquivoDeTeste(), QStringLiteral("x.dat"));
+        FiltroUsinas f;
+        f.setSourceModel(&m);
+        QTableView tabela;
+        tabela.setModel(&f);
+        tabela.setEditTriggers(QAbstractItemView::DoubleClicked);
+        habilitarRecursos(&tabela, true);
+        const int volume = m.colunaDoCampo("volume_minimo");
+        const int nome = m.colunaDoCampo("nome");
+        ordenarTabela(&tabela, volume, Qt::AscendingOrder);
+        QCOMPARE(f.index(0, nome).data().toString(), QStringLiteral("FURNAS"));
+        QApplication::clipboard()->setText(QStringLiteral("500\n100\n"));
+        tabela.setCurrentIndex(f.index(0, volume));
+        const QKeySequence colar(QKeySequence::Paste);
+        QKeyEvent evento(QEvent::KeyPress, colar[0].key(), colar[0].keyboardModifiers());
+        QApplication::sendEvent(&tabela, &evento);
+        QCOMPARE(m.usina(2).volume_minimo, 500.0f);
+        QCOMPARE(m.usina(0).volume_minimo, 100.0f);
+        QCOMPARE(f.index(0, nome).data().toString(), QStringLiteral("CAMARGOS"));
     }
     void filtroOcultaVaziasEBuscaPorNomeOuCodigo() {
         ModeloHidr m;
