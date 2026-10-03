@@ -7,6 +7,7 @@ class QStackedWidget;
 class QStandardItem;
 class QTreeView;
 class DadosDeck;
+class QUndoStack;
 class EditorTextoArquivo;
 class ModeloHidr;
 class PaginaModificacoes;
@@ -22,7 +23,8 @@ public:
     void definirOcultarVazios(bool ocultar);
     void aplicarEdicoesPendentes();
     QStringList arquivosModificados() const;
-    bool salvarTodos();
+    bool salvarTodos(QString* motivo = nullptr);
+    QUndoStack* pilhaUndo() const;
 
 protected:
     void changeEvent(QEvent* evento) override;

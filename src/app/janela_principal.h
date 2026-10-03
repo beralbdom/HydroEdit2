@@ -1,5 +1,6 @@
 #pragma once
 #include <QMainWindow>
+#include <QUndoStack>
 #include <vector>
 
 class QCloseEvent;
@@ -53,6 +54,8 @@ private slots:
     void abrir();
     void salvar();
     void salvarComo();
+    void salvarTudo();
+    QUndoStack* pilhaAtiva() const;
     void exportarCsv();
     void exportarIncrementais();
     void novaUsina();

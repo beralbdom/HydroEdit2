@@ -114,6 +114,7 @@ public:
     Resultado remover(int secao, int registro, int nivel, const LayoutArquivoFixo& layout);
     int registroNaLinha(int secao, int linha) const;
     bool modificado() const { return modificado_; }
+    void definirModificado(bool modificado) { modificado_ = modificado; }
 
 private:
     bool passa(const std::vector<FiltroLinha>& filtro, int linha) const;

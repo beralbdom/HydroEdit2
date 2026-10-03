@@ -1,12 +1,34 @@
 #include "dados_deck.h"
 #include <QDir>
 #include <QFileInfo>
+#include <QUndoCommand>
 #include <filesystem>
 #include <algorithm>
 #include <limits>
+#include <utility>
 #include "catalogo_newave.h"
 #include "layouts_newave.h"
 #include "patamares_newave.h"
+
+// Edicao de arquivos do deck na pilha de desfazer. O push chama redo logo depois da edicao, que ja
+// esta aplicada, entao o primeiro redo nao faz nada.
+class ComandoDeck : public QUndoCommand {
+public:
+    ComandoDeck(DadosDeck* deck, const QString& rotulo, std::vector<DadosDeck::Diferenca> diferencas)
+        : deck_(deck), diferencas_(std::move(diferencas)) {
+        setText(rotulo);
+    }
+    void undo() override { deck_->restaurar(diferencas_, true); }
+    void redo() override {
+        if (std::exchange(aplicado_, false)) return;
+        deck_->restaurar(diferencas_, false);
+    }
+
+private:
+    DadosDeck* deck_;
+    std::vector<DadosDeck::Diferenca> diferencas_;
+    bool aplicado_ = true;
+};
 
 DadosDeck::DadosDeck(QObject* parent) : QObject(parent) {}
 
@@ -30,6 +52,7 @@ void DadosDeck::carregarArquivo(const QString& nome_padrao, const QString& rotul
     Resultado r = entrada.arquivo.carregar(std::filesystem::path(entrada.caminho.toStdWString()), layout);
     entrada.lido = r.ok;
     if (!r.ok) entrada.erro = QString::fromUtf8(r.mensagem);
+    else entrada.salvo = conteudo(entrada);
 }
 
 // postos.dat e vazoes.dat: acesso direto, nao formatado, sempre com o nome padrao. O postos.dat tem
@@ -47,6 +70,7 @@ void DadosDeck::carregarBinario(const QString& nome_padrao, int tamanho_registro
     Resultado r = entrada.binario.carregar(std::filesystem::path(entrada.caminho.toStdWString()), tamanho_registro);
     entrada.lido = r.ok;
     if (!r.ok) entrada.erro = QString::fromUtf8(r.mensagem);
+    else entrada.salvo = conteudo(entrada);
 }
 
 // Le uma unica vez por deck todos os arquivos de texto do catalogo, o modif.dat e os binarios de
@@ -55,6 +79,10 @@ void DadosDeck::carregarBinario(const QString& nome_padrao, int tamanho_registro
 // demais, com layout vazio, ficam so como texto, regravado byte a byte. O nome real vem do
 // arquivos.dat quando o arquivo tem rotulo la.
 void DadosDeck::carregar(const QString& dir_deck, const std::map<std::string, std::string>& arquivos_dat) {
+    pilha_.clear();
+    antes_.clear();
+    linhas_pendentes_.clear();
+    a_reler_.clear();
     arquivos_.clear();
     referencias_.clear();
     dir_ = dir_deck;
@@ -115,29 +143,137 @@ int DadosDeck::registroPorValor(const QString& nome_padrao, int secao, int colun
 }
 
 // Toda edicao de campo passa por aqui, para o sinal alterado avisar as outras vistas do mesmo arquivo.
+// Depois da edicao o arquivo e relido (num lote, so no fim dele), porque o campo pode ser o que
+// identifica um bloco.
 Resultado DadosDeck::definir(const QString& nome_padrao, int secao, int registro, int coluna, const QString& texto) {
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido) return Resultado::erro("Arquivo nao carregado");
+    aplicarPendentes(nome_padrao);
+    abrirTransacao(QStringLiteral("Editar %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
     Resultado r = it->second.arquivo.definir(secao, registro, coluna, texto.toLatin1().toStdString());
     if (r.ok) {
         referencias_.clear();
+        if (lote_ > 0) a_reler_.insert(nome_padrao);
+        else reler(nome_padrao);
         avisarAlterado(nome_padrao);
         if (lote_ == 0) aplicarPatamares(true);
     }
+    fecharTransacao();
     return r;
 }
 
 // Edicoes em lote (colar um bloco na tabela): entre iniciarLote e concluirLote as gravacoes valem na
 // hora, mas o aviso alterado de cada arquivo sai uma vez so, no fim, junto com a releitura pelos
-// patamares, em vez de a cada celula refazer as vistas do arquivo. Lotes aninhados valem como um so.
-void DadosDeck::iniciarLote() { ++lote_; }
+// patamares, em vez de a cada celula refazer as vistas do arquivo. As linhas trocadas por
+// substituirLinha e a releitura depois de definir tambem ficam para o fim, e o lote inteiro se desfaz
+// de uma vez. Lotes aninhados valem como um so.
+void DadosDeck::iniciarLote() {
+    ++lote_;
+    abrirTransacao(QStringLiteral("Colar"));
+}
 
 void DadosDeck::concluirLote() {
-    if (lote_ == 0 || --lote_ > 0) return;
-    const std::set<QString> alterados = std::move(alterados_no_lote_);
-    alterados_no_lote_.clear();
+    if (lote_ == 0) return;
+    if (--lote_ > 0) {
+        fecharTransacao();
+        return;
+    }
+    for (auto& [nome, linhas] : std::exchange(linhas_pendentes_, {})) {
+        Entrada& entrada = arquivos_[nome];
+        entrada.arquivo.substituirLinhas(linhas, entrada.layout);
+    }
+    for (const QString& nome : std::exchange(a_reler_, {})) reler(nome);
+    fecharTransacao();
+    const std::set<QString> alterados = std::exchange(alterados_no_lote_, {});
     for (const QString& nome : alterados) emit alterado(nome);
     if (!alterados.empty()) aplicarPatamares(true);
+}
+
+// Conteudo do arquivo como fica no disco, para comparar versoes: o texto com quebra LF ou os bytes.
+std::string DadosDeck::conteudo(const Entrada& entrada) {
+    if (entrada.eh_binario) return std::string(entrada.binario.bytes().begin(), entrada.binario.bytes().end());
+    return entrada.arquivo.textoLf();
+}
+
+// Toda operacao que muda arquivos do deck e uma transacao: registrarAntes guarda o conteudo de cada
+// arquivo na primeira vez que ela o toca, e fecharTransacao, na mais externa, poe na pilha de desfazer
+// um comando com o trecho que mudou em cada um (o que fica entre o inicio e o fim iguais).
+void DadosDeck::abrirTransacao(const QString& rotulo) {
+    if (transacao_++ == 0) rotulo_transacao_ = rotulo;
+}
+
+void DadosDeck::registrarAntes(const QString& nome_padrao) {
+    if (transacao_ == 0 || antes_.count(nome_padrao)) return;
+    auto it = arquivos_.find(nome_padrao);
+    if (it != arquivos_.end() && it->second.lido) antes_[nome_padrao] = conteudo(it->second);
+}
+
+void DadosDeck::fecharTransacao() {
+    if (transacao_ == 0 || --transacao_ > 0) return;
+    std::vector<Diferenca> diferencas;
+    for (const auto& [nome, antes] : std::exchange(antes_, {})) {
+        const std::string depois = conteudo(arquivos_[nome]);
+        if (depois == antes) continue;
+        const size_t menor = std::min(antes.size(), depois.size());
+        size_t prefixo = 0;
+        while (prefixo < menor && antes[prefixo] == depois[prefixo]) ++prefixo;
+        size_t sufixo = 0;
+        while (sufixo < menor - prefixo && antes[antes.size() - 1 - sufixo] == depois[depois.size() - 1 - sufixo]) ++sufixo;
+        diferencas.push_back({nome, prefixo, sufixo, antes.substr(prefixo, antes.size() - prefixo - sufixo),
+                              depois.substr(prefixo, depois.size() - prefixo - sufixo)});
+    }
+    if (!diferencas.empty()) pilha_.push(new ComandoDeck(this, rotulo_transacao_, std::move(diferencas)));
+}
+
+// Desfaz (ou refaz) um comando: troca em cada arquivo o trecho pelo de antes (ou de depois) e rele o
+// arquivo. O arquivo volta a contar como nao alterado quando fica igual ao que esta no disco.
+void DadosDeck::restaurar(const std::vector<Diferenca>& diferencas, bool desfazer) {
+    for (const Diferenca& d : diferencas) {
+        auto it = arquivos_.find(d.nome);
+        if (it == arquivos_.end() || !it->second.lido) continue;
+        Entrada& entrada = it->second;
+        const std::string atual = conteudo(entrada);
+        if (atual.size() < d.prefixo + d.sufixo) continue;
+        const std::string novo = atual.substr(0, d.prefixo) + (desfazer ? d.antes : d.depois) + atual.substr(atual.size() - d.sufixo);
+        if (entrada.eh_binario) {
+            entrada.binario.substituirBytes(std::vector<char>(novo.begin(), novo.end()));
+            entrada.binario.definirModificado(novo != entrada.salvo);
+        } else {
+            entrada.arquivo.substituirTexto(novo, entrada.layout);
+            entrada.arquivo.definirModificado(novo != entrada.salvo);
+        }
+    }
+    referencias_.clear();
+    for (const Diferenca& d : diferencas) {
+        if (!binario(d.nome)) emit reinterpretado(d.nome);
+        emit alterado(d.nome);
+    }
+    aplicarPatamares(true);
+}
+
+// Linhas trocadas por substituirLinha durante um lote, que so entram no arquivo no fim dele; antes de
+// qualquer outra edicao do mesmo arquivo, entram na hora.
+void DadosDeck::aplicarPendentes(const QString& nome_padrao) {
+    auto pendente = linhas_pendentes_.find(nome_padrao);
+    if (pendente == linhas_pendentes_.end()) return;
+    Entrada& entrada = arquivos_[nome_padrao];
+    entrada.arquivo.substituirLinhas(pendente->second, entrada.layout);
+    linhas_pendentes_.erase(pendente);
+}
+
+// Rele o arquivo pelo layout depois de uma edicao de campo: apagar ou mudar o campo que identifica um
+// bloco muda a divisao em registros, e entao as vistas do arquivo se refazem (reinterpretado).
+void DadosDeck::reler(const QString& nome_padrao) {
+    Entrada& entrada = arquivos_[nome_padrao];
+    auto estrutura = [&entrada] {
+        std::vector<std::pair<std::vector<int>, std::vector<std::vector<int>>>> registros;
+        for (const SecaoLida& secao : entrada.arquivo.secoes()) registros.push_back({secao.linhas, secao.linhas_contexto});
+        return registros;
+    };
+    const auto antes = estrutura();
+    entrada.arquivo.substituirTexto(entrada.arquivo.textoLf(), entrada.layout);
+    if (estrutura() != antes) emit reinterpretado(nome_padrao);
 }
 
 void DadosDeck::avisarAlterado(const QString& nome_padrao) {
@@ -169,11 +305,14 @@ void DadosDeck::aplicarPatamares(bool avisar) {
 Resultado DadosDeck::definirTextoBinario(const QString& nome_padrao, int registro, int inicio, int tamanho, const QString& texto) {
     Entrada* entrada = binarioLido(nome_padrao);
     if (!entrada) return Resultado::erro("Arquivo nao carregado");
+    abrirTransacao(QStringLiteral("Editar %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
     Resultado r = entrada->binario.definirTexto(registro, inicio, tamanho, texto.trimmed().toLatin1().toStdString());
     if (r.ok) {
         referencias_.clear();
         avisarAlterado(nome_padrao);
     }
+    fecharTransacao();
     return r;
 }
 
@@ -185,8 +324,11 @@ Resultado DadosDeck::definirInteiroBinario(const QString& nome_padrao, int regis
     const qlonglong valor = texto.trimmed().toLongLong(&ok);
     if (!ok || valor < std::numeric_limits<int32_t>::min() || valor > std::numeric_limits<int32_t>::max())
         return Resultado::erro("Valor invalido: " + texto.toStdString());
+    abrirTransacao(QStringLiteral("Editar %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
     entrada->binario.definirInteiro(registro, inicio, static_cast<int32_t>(valor));
     avisarAlterado(nome_padrao);
+    fecharTransacao();
     return Resultado::sucesso();
 }
 
@@ -291,6 +433,16 @@ QString DadosDeck::rotulo(const ColunaFixa& coluna, const QString& codigo) const
     return codigo;
 }
 
+// Linha do arquivo (indice a partir de 0), ja com a troca de um lote em andamento; vazia fora do
+// arquivo.
+QString DadosDeck::linha(const QString& nome_padrao, int indice) const {
+    auto pendente = linhas_pendentes_.find(nome_padrao);
+    const ArquivoFixo* a = arquivo(nome_padrao);
+    const std::vector<std::string>* linhas = pendente != linhas_pendentes_.end() ? &pendente->second : a ? &a->linhas() : nullptr;
+    if (!linhas || indice < 0 || indice >= static_cast<int>(linhas->size())) return {};
+    return QString::fromLatin1((*linhas)[static_cast<size_t>(indice)].c_str());
+}
+
 // Texto do arquivo para o editor textual: Latin-1, com quebra LF.
 QString DadosDeck::texto(const QString& nome_padrao) const {
     const ArquivoFixo* a = arquivo(nome_padrao);
@@ -302,21 +454,34 @@ QString DadosDeck::texto(const QString& nome_padrao) const {
 void DadosDeck::substituirTexto(const QString& nome_padrao, const QString& texto) {
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido) return;
+    aplicarPendentes(nome_padrao);
+    abrirTransacao(QStringLiteral("Editar texto de %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
     it->second.arquivo.substituirTexto(texto.toLatin1().toStdString(), it->second.layout);
     concluirReinterpretacao(nome_padrao);
+    fecharTransacao();
 }
 
 // Troca uma linha do arquivo (indice a partir de 0) sem mudar o numero de linhas; as vistas recebem
-// so alterado, porque os registros continuam nas mesmas linhas.
+// so alterado, porque os registros continuam nas mesmas linhas. Num lote a troca fica pendente e o
+// arquivo so e relido no fim, uma vez para todas as linhas; ate la, linha() ja devolve a nova.
 Resultado DadosDeck::substituirLinha(const QString& nome_padrao, int indice, const QString& texto) {
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo não carregado");
-    std::vector<std::string> linhas = it->second.arquivo.linhas();
-    if (indice < 0 || indice >= static_cast<int>(linhas.size())) return Resultado::erro("Linha fora do arquivo");
-    linhas[static_cast<size_t>(indice)] = texto.toLatin1().toStdString();
-    it->second.arquivo.substituirLinhas(linhas, it->second.layout);
+    if (indice < 0 || indice >= static_cast<int>(it->second.arquivo.linhas().size())) return Resultado::erro("Linha fora do arquivo");
+    abrirTransacao(QStringLiteral("Editar %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
+    if (lote_ > 0) {
+        auto pendente = linhas_pendentes_.try_emplace(nome_padrao, it->second.arquivo.linhas()).first;
+        pendente->second[static_cast<size_t>(indice)] = texto.toLatin1().toStdString();
+    } else {
+        std::vector<std::string> linhas = it->second.arquivo.linhas();
+        linhas[static_cast<size_t>(indice)] = texto.toLatin1().toStdString();
+        it->second.arquivo.substituirLinhas(linhas, it->second.layout);
+    }
     referencias_.clear();
     avisarAlterado(nome_padrao);
+    fecharTransacao();
     return Resultado::sucesso();
 }
 
@@ -334,8 +499,12 @@ Resultado DadosDeck::duplicar(const QString& nome_padrao, int secao, int registr
                               bool em_branco) {
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo nao carregado");
+    aplicarPendentes(nome_padrao);
+    abrirTransacao(QStringLiteral("Adicionar registro em %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
     Resultado r = it->second.arquivo.duplicar(secao, registro, nivel, it->second.layout, primeira_linha_nova, em_branco);
     if (r.ok) concluirReinterpretacao(nome_padrao);
+    fecharTransacao();
     return r;
 }
 
@@ -351,9 +520,11 @@ Resultado DadosDeck::mudarPatamares(Patamares tipo, int delta, QStringList* avis
     MudancaPatamares mudanca;
     const Resultado r = tipo == Patamares::Deficit ? mudarPatamaresDeDeficit(textos, delta, mudanca) : mudarPatamaresDeCarga(textos, delta, mudanca);
     if (!r.ok) return r;
+    abrirTransacao(delta > 0 ? QStringLiteral("Adicionar patamar") : QStringLiteral("Remover patamar"));
     QStringList alterados;
     for (const auto& [nome, texto] : mudanca.textos) {
         Entrada& entrada = arquivos_[QString::fromStdString(nome)];
+        registrarAntes(QString::fromStdString(nome));
         entrada.arquivo.substituirTexto(texto, entrada.layout);
         alterados << QString::fromStdString(nome);
     }
@@ -363,6 +534,7 @@ Resultado DadosDeck::mudarPatamares(Patamares tipo, int delta, QStringList* avis
         emit alterado(nome);
     }
     aplicarPatamares(true);
+    fecharTransacao();
     if (avisos) {
         *avisos << QStringLiteral("Arquivos alterados: %1. Salve todos eles, para o deck não ficar inconsistente.")
                        .arg(alterados.join(QStringLiteral(", ")));
@@ -375,8 +547,12 @@ Resultado DadosDeck::mudarPatamares(Patamares tipo, int delta, QStringList* avis
 Resultado DadosDeck::remover(const QString& nome_padrao, int secao, int registro, int nivel) {
     auto it = arquivos_.find(nome_padrao);
     if (it == arquivos_.end() || !it->second.lido || it->second.eh_binario) return Resultado::erro("Arquivo nao carregado");
+    aplicarPendentes(nome_padrao);
+    abrirTransacao(QStringLiteral("Remover registro de %1").arg(nome_padrao));
+    registrarAntes(nome_padrao);
     Resultado r = it->second.arquivo.remover(secao, registro, nivel, it->second.layout);
     if (r.ok) concluirReinterpretacao(nome_padrao);
+    fecharTransacao();
     return r;
 }
 
@@ -391,6 +567,7 @@ bool DadosDeck::salvar(const QString& nome_padrao, QString* motivo) {
         if (motivo) *motivo = QString::fromUtf8(r.mensagem);
         return false;
     }
+    e.salvo = conteudo(e);
     emit alterado(nome_padrao);
     return true;
 }

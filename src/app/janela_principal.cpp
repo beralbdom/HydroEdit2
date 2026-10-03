@@ -293,18 +293,26 @@ void JanelaPrincipal::criarMenus() {
     menu_recentes_ = arquivo->addMenu(QStringLiteral("&Recentes"));
     acao_salvar_ = arquivo->addAction(QStringLiteral("&Salvar"), QKeySequence::Save, this, &JanelaPrincipal::salvar);
     acao_salvar_como_ = arquivo->addAction(QStringLiteral("Salvar &como..."), QKeySequence::SaveAs, this, &JanelaPrincipal::salvarComo);
+    arquivo->addAction(QStringLiteral("Salvar &tudo"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S), this, &JanelaPrincipal::salvarTudo);
     arquivo->addSeparator();
     acao_exportar_ = arquivo->addAction(QStringLiteral("&Exportar CSV..."), this, &JanelaPrincipal::exportarCsv);
     arquivo->addSeparator();
     arquivo->addAction(QStringLiteral("Sai&r"), QKeySequence::Quit, this, &QWidget::close);
 
     QMenu* editar = menuBar()->addMenu(QStringLiteral("&Editar"));
-    QAction* desfazer = modelo_->pilhaUndo()->createUndoAction(this, QStringLiteral("&Desfazer"));
-    desfazer->setShortcut(QKeySequence::Undo);
-    QAction* refazer = modelo_->pilhaUndo()->createRedoAction(this, QStringLiteral("&Refazer"));
-    refazer->setShortcut(QKeySequence::Redo);
-    editar->addAction(desfazer);
-    editar->addAction(refazer);
+    QAction* desfazer = editar->addAction(QStringLiteral("&Desfazer"), QKeySequence::Undo, this, [this] { pilhaAtiva()->undo(); });
+    QAction* refazer = editar->addAction(QStringLiteral("&Refazer"), QKeySequence::Redo, this, [this] { pilhaAtiva()->redo(); });
+    connect(editar, &QMenu::aboutToShow, this, [this, desfazer, refazer] {
+        const QUndoStack* pilha = pilhaAtiva();
+        desfazer->setEnabled(pilha->canUndo());
+        desfazer->setText(pilha->canUndo() ? QStringLiteral("&Desfazer: %1").arg(pilha->undoText()) : QStringLiteral("&Desfazer"));
+        refazer->setEnabled(pilha->canRedo());
+        refazer->setText(pilha->canRedo() ? QStringLiteral("&Refazer: %1").arg(pilha->redoText()) : QStringLiteral("&Refazer"));
+    });
+    connect(editar, &QMenu::aboutToHide, this, [desfazer, refazer] {
+        desfazer->setEnabled(true);
+        refazer->setEnabled(true);
+    });
 
     QMenu* ver = menuBar()->addMenu(QStringLiteral("&Ver"));
     ocultar_vazias_ = ver->addAction(QStringLiteral("Ocultar registros &vazios"));
@@ -440,6 +448,27 @@ bool JanelaPrincipal::salvarEm(const QString& caminho) {
 void JanelaPrincipal::salvar() {
     if (modelo_->caminho().isEmpty()) salvarComo();
     else salvarEm(modelo_->caminho());
+}
+
+// Salva o cadastro de usinas, se tiver alteracoes, e todos os arquivos do deck alterados; para no
+// primeiro que falhar ou se o usuario cancelar o salvar como do cadastro.
+void JanelaPrincipal::salvarTudo() {
+    if (!modelo_->pilhaUndo()->isClean()) {
+        salvar();
+        if (!modelo_->pilhaUndo()->isClean()) return;
+    }
+    QString motivo;
+    if (!navegador_->salvarTodos(&motivo)) {
+        QMessageBox::warning(this, QStringLiteral("Salvar tudo"), QStringLiteral("Não foi possível salvar %1").arg(motivo));
+        return;
+    }
+    statusBar()->showMessage(QStringLiteral("Tudo salvo"), 3000);
+}
+
+// Desfazer e refazer valem para o que esta na tela: o cadastro de usinas quando o editor dele aparece,
+// e os arquivos do deck nas demais paginas.
+QUndoStack* JanelaPrincipal::pilhaAtiva() const {
+    return splitter_->isVisible() ? modelo_->pilhaUndo() : navegador_->pilhaUndo();
 }
 
 void JanelaPrincipal::salvarComo() {

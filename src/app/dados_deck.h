@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QStringList>
+#include <QUndoStack>
 #include <map>
 #include <set>
 #include <vector>
@@ -33,6 +34,7 @@ public:
     Resultado definirTextoBinario(const QString& nome_padrao, int registro, int inicio, int tamanho, const QString& texto);
     Resultado definirInteiroBinario(const QString& nome_padrao, int registro, int inicio, const QString& texto);
     QString texto(const QString& nome_padrao) const;
+    QString linha(const QString& nome_padrao, int indice) const;
     const std::vector<OpcaoReferencia>& opcoes(Referencia referencia) const;
     QString rotuloReferencia(Referencia referencia, const QString& codigo) const;
     static bool temOpcoes(const ColunaFixa& coluna);
@@ -50,6 +52,7 @@ public:
     QStringList modificados() const;
     void iniciarLote();
     void concluirLote();
+    QUndoStack* pilhaUndo() { return &pilha_; }
 
 signals:
     void recarregado();
@@ -57,6 +60,14 @@ signals:
     void reinterpretado(const QString& nome_padrao);
 
 private:
+    friend class ComandoDeck;
+    struct Diferenca {
+        QString nome;
+        size_t prefixo = 0;
+        size_t sufixo = 0;
+        std::string antes;
+        std::string depois;
+    };
     struct Entrada {
         ArquivoFixo arquivo;
         ArquivoBinario binario;
@@ -66,6 +77,7 @@ private:
         QString caminho;
         QString erro;
         bool lido = false;
+        std::string salvo;
     };
     void carregarArquivo(const QString& nome_padrao, const QString& rotulo, const LayoutArquivoFixo& layout,
                          const std::map<std::string, std::string>& arquivos_dat);
@@ -74,6 +86,13 @@ private:
     void aplicarPatamares(bool avisar);
     void concluirReinterpretacao(const QString& nome_padrao);
     void avisarAlterado(const QString& nome_padrao);
+    static std::string conteudo(const Entrada& entrada);
+    void abrirTransacao(const QString& rotulo);
+    void registrarAntes(const QString& nome_padrao);
+    void fecharTransacao();
+    void restaurar(const std::vector<Diferenca>& diferencas, bool desfazer);
+    void aplicarPendentes(const QString& nome_padrao);
+    void reler(const QString& nome_padrao);
 
     std::map<QString, Entrada> arquivos_;
     QString dir_;
@@ -81,4 +100,10 @@ private:
     mutable std::map<Referencia, std::vector<OpcaoReferencia>> referencias_;
     int lote_ = 0;
     std::set<QString> alterados_no_lote_;
+    std::map<QString, std::vector<std::string>> linhas_pendentes_;
+    std::set<QString> a_reler_;
+    QUndoStack pilha_;
+    int transacao_ = 0;
+    QString rotulo_transacao_;
+    std::map<QString, std::string> antes_;
 };

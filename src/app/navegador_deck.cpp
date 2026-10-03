@@ -241,9 +241,15 @@ QStringList NavegadorDeck::arquivosModificados() const {
 
 // Salva todos os arquivos alterados, com o que estiver pendente nos editores de texto; para no
 // primeiro que falhar.
-bool NavegadorDeck::salvarTodos() {
+bool NavegadorDeck::salvarTodos(QString* motivo) {
     aplicarEdicoesPendentes();
-    for (const QString& nome : dados_->modificados())
-        if (!dados_->salvar(nome)) return false;
+    for (const QString& nome : dados_->modificados()) {
+        QString erro;
+        if (dados_->salvar(nome, &erro)) continue;
+        if (motivo) *motivo = QStringLiteral("%1: %2").arg(dados_->nomeNoDeck(nome), erro);
+        return false;
+    }
     return true;
 }
+
+QUndoStack* NavegadorDeck::pilhaUndo() const { return dados_->pilhaUndo(); }

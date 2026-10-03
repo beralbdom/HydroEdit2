@@ -185,7 +185,7 @@ bool ModeloModif::setData(const QModelIndex& ix, const QVariant& valor, int role
     Resultado r = formatarCampoModif(campos_linha[static_cast<size_t>(campo)], valor.toString().toLatin1().toStdString(), aspas, token);
     if (r.ok) {
         tokens[static_cast<size_t>(campo)] = token;
-        const std::string original = dados_->arquivo(MODIF)->linhas()[static_cast<size_t>(linha.indice)];
+        const std::string original = dados_->linha(MODIF, linha.indice).toLatin1().toStdString();
         std::string nova;
         r = montarLinhaModif(original, tokens, campos_linha, nova);
         const int indice = linha.indice;
