@@ -2,6 +2,8 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QGroupBox>
+#include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QToolButton>
@@ -18,6 +20,7 @@
 #include "janela_principal.h"
 #include "layouts_newave.h"
 #include "modelo_modif.h"
+#include "navegador_deck.h"
 #include "modelo_secao_fixa.h"
 #include "pagina_arquivo_fixo.h"
 #include "recursos_tabela.h"
@@ -185,6 +188,37 @@ private slots:
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         }
         QVERIFY(janela.isVisible());
+    }
+
+    void janelaDesfazNoDeckEAtalhosNaoSeRepetem() {
+        const fs::path newave = fs::path(DIR_DECK) / "hidr.dat";
+        if (!fs::exists(newave)) QSKIP("deck ausente");
+        JanelaPrincipal janela;
+        janela.show();
+        janela.abrirCaminho(QString::fromStdWString(newave.wstring()));
+        QCoreApplication::processEvents();
+
+        QStringList atalhos;
+        QAction* desfazer = nullptr;
+        for (QAction* menu : janela.menuBar()->actions())
+            for (QAction* acao : menu->menu()->actions()) {
+                if (acao->text() == QStringLiteral("&Desfazer")) desfazer = acao;
+                if (acao->shortcut().isEmpty()) continue;
+                QVERIFY2(!atalhos.contains(acao->shortcut().toString()), qPrintable(acao->shortcut().toString()));
+                atalhos << acao->shortcut().toString();
+            }
+        QVERIFY(atalhos.contains(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S).toString()));
+        QVERIFY(desfazer);
+
+        auto* navegador = janela.findChild<NavegadorDeck*>();
+        auto* dados = janela.findChild<DadosDeck*>();
+        QVERIFY(navegador && dados);
+        navegador->setCurrentIndex(1);
+        QCoreApplication::processEvents();
+        QVERIFY(dados->definir(QStringLiteral("patamar.dat"), 1, 0, 3, QStringLiteral("0.5")).ok);
+        QVERIFY(!dados->modificados().isEmpty());
+        desfazer->trigger();
+        QVERIFY(dados->modificados().isEmpty());
     }
 
     void formulariosDoDeckReal() {

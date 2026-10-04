@@ -293,7 +293,7 @@ void JanelaPrincipal::criarMenus() {
     menu_recentes_ = arquivo->addMenu(QStringLiteral("&Recentes"));
     acao_salvar_ = arquivo->addAction(QStringLiteral("&Salvar"), QKeySequence::Save, this, &JanelaPrincipal::salvar);
     acao_salvar_como_ = arquivo->addAction(QStringLiteral("Salvar &como..."), QKeySequence::SaveAs, this, &JanelaPrincipal::salvarComo);
-    arquivo->addAction(QStringLiteral("Salvar &tudo"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S), this, &JanelaPrincipal::salvarTudo);
+    arquivo->addAction(QStringLiteral("Salvar &tudo"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S), this, &JanelaPrincipal::salvarTudo);
     arquivo->addSeparator();
     acao_exportar_ = arquivo->addAction(QStringLiteral("&Exportar CSV..."), this, &JanelaPrincipal::exportarCsv);
     arquivo->addSeparator();
