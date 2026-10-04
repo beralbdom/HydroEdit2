@@ -166,7 +166,7 @@ Resultado montarLinhaModif(const std::string& original, std::vector<std::string>
         trechos.push_back({p, q});
         p = q;
     }
-    if (tokens.size() < trechos.size() || tokens.size() > trechos.size()) {
+    if (tokens.size() != trechos.size()) {
         const size_t mantidos = std::min(tokens.size(), trechos.size());
         valores.erase(mantidos == 0 ? 0 : trechos[mantidos - 1].second);
         trechos.resize(mantidos);

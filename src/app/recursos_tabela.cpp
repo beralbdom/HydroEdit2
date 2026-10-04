@@ -461,7 +461,8 @@ private:
         }
         if (destinos.empty()) return;
 
-        auto* origem = const_cast<QAbstractItemModel*>(destinos.front().first.model());
+        QAbstractItemModel* origem = modelo;
+        while (auto* proxy = qobject_cast<QAbstractProxyModel*>(origem)) origem = proxy->sourceModel();
         auto* lote = dynamic_cast<EdicaoEmLote*>(origem);
         if (lote) lote->iniciarLote();
         int gravados = 0;
