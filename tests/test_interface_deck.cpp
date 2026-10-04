@@ -18,6 +18,7 @@
 #include "deck_newave.h"
 #include "formulario_arquivo.h"
 #include "janela_principal.h"
+#include "layout_colunas.h"
 #include "layouts_newave.h"
 #include "modelo_modif.h"
 #include "navegador_deck.h"
@@ -219,6 +220,25 @@ private slots:
         QVERIFY(!dados->modificados().isEmpty());
         desfazer->trigger();
         QVERIFY(dados->modificados().isEmpty());
+    }
+
+    void layoutColunasUsaOEspacoDisponivel() {
+        QWidget pagina;
+        auto* colunas = new LayoutColunas(&pagina);
+        colunas->setContentsMargins(0, 0, 0, 0);
+        colunas->setSpacing(10);
+        for (const QSize tamanho : {QSize(200, 100), QSize(200, 300), QSize(200, 100)}) {
+            auto* grupo = new QWidget(&pagina);
+            grupo->setFixedSize(tamanho);
+            colunas->addWidget(grupo);
+        }
+        QCOMPARE(colunas->colunasPara(700), (std::vector<int>{0, 1, 2}));
+        QCOMPARE(colunas->colunasPara(450), (std::vector<int>{0, 1, 1}));
+        QCOMPARE(colunas->colunasPara(300), (std::vector<int>{0, 0, 0}));
+        QCOMPARE(colunas->heightForWidth(700), 300);
+        QCOMPARE(colunas->heightForWidth(450), 410);
+        QCOMPARE(colunas->heightForWidth(300), 520);
+        QCOMPARE(colunas->minimumSize().width(), 200);
     }
 
     void formulariosDoDeckReal() {

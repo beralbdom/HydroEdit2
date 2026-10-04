@@ -31,7 +31,7 @@ public:
     void adicionarAoCabecalho(QWidget* widget);
     void atualizarArquivo();
     static void alinharRotulos(QWidget* pagina);
-    static QWidget* paginaRolavel(QWidget* conteudo, QWidget* pai);
+    static QWidget* paginaRolavel(QWidget* conteudo, QWidget* pai, bool alinhar = true);
     static QTabWidget* novasAbas(QWidget* pai);
 
 private:

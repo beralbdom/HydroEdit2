@@ -117,8 +117,10 @@ QTabWidget* FormularioUsina::novasAbas(QWidget* pai) {
     return abas;
 }
 
-QWidget* FormularioUsina::paginaRolavel(QWidget* conteudo, QWidget* pai) {
-    alinharRotulos(conteudo);
+// Sem alinhar, cada grupo alinha so os proprios rotulos: nas paginas com grupos em colunas, o rotulo
+// mais longo da pagina alargaria todos os grupos e caberiam menos colunas.
+QWidget* FormularioUsina::paginaRolavel(QWidget* conteudo, QWidget* pai, bool alinhar) {
+    if (alinhar) alinharRotulos(conteudo);
     auto* rolagem = new QScrollArea(pai);
     rolagem->setWidgetResizable(true);
     rolagem->setFrameShape(QFrame::NoFrame);
