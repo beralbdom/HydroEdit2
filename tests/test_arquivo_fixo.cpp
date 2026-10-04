@@ -300,7 +300,7 @@ private slots:
                               {"curva.dat", 0, 54},     {"agrint.dat", 0, 39}, {"c_adic.dat", 0, 42},     {"adterm.dat", 0, 6},
                               {"ghmin.dat", 0, 91},     {"cvar.dat", 0, 13},    {"ree.dat", 0, 13},        {"re.dat", 0, 0},
                               {"selcor.dat", 0, 7},     {"tecno.dat", 0, 0},    {"polinjus.csv", 0, 1826}, {"volref_saz.dat", 0, 149},
-                              {"restricao-eletrica.csv", 0, 60}};
+                              {"restricao-eletrica.csv", 0, 60}, {"volumes-referencia.csv", 0, 17761}, {"indices.csv", 0, 3}};
         NumeroPatamares patamares;
         ArquivoFixo patamar;
         ArquivoFixo sistema;
@@ -339,6 +339,53 @@ private slots:
             QVERIFY2(registros == caso.registros, (std::string(caso.nome) + ": " + std::to_string(registros)).c_str());
         }
     }
+    void layoutsDosArquivosQueODeckNaoTem() {
+        auto ler = [](const char* nome, const std::string& texto) {
+            ArquivoFixo a;
+            a.interpretar(texto, *layoutNewave(nome));
+            return a;
+        };
+        std::string linha_ano = "  2026";
+        for (int mes = 1; mes <= 12; ++mes) {
+            char campo[8];
+            std::snprintf(campo, sizeof campo, "%3d  ", 10 + mes);
+            linha_ano += campo;
+        }
+        const ArquivoFixo abertura = ler("abertura.dat", "c1\nc2\nc3\n" + linha_ano + "\n");
+        QCOMPARE(abertura.secoes()[0].linhas.size(), size_t(1));
+        QCOMPARE(abertura.valor(0, 0, 0), std::string("2026"));
+        QCOMPARE(abertura.valor(0, 0, 1), std::string("11"));
+        QCOMPARE(abertura.valor(0, 0, 12), std::string("22"));
+
+        std::string gee = " 1000.00  ";
+        for (int mes = 0; mes < 12; ++mes) gee += mes < 11 ? "0.083 " : "0.087 ";
+        gee += "      120.50       130.75";
+        const ArquivoFixo emissoes = ler("gee.dat", "c1\nc2\n" + gee + "\n");
+        QCOMPARE(emissoes.secoes()[0].linhas.size(), size_t(1));
+        QCOMPARE(emissoes.valor(0, 0, 0), std::string("1000.00"));
+        QCOMPARE(emissoes.valor(0, 0, 12), std::string("0.087"));
+        QCOMPARE(emissoes.secoes()[0].definicao.colunas.size(), size_t(13 + 2));
+        QCOMPARE(emissoes.valor(0, 0, 14), std::string("130.75"));
+
+        char cabeca[64];
+        std::snprintf(cabeca, sizeof cabeca, "%5d %-12s %12.2f %12.2f ", 1, "GN SUDESTE", 7000.0, 8500.0);
+        std::string gas = cabeca;
+        for (int mes = 0; mes < 12; ++mes) gas += "0.083 ";
+        gas += "      500.00";
+        const ArquivoFixo classes = ler("clasgas.dat", "c1\nc2\n" + gas + "\n");
+        QCOMPARE(classes.valor(0, 0, 0), std::string("1"));
+        QCOMPARE(classes.valor(0, 0, 1), std::string("GN SUDESTE"));
+        QCOMPARE(classes.valor(0, 0, 3), std::string("8500.00"));
+        QCOMPARE(classes.valor(0, 0, 16), std::string("500.00"));
+
+        const ArquivoFixo volumes = ler("volumes-referencia.csv", "VOLUME-REFERENCIAL-TIPO-PADRAO;1;;;\nCADH-VOL-REF-PER;6;2026/01;2026/01;13010.83\n");
+        QCOMPARE(volumes.secoes()[0].linhas.size(), size_t(1));
+        QCOMPARE(volumes.valor(0, 0, 0), std::string("6"));
+        QCOMPARE(volumes.valor(0, 0, 3), std::string("13010.83"));
+        QCOMPARE(volumes.secoes()[1].linhas.size(), size_t(1));
+        QCOMPARE(volumes.valor(1, 0, 0), std::string("1"));
+    }
+
     void colunasSeguemONumeroDePatamares() {
         fs::path deck(DIR_DECK);
         if (!fs::exists(deck / "agrint.dat")) QSKIP("deck ausente");

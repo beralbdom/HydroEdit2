@@ -37,7 +37,8 @@ QString iconeDoArquivo(const QString& nome_padrao) {
         {"curva.dat", "curva"},          {"cvar.dat", "cvar"},            {"sar.dat", "sar"},
         {"ghmin.dat", "ghmin"},          {"re.dat", "re"},                {"restricao-eletrica.csv", "relet"},
         {"dger.dat", "dger"},            {"arquivos.dat", "arquivos"},    {"shist.dat", "shist"},
-        {"selcor.dat", "selcor"},
+        {"selcor.dat", "selcor"},        {"volumes-referencia.csv", "volref"}, {"indices.csv", "arquivos"},
+        {"abertura.dat", "tema-cenarios"}, {"gee.dat", "tecnologias"},  {"clasgas.dat", "classes-term"},
     };
     return procurar(mapa, nome_padrao);
 }

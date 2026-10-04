@@ -6,7 +6,7 @@
 
 enum class TipoColunaFixa { Inteiro, Real, Texto, Ordinal, Grupo };
 enum class Patamares { Nenhum, Carga, Deficit };
-enum class Referencia { Nenhuma, Submercado, Ree, UsinaHidro, UsinaTermica, ClasseTermica, Tecnologia, Posto, Agrupamento };
+enum class Referencia { Nenhuma, Submercado, Ree, UsinaHidro, UsinaTermica, ClasseTermica, Tecnologia, Posto, Agrupamento, ClasseGas };
 
 struct OpcaoFixa {
     std::string codigo;

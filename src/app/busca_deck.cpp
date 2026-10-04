@@ -45,7 +45,8 @@ std::vector<ResultadoBusca> procurarNoDeck(const DadosDeck& dados, const ModeloH
 
     std::map<Referencia, std::map<QString, QString>> alvos;
     for (Referencia r : {Referencia::Submercado, Referencia::Ree, Referencia::UsinaHidro, Referencia::UsinaTermica,
-                         Referencia::ClasseTermica, Referencia::Tecnologia, Referencia::Posto, Referencia::Agrupamento}) {
+                         Referencia::ClasseTermica, Referencia::Tecnologia, Referencia::Posto, Referencia::Agrupamento,
+                         Referencia::ClasseGas}) {
         for (const OpcaoReferencia& o : dados.opcoes(r)) {
             const QString sufixo = QStringLiteral(" (%1)").arg(o.codigo);
             const QString nome = o.rotulo.endsWith(sufixo) ? o.rotulo.chopped(sufixo.size()) : o.rotulo;

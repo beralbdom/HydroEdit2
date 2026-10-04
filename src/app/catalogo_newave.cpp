@@ -24,6 +24,7 @@ const std::vector<ArquivoNewave>& catalogoNewave() {
         {QStringLiteral("Cadastro"), QStringLiteral("Postos fluviométricos"), QStringLiteral("postos.dat"), {}, QStringLiteral("3.10")},
         {QStringLiteral("Cadastro"), QStringLiteral("REEs"), QStringLiteral("ree.dat"), QStringLiteral("DADOS DOS RESER.EQ.ENERGIA"), QStringLiteral("3.32")},
         {QStringLiteral("Cadastro"), QStringLiteral("Tecnologias"), QStringLiteral("tecno.dat"), QStringLiteral("ARQUIVO DE TECNOLOGIAS"), QStringLiteral("3.35")},
+        {QStringLiteral("Cadastro"), QStringLiteral("Classes de gás natural"), QStringLiteral("clasgas.dat"), QStringLiteral("ARQUIVO DE RESTRICAO DE GAS"), QStringLiteral("3.38")},
 
         {QStringLiteral("Configuração"), QStringLiteral("Configuração hidráulica"), QStringLiteral("confhd.dat"), QStringLiteral("CONFIGURACAO HIDRAULICA"), QStringLiteral("3.9")},
         {QStringLiteral("Configuração"), QStringLiteral("Configuração térmica"), QStringLiteral("conft.dat"), QStringLiteral("CONFIGURACAO TERMICA"), QStringLiteral("3.15")},
@@ -36,6 +37,7 @@ const std::vector<ArquivoNewave>& catalogoNewave() {
         {QStringLiteral("Hidrologia"), QStringLiteral("Outros usos da água"), QStringLiteral("dsvagua.dat"), QStringLiteral("ARQUIVO DSVAGUA"), QStringLiteral("3.21")},
         {QStringLiteral("Hidrologia"), QStringLiteral("Volume de referência sazonal"), QStringLiteral("volref_saz.dat"), QStringLiteral("ARQ. C/ VOLUME REF. SAZONAL"), QStringLiteral("3.42")},
         {QStringLiteral("Hidrologia"), QStringLiteral("Polinômios de jusante por partes"), QStringLiteral("polinjus.csv"), {}, QStringLiteral("3.41.3")},
+        {QStringLiteral("Hidrologia"), QStringLiteral("Volume de referência do polinômio de jusante"), QStringLiteral("volumes-referencia.csv"), {}, QStringLiteral("3.41.4")},
 
         {QStringLiteral("Sistema e carga"), QStringLiteral("Submercados"), QStringLiteral("sistema.dat"), QStringLiteral("DADOS DOS SUBSISTEMAS"), QStringLiteral("3.7")},
         {QStringLiteral("Sistema e carga"), QStringLiteral("Patamares de carga"), QStringLiteral("patamar.dat"), QStringLiteral("ARQUIVO DE PATAMARES MERCADO"), QStringLiteral("3.8")},
@@ -52,11 +54,14 @@ const std::vector<ArquivoNewave>& catalogoNewave() {
         {QStringLiteral("Restrições"), QStringLiteral("Geração hidráulica mínima"), QStringLiteral("ghmin.dat"), QStringLiteral("ARQUIVO GER. HIDR. MIN"), QStringLiteral("3.29")},
         {QStringLiteral("Restrições"), QStringLiteral("Restrições elétricas internas aos REEs"), QStringLiteral("re.dat"), QStringLiteral("ARQUIVO RESTRICOES ELETRICAS"), QStringLiteral("3.33")},
         {QStringLiteral("Restrições"), QStringLiteral("Restrições elétricas especiais"), QStringLiteral("restricao-eletrica.csv"), {}, QStringLiteral("3.45")},
+        {QStringLiteral("Restrições"), QStringLiteral("Limites de emissão de GEE"), QStringLiteral("gee.dat"), QStringLiteral("ARQUIVO DE EMISSOES GEE"), QStringLiteral("3.37")},
 
         {QStringLiteral("Dados gerais"), QStringLiteral("Dados gerais"), QStringLiteral("dger.dat"), QStringLiteral("DADOS GERAIS"), QStringLiteral("3.5")},
         {QStringLiteral("Dados gerais"), QStringLiteral("Nomes dos arquivos"), QStringLiteral("arquivos.dat"), {}, QStringLiteral("3.3")},
         {QStringLiteral("Dados gerais"), QStringLiteral("Séries históricas da simulação final"), QStringLiteral("shist.dat"), QStringLiteral("ARQUIVO DE S.HISTORICAS S.F."), QStringLiteral("3.6")},
         {QStringLiteral("Dados gerais"), QStringLiteral("Seleção de cortes"), QStringLiteral("selcor.dat"), {}, QStringLiteral("3.34")},
+        {QStringLiteral("Dados gerais"), QStringLiteral("Aberturas variáveis por período"), QStringLiteral("abertura.dat"), QStringLiteral("DADOS DE ABERTURAS"), QStringLiteral("3.36")},
+        {QStringLiteral("Dados gerais"), QStringLiteral("Índice dos arquivos CSV"), QStringLiteral("indices.csv"), {}, QStringLiteral("3.4")},
     };
     return arquivos;
 }
@@ -103,6 +108,7 @@ QString grupoNewave(const QString& nome_padrao) {
         {QStringLiteral("postos.dat"), QStringLiteral("Referências")},
         {QStringLiteral("ree.dat"), QStringLiteral("Referências")},
         {QStringLiteral("tecno.dat"), QStringLiteral("Referências")},
+        {QStringLiteral("clasgas.dat"), QStringLiteral("Referências")},
         {QStringLiteral("confhd.dat"), QStringLiteral("Hidroelétricas")},
         {QStringLiteral("exph.dat"), QStringLiteral("Hidroelétricas")},
         {QStringLiteral("conft.dat"), QStringLiteral("Termoelétricas")},
@@ -113,6 +119,7 @@ QString grupoNewave(const QString& nome_padrao) {
         {QStringLiteral("dsvagua.dat"), QStringLiteral("Operação hidráulica")},
         {QStringLiteral("volref_saz.dat"), QStringLiteral("Operação hidráulica")},
         {QStringLiteral("polinjus.csv"), QStringLiteral("Operação hidráulica")},
+        {QStringLiteral("volumes-referencia.csv"), QStringLiteral("Operação hidráulica")},
         {QStringLiteral("sistema.dat"), QStringLiteral("Carga")},
         {QStringLiteral("patamar.dat"), QStringLiteral("Carga")},
         {QStringLiteral("c_adic.dat"), QStringLiteral("Carga")},
@@ -127,6 +134,7 @@ QString grupoNewave(const QString& nome_padrao) {
         {QStringLiteral("ghmin.dat"), QStringLiteral("Operativas")},
         {QStringLiteral("re.dat"), QStringLiteral("Operativas")},
         {QStringLiteral("restricao-eletrica.csv"), QStringLiteral("Operativas")},
+        {QStringLiteral("gee.dat"), QStringLiteral("Operativas")},
     };
     auto it = grupos.find(nome_padrao);
     return it == grupos.end() ? QString() : it->second;

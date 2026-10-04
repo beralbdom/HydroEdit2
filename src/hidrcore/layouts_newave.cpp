@@ -65,7 +65,7 @@ LayoutArquivoFixo conft() {
                                                      {"NE", "Não existente, com expansão"},
                                                      {"NC", "Não considerada"}}),
                ref(inteiro("Classe", 36, 39), Referencia::ClasseTermica),
-               ref(inteiro("Tecnologia", 41, 43), Referencia::Tecnologia), inteiro("Classe de gás", 45, 48)},
+               ref(inteiro("Tecnologia", 41, 43), Referencia::Tecnologia), ref(inteiro("Classe de gás", 45, 48), Referencia::ClasseGas)},
               0}}};
 }
 
@@ -1271,6 +1271,89 @@ LayoutArquivoFixo restricao_eletrica() {
         false,
         ';'};
 }
+// volumes-referencia.csv, manual do NEWAVE 30.0.2, secoes 3.4 e 3.41.4: arquivo CSV (campos
+// separados por ponto e virgula, linhas comecadas por & sao comentario) com o volume de referencia
+// total de cada usina por periodo de validade, com o identificador longo ou o curto
+// (CADH-VOL-REF-PER) e datas no formato AAAA/MM, e o tipo de volume referencial
+// (VOLUME-REFERENCIAL-TIPO-PADRAO, opcional; sem ele vale o volume inicial do confhd.dat). A tabela
+// vem antes do tipo porque secao de um registro so corta a regiao das seguintes.
+LayoutArquivoFixo volumes_referencia() {
+    return {"3.41.4",
+            {{.titulo = "Volumes de referência por período",
+              .colunas = {ref(inteiro("Usina", 2, 2), Referencia::UsinaHidro), texto("Data inicial", 3, 3),
+                          texto("Data final", 4, 4), real("Volume de referência total", 5, 5, 0)},
+              .filtro = {igual(1, 1, {"HIDRELETRICA-CADASTRO-RESERVATORIO-VOLUME-REFERENCIA-PERIODO", "CADH-VOL-REF-PER"})}},
+             {.titulo = "Tipo de volume referencial",
+              .colunas = {comOpcoes(inteiro("Tipo", 2, 2), {{"0", "Volume inicial"}, {"1", "Volume de referência por período"}})},
+              .filtro = {igual(1, 1, {"VOLUME-REFERENCIAL-TIPO-PADRAO"})},
+              .mesma_regiao = true,
+              .max_registros = 1,
+              .formulario = true}},
+            false,
+            ';'};
+}
+
+// indices.csv, manual do NEWAVE 30.0.2, secao 3.4: arquivo CSV (campos separados por ponto e
+// virgula, linhas comecadas por & sao comentario) com uma linha por funcionalidade: identificador,
+// descricao (ignorada pelo programa) e nome do arquivo CSV com os dados dela. O identificador e
+// livre porque o manual manda acrescentar ali as funcionalidades novas e a tabela dele esta
+// incompleta.
+LayoutArquivoFixo indices() {
+    return {"3.4",
+            {{.titulo = "Funcionalidades", .colunas = {texto("Identificador", 1, 1), texto("Descrição", 2, 2), texto("Arquivo", 3, 3)}}},
+            false,
+            ';'};
+}
+
+// abertura.dat, manual do NEWAVE 30.0.2, secao 3.36: tres registros de comentario e, sem
+// terminador, o registro tipo 2 opcional (PRE, periodo estatico inicial), um tipo 1 por ano de
+// planejamento e o tipo 3 opcional (POS, periodo estatico final), com o numero de aberturas de cada
+// mes a cada 5 colunas a partir da 7 (o manual da os meses 1, 2 e 12; os do meio seguem o passo).
+// Lido quando o registro 18 do dger.dat pede aberturas variaveis (colunas 27 a 30).
+LayoutArquivoFixo abertura() {
+    return {"3.36",
+            {{.titulo = "Número de aberturas por mês",
+              .linhas_cabecalho = 3,
+              .colunas = {texto("Ano", 1, 6), inteiro("Jan", 7, 9), inteiro("Fev", 12, 14), inteiro("Mar", 17, 19),
+                          inteiro("Abr", 22, 24), inteiro("Mai", 27, 29), inteiro("Jun", 32, 34), inteiro("Jul", 37, 39),
+                          inteiro("Ago", 42, 44), inteiro("Set", 47, 49), inteiro("Out", 52, 54), inteiro("Nov", 57, 59),
+                          inteiro("Dez", 62, 64)}}}};
+}
+
+// gee.dat, manual do NEWAVE 30.0.2, secao 3.37: dois registros de comentario e um unico registro
+// com a penalidade, o fator de desagregacao mensal do limite anual de cada mes a cada 6 colunas a
+// partir da 11 e o limite de emissao de cada ano de planejamento a cada 13 colunas a partir da 83.
+// Lido quando o registro 82 do dger.dat e 1. Fica como tabela de uma linha: o numero de anos sai do
+// comprimento da linha.
+LayoutArquivoFixo gee() {
+    return {"3.37",
+            {{.titulo = "Limites de emissão de GEE",
+              .linhas_cabecalho = 2,
+              .colunas = {real("Penalidade", 1, 8, 2), real("Fator jan", 11, 15, 3), real("Fator fev", 17, 21, 3),
+                          real("Fator mar", 23, 27, 3), real("Fator abr", 29, 33, 3), real("Fator mai", 35, 39, 3),
+                          real("Fator jun", 41, 45, 3), real("Fator jul", 47, 51, 3), real("Fator ago", 53, 57, 3),
+                          real("Fator set", 59, 63, 3), real("Fator out", 65, 69, 3), real("Fator nov", 71, 75, 3),
+                          real("Fator dez", 77, 81, 3), real("Limite de emissão (Mton CO2eq) ano", 83, 94, 2)},
+              .passo_repeticao = 13,
+              .max_registros = 1}}};
+}
+
+// clasgas.dat, manual do NEWAVE 30.0.2, secao 3.38: dois registros de comentario e um registro por
+// classe de gas natural, sem terminador, com heat rate, PCI, o fator de desagregacao mensal da
+// disponibilidade anual de cada mes a cada 6 colunas a partir da 46 e a disponibilidade de cada ano
+// de planejamento a cada 13 colunas a partir da 118. Lido quando o registro 84 do dger.dat e 1.
+LayoutArquivoFixo clasgas() {
+    return {"3.38",
+            {{.titulo = "Classes de gás natural",
+              .linhas_cabecalho = 2,
+              .colunas = {inteiro("Classe", 2, 5), texto("Nome", 7, 18), real("Heat rate (BTU/kWh)", 20, 31, 2),
+                          real("PCI (kcal/m³)", 33, 44, 2), real("Fator jan", 46, 50, 3), real("Fator fev", 52, 56, 3),
+                          real("Fator mar", 58, 62, 3), real("Fator abr", 64, 68, 3), real("Fator mai", 70, 74, 3),
+                          real("Fator jun", 76, 80, 3), real("Fator jul", 82, 86, 3), real("Fator ago", 88, 92, 3),
+                          real("Fator set", 94, 98, 3), real("Fator out", 100, 104, 3), real("Fator nov", 106, 110, 3),
+                          real("Fator dez", 112, 116, 3), real("Disponibilidade (milhões m³/ano) ano", 118, 129, 2)},
+              .passo_repeticao = 13}}};
+}
 }  // namespace
 
 // Layout dos arquivos de texto do NEWAVE que tem tabela editavel, pelo nome padrao do arquivo;
@@ -1284,7 +1367,8 @@ const LayoutArquivoFixo* layoutNewave(const std::string& nome_padrao) {
         {"curva.dat", curva()}, {"agrint.dat", agrint()}, {"c_adic.dat", c_adic()}, {"adterm.dat", adterm()},
         {"ghmin.dat", ghmin()}, {"sar.dat", sar()}, {"cvar.dat", cvar()}, {"ree.dat", ree()}, {"re.dat", re()},
         {"selcor.dat", selcor()}, {"tecno.dat", tecno()}, {"polinjus.csv", polinjus()}, {"volref_saz.dat", volref_saz()},
-        {"restricao-eletrica.csv", restricao_eletrica()},
+        {"restricao-eletrica.csv", restricao_eletrica()}, {"volumes-referencia.csv", volumes_referencia()},
+        {"indices.csv", indices()}, {"abertura.dat", abertura()}, {"gee.dat", gee()}, {"clasgas.dat", clasgas()},
     };
     auto it = layouts.find(nome_padrao);
     return it == layouts.end() ? nullptr : &it->second;
@@ -1342,6 +1426,7 @@ FonteReferencia fonteReferencia(Referencia referencia) {
     case Referencia::UsinaTermica: return {"conft.dat", 0, 0, 1};
     case Referencia::ClasseTermica: return {"clast.dat", 0, 0, 1};
     case Referencia::Tecnologia: return {"tecno.dat", 0, 0, 1};
+    case Referencia::ClasseGas: return {"clasgas.dat", 0, 0, 1};
     default: return {"", -1, -1, -1};
     }
 }
