@@ -287,7 +287,7 @@ LayoutArquivoFixo dger() {
          {.titulo = "Mínimo ZSUP na convergência",
           .colunas = {comOpcoes(inteiro("Valor", 22, 25), CONSIDERA)},
           .max_registros = 1},
-         {.titulo = "Desconsidera vazão mínima", .colunas = {inteiro("Valor", 22, 25)}, .max_registros = 1},
+         {.titulo = "Desconsidera vazão mínima", .colunas = {comOpcoes(inteiro("Valor", 22, 25), NAO_SIM)}, .max_registros = 1},
          {.titulo = "Restrições elétricas internas aos REEs",
           .colunas = {comOpcoes(inteiro("Valor", 22, 25), CONSIDERA)},
           .max_registros = 1},
