@@ -28,6 +28,14 @@ constexpr double ESCALA_MINIMA = ESCALA_LEGIVEL * 0.5;
 constexpr double ESCALA_MAXIMA = 20.0;
 constexpr double FATOR_ZOOM = 1.15;
 constexpr int MARGEM_LEGENDA = 8;
+constexpr double DISTANCIA_ROTULO = 11.0;
+constexpr double DISTANCIA_ROTULO_DIAGONAL = 4.0;
+constexpr double RAIO_LIVRE = 7.0;
+constexpr double ESPACO_CODIGO_NOME = 4.0;
+constexpr double FOLGA_TRACO = 2.0;
+constexpr double LARGURA_LIVRE_SETA = 4.0;
+constexpr double CELULA_ROTULOS = 64.0;
+constexpr double FOLGA_ROTULO = 3.0;
 constexpr double MARGEM_CENA = 40.0;
 
 QString paraTexto(const std::string& s) { return QString::fromLatin1(s.c_str()); }
@@ -100,6 +108,7 @@ void VistaCascata::desenhar(const Cascata& c, const std::unordered_map<int, QCol
             rota << QPointF(coluna * ESPACO_COLUNA_CASCATA, linha * ESPACO_LINHA_CASCATA);
 
         ItensArestaCascata itens = criarArestaCascata(cena_, rota, aresta.desvio, palette());
+        tracados_.push_back({rota, itens.seta != nullptr});
         arestas_.push_back({itens.traco, itens.seta, aresta.origem, aresta.destino, QLineF(rota[rota.size() - 2], rota.back()).length()});
     }
 }
@@ -119,6 +128,7 @@ void VistaCascata::reconstruir() {
     nos_.clear();
     casa_filtro_.clear();
     arestas_.clear();
+    tracados_.clear();
     codigo_selecionado_ = -1;
     codigo_sob_mouse_ = -1;
     cena_->clear();
@@ -317,19 +327,106 @@ void VistaCascata::aplicarFiltro() {
 }
 
 // Com 200+ pontos os rotulos so cabem quando a vista esta perto do tamanho natural; abaixo do
-// limiar ficam so o ponto sob o mouse, o selecionado e os que casam com o filtro de texto.
+// limiar entram so o ponto sob o mouse, o selecionado e os que casam com o filtro de texto. Cada
+// rotulo (codigo e, com os nomes ligados, o nome ao lado) vai para o primeiro lugar livre em volta do
+// ponto: a direita, a esquerda, e acima e abaixo de cada lado; livre e sem tocar em usina, ligacao,
+// ponta de seta ou rotulo ja posto. Sem lugar para o rotulo inteiro, tenta so o codigo; sem lugar
+// nem para ele, o rotulo some neste zoom e volta ao aproximar. A conta e em pixels da vista, porque
+// os rotulos tem tamanho fixo em pixels e o espaco entre as usinas cresce com o zoom. O ponto sob o
+// mouse e o selecionado vem primeiro e sempre mostram o rotulo, mesmo encostando em algo.
 void VistaCascata::atualizarRotulos() {
-    double escala = transform().m11();
-    bool filtro_ativo = !filtro_.trimmed().isEmpty();
-    for (const auto& par : nos_) {
-        int codigo = par.first;
-        bool visivel = escala >= LIMIAR_ROTULO || codigo == codigo_sob_mouse_ || codigo == codigo_selecionado_;
-        if (!visivel && filtro_ativo) {
-            auto it = casa_filtro_.find(codigo);
-            visivel = it != casa_filtro_.end() && it->second;
+    const double escala = transform().m11();
+    const bool filtro_ativo = !filtro_.trimmed().isEmpty();
+    auto casaFiltro = [&](int codigo) {
+        auto it = casa_filtro_.find(codigo);
+        return filtro_ativo && it != casa_filtro_.end() && it->second;
+    };
+    std::vector<int> ordem;
+    for (const auto& [codigo, itens] : nos_) {
+        itens.codigo->setVisible(false);
+        itens.nome->setVisible(false);
+        const bool forcado = codigo == codigo_sob_mouse_ || codigo == codigo_selecionado_;
+        if (escala >= LIMIAR_ROTULO || forcado || casaFiltro(codigo)) ordem.push_back(codigo);
+    }
+    auto prioridade = [&](int codigo) {
+        if (codigo == codigo_sob_mouse_ || codigo == codigo_selecionado_) return 0;
+        return casaFiltro(codigo) ? 1 : 2;
+    };
+    std::sort(ordem.begin(), ordem.end(), [&](int a, int b) {
+        return prioridade(a) != prioridade(b) ? prioridade(a) < prioridade(b) : a < b;
+    });
+
+    std::vector<QRectF> ocupados;
+    std::unordered_map<long long, std::vector<size_t>> celulas;
+    auto celulasDe = [](const QRectF& r, auto&& visitar) {
+        for (long long cx = static_cast<long long>(std::floor(r.left() / CELULA_ROTULOS)); cx <= std::floor(r.right() / CELULA_ROTULOS); ++cx)
+            for (long long cy = static_cast<long long>(std::floor(r.top() / CELULA_ROTULOS)); cy <= std::floor(r.bottom() / CELULA_ROTULOS); ++cy)
+                visitar((cx << 32) ^ (cy & 0xffffffff));
+    };
+    auto ocupar = [&](const QRectF& r) {
+        ocupados.push_back(r);
+        celulasDe(r, [&](long long celula) { celulas[celula].push_back(ocupados.size() - 1); });
+    };
+    auto livre = [&](const QRectF& r) {
+        bool sem_conflito = true;
+        celulasDe(r, [&](long long celula) {
+            if (!sem_conflito) return;
+            auto it = celulas.find(celula);
+            if (it == celulas.end()) return;
+            for (size_t i : it->second)
+                if (ocupados[i].intersects(r)) {
+                    sem_conflito = false;
+                    return;
+                }
+        });
+        return sem_conflito;
+    };
+
+    const QTransform vista = viewportTransform();
+    for (const auto& [codigo, itens] : nos_) {
+        const QPointF centro = vista.map(itens.ponto->pos());
+        ocupar(QRectF(centro.x() - RAIO_LIVRE, centro.y() - RAIO_LIVRE, 2 * RAIO_LIVRE, 2 * RAIO_LIVRE));
+    }
+    for (const auto& [rota, seta] : tracados_) {
+        for (qsizetype i = 0; i + 1 < rota.size(); ++i)
+            ocupar(QRectF(vista.map(rota[i]), vista.map(rota[i + 1])).normalized().adjusted(-FOLGA_TRACO, -FOLGA_TRACO, FOLGA_TRACO, FOLGA_TRACO));
+        if (!seta) continue;
+        const QLineF ultimo(vista.map(rota.back()), vista.map(rota[rota.size() - 2]));
+        if (ultimo.length() <= 0.0) continue;
+        const QPointF base = ultimo.pointAt(std::min(1.0, comprimentoSetaCascata() / ultimo.length()));
+        ocupar(QRectF(ultimo.p1(), base).normalized().adjusted(-LARGURA_LIVRE_SETA, -LARGURA_LIVRE_SETA, LARGURA_LIVRE_SETA, LARGURA_LIVRE_SETA));
+    }
+
+    for (int codigo : ordem) {
+        const ItensNoCascata& itens = nos_.at(codigo);
+        const QPointF centro = vista.map(itens.ponto->pos());
+        const double largura_codigo = itens.codigo->boundingRect().width();
+        const double altura = itens.codigo->boundingRect().height();
+        const bool forcado = prioridade(codigo) == 0;
+        bool posto = false;
+        for (const bool com_nome : {mostrar_nomes_, false}) {
+            const double largura = com_nome ? largura_codigo + ESPACO_CODIGO_NOME + itens.nome->boundingRect().width() : largura_codigo;
+            const QPointF lugares[] = {
+                {DISTANCIA_ROTULO, -altura / 2.0},
+                {-DISTANCIA_ROTULO - largura, -altura / 2.0},
+                {DISTANCIA_ROTULO_DIAGONAL, -RAIO_LIVRE - 2.0 - altura},
+                {DISTANCIA_ROTULO_DIAGONAL, RAIO_LIVRE + 2.0},
+                {-DISTANCIA_ROTULO_DIAGONAL - largura, -RAIO_LIVRE - 2.0 - altura},
+                {-DISTANCIA_ROTULO_DIAGONAL - largura, RAIO_LIVRE + 2.0},
+            };
+            for (const QPointF& lugar : lugares) {
+                const QRectF retangulo(centro + lugar, QSizeF(largura, altura));
+                if (!forcado && !livre(retangulo.adjusted(-FOLGA_ROTULO, -1.0, FOLGA_ROTULO, 1.0))) continue;
+                itens.codigo->setPos(lugar);
+                itens.nome->setPos(lugar + QPointF(largura_codigo + ESPACO_CODIGO_NOME, 0.0));
+                itens.codigo->setVisible(true);
+                itens.nome->setVisible(com_nome);
+                ocupar(retangulo);
+                posto = true;
+                break;
+            }
+            if (posto || !com_nome) break;
         }
-        par.second.codigo->setVisible(visivel);
-        par.second.nome->setVisible(visivel && mostrar_nomes_);
     }
 }
 

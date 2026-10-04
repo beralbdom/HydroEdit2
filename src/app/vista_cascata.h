@@ -1,11 +1,13 @@
 #pragma once
 #include <QColor>
 #include <QGraphicsView>
+#include <QPolygonF>
 #include <QString>
 #include <map>
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "cascata.h"
 #include "itens_cascata.h"
@@ -64,6 +66,7 @@ private:
     std::unordered_map<int, ItensNoCascata> nos_;
     std::unordered_map<int, bool> casa_filtro_;
     std::vector<ItemAresta> arestas_;
+    std::vector<std::pair<QPolygonF, bool>> tracados_;
     int codigo_selecionado_ = -1;
     int codigo_sob_mouse_ = -1;
     QString filtro_;
