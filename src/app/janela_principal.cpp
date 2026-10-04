@@ -34,6 +34,7 @@
 #include "botao_combo.h"
 #include "busca_deck.h"
 #include "comparacao_deck.h"
+#include "validacao_deck.h"
 #include "dados_deck.h"
 #include "deck_newave.h"
 #include "delegate_numerico.h"
@@ -356,6 +357,7 @@ void JanelaPrincipal::criarMenus() {
     acao_incrementais_ = ferramentas->addAction(QStringLiteral("Exportar vazões &incrementais..."), this,
                                                 &JanelaPrincipal::exportarIncrementais);
     acao_comparar_ = ferramentas->addAction(QStringLiteral("&Comparar com outro deck..."), this, &JanelaPrincipal::compararComOutroDeck);
+    acao_validar_ = ferramentas->addAction(QStringLiteral("&Validar deck..."), this, &JanelaPrincipal::validarDeck);
 
     acao_salvar_->setEnabled(false);
     acao_salvar_como_->setEnabled(false);
@@ -363,6 +365,7 @@ void JanelaPrincipal::criarMenus() {
     acao_incrementais_->setEnabled(false);
     acao_salvar_deck_como_->setEnabled(false);
     acao_comparar_->setEnabled(false);
+    acao_validar_->setEnabled(false);
     acao_procurar_->setEnabled(false);
 
     QMenu* ajuda = menuBar()->addMenu(QStringLiteral("A&juda"));
@@ -508,6 +511,19 @@ void JanelaPrincipal::procurarNoDeck() {
     busca_->activateWindow();
 }
 
+// Confere o deck aberto, com as edicoes ainda nao salvas, pelas regras do manual, numa janela que fica
+// aberta ao lado; escolher um problema leva ao registro.
+void JanelaPrincipal::validarDeck() {
+    navegador_->aplicarEdicoesPendentes();
+    auto* dialogo = new DialogoValidacao(navegador_->dados(), &modelo_->arquivo(), this);
+    dialogo->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dialogo, &DialogoValidacao::escolhido, this, [this](const QString& nome, int secao, int registro) {
+        navegador_->mostrarRegistro(nome, secao, registro);
+        if (nome == QStringLiteral("hidr.dat") && registro >= 0) selecionarLinha(registro);
+    });
+    dialogo->show();
+}
+
 // Compara o deck aberto, com as edicoes ainda nao salvas, com o deck de outra pasta.
 void JanelaPrincipal::compararComOutroDeck() {
     navegador_->aplicarEdicoesPendentes();
@@ -546,6 +562,7 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     acao_incrementais_->setEnabled(true);
     acao_salvar_deck_como_->setEnabled(true);
     acao_comparar_->setEnabled(true);
+    acao_validar_->setEnabled(true);
     acao_procurar_->setEnabled(true);
     menu_usina_->setEnabled(true);
     painel_problemas_->definirProblemas({});

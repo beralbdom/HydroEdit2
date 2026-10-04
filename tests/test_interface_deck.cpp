@@ -18,6 +18,8 @@
 #include "busca_deck.h"
 #include "catalogo_newave.h"
 #include "comparacao_deck.h"
+#include "validacao_deck.h"
+#include "arquivo_hidr.h"
 #include "dados_deck.h"
 #include "delegate_referencia.h"
 #include "deck_newave.h"
@@ -301,6 +303,49 @@ private slots:
             const int item = PaginaArquivoFixo::itemDaSecao(sistema, s);
             QCOMPARE(item, PaginaArquivoFixo::secaoEmTabela(sistema, s) ? s : -1);
         }
+    }
+
+    void deckOficialPassaNaValidacao() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "confhd.dat")) QSKIP("deck ausente");
+        DadosDeck dados;
+        dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        ArquivoHidr hidr;
+        QVERIFY(hidr.carregar(deck / "hidr.dat").ok);
+        const std::vector<ProblemaDeck> problemas = validarDeck(dados, &hidr);
+        QStringList erros;
+        for (const ProblemaDeck& p : problemas) {
+            const QString texto = QStringLiteral("%1 %2 [%3/%4] %5 (%6)").arg(p.erro ? "ERRO" : "aviso", p.nome_padrao).arg(p.secao).arg(p.registro).arg(p.mensagem, p.regra);
+            qWarning().noquote() << texto;
+            if (p.erro) erros << texto;
+        }
+        QVERIFY2(erros.isEmpty(), qPrintable(erros.join(QLatin1Char('\n'))));
+        QVERIFY2(problemas.empty(), "o deck oficial nao deve ter avisos");
+
+        auto secao = [&](const char* nome, const char* titulo) {
+            const auto& secoes = dados.arquivo(QString::fromLatin1(nome))->secoes();
+            for (size_t s = 0; s < secoes.size(); ++s)
+                if (secoes[s].definicao.titulo == titulo) return static_cast<int>(s);
+            return -1;
+        };
+        QVERIFY(dados.definir(QStringLiteral("confhd.dat"), 0, 0, 4, QStringLiteral("99")).ok);
+        QVERIFY(dados.definir(QStringLiteral("penalid.dat"), 0, 0, 1, QStringLiteral("0")).ok);
+        QVERIFY(dados.definir(QStringLiteral("dger.dat"), secao("dger.dat", "Delta de ZSUP (%)"), 0, 0, QStringLiteral("150")).ok);
+        const int deficit = secao("sistema.dat", "Custo do déficit");
+        const auto& colunas = dados.arquivo(QStringLiteral("sistema.dat"))->secoes()[static_cast<size_t>(deficit)].definicao.colunas;
+        const auto profundidade = std::find_if(colunas.begin(), colunas.end(), [](const ColunaFixa& c) { return c.nome == "Profund. pat. 1 (p.u.)"; });
+        QVERIFY(profundidade != colunas.end());
+        QVERIFY(dados.definir(QStringLiteral("sistema.dat"), deficit, 0, static_cast<int>(profundidade - colunas.begin()), QStringLiteral("0.5")).ok);
+        const std::vector<ProblemaDeck> depois = validarDeck(dados, &hidr);
+        auto aponta = [&](const char* nome, const char* trecho) {
+            return std::any_of(depois.begin(), depois.end(), [&](const ProblemaDeck& p) {
+                return p.erro && p.nome_padrao == QString::fromLatin1(nome) && p.mensagem.contains(QString::fromUtf8(trecho));
+            });
+        };
+        QVERIFY(aponta("confhd.dat", "REE 99"));
+        QVERIFY(aponta("penalid.dat", "zero"));
+        QVERIFY(aponta("dger.dat", "Delta de ZSUP"));
+        QVERIFY(aponta("sistema.dat", "profundidades"));
     }
 
     void formulariosDoDeckReal() {

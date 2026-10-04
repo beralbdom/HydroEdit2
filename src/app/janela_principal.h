@@ -60,6 +60,7 @@ private slots:
     void salvarDeckComo();
     void procurarNoDeck();
     void compararComOutroDeck();
+    void validarDeck();
     QUndoStack* pilhaAtiva() const;
     void exportarCsv();
     void exportarIncrementais();
@@ -96,6 +97,7 @@ private:
     QAction* acao_salvar_deck_como_;
     QAction* acao_procurar_;
     QAction* acao_comparar_;
+    QAction* acao_validar_;
     DialogoBusca* busca_ = nullptr;
     QMenu* menu_usina_;
     QMenu* menu_recentes_;
