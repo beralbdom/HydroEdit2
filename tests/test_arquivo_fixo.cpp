@@ -339,6 +339,16 @@ private slots:
             QVERIFY2(registros == caso.registros, (std::string(caso.nome) + ": " + std::to_string(registros)).c_str());
         }
     }
+    void definirForaDoArquivoEErro() {
+        ArquivoFixo a;
+        a.interpretar("c1\nc2\nc3\n  2026   11\n", *layoutNewave("abertura.dat"));
+        QVERIFY(!a.definir(5, 0, 0, "1").ok);
+        QVERIFY(!a.definir(0, 3, 0, "1").ok);
+        QVERIFY(!a.definir(0, 0, 40, "1").ok);
+        QVERIFY(!a.definir(-1, 0, 0, "1").ok);
+        QVERIFY(a.definir(0, 0, 1, "12").ok);
+    }
+
     void layoutsDosArquivosQueODeckNaoTem() {
         auto ler = [](const char* nome, const std::string& texto) {
             ArquivoFixo a;

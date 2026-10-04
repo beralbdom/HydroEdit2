@@ -259,11 +259,15 @@ std::string ArquivoFixo::valor(int secao, int registro, int coluna) const {
 // as casas digitadas se forem mais e couberem na largura (o Fortran le o ponto explicito), e, sem
 // casas, com o ponto no fim, como o Fortran escreve. Numero invalido ou que nao cabe na
 // largura e erro, e a linha nao muda. Coluna de contexto grava na linha de contexto do registro,
-// valendo para todo o bloco; Ordinal e Grupo nao se editam. Em arquivo de
+// valendo para todo o bloco; Ordinal e Grupo nao se editam, e secao, registro ou coluna fora do
+// arquivo sao erro. Em arquivo de
 // campos separados, real fica como foi digitado, o campo mantem a largura que tinha quando o valor
 // cabe nela e a linha ganha separadores se tiver campos de menos.
 Resultado ArquivoFixo::definir(int secao, int registro, int coluna, const std::string& texto) {
+    if (secao < 0 || secao >= static_cast<int>(secoes_.size())) return Resultado::erro("Secao fora do arquivo");
     const SecaoLida& s = secoes_[static_cast<size_t>(secao)];
+    if (registro < 0 || registro >= static_cast<int>(s.linhas.size()) || coluna < 0 || coluna >= static_cast<int>(s.definicao.colunas.size()))
+        return Resultado::erro("Campo fora da secao");
     const ColunaFixa& c = s.definicao.colunas[static_cast<size_t>(coluna)];
     if (!editavel(c)) return Resultado::erro(c.nome + " e somente leitura");
     const size_t largura = static_cast<size_t>(c.fim - c.inicio + 1);
