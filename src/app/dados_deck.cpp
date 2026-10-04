@@ -572,6 +572,25 @@ bool DadosDeck::salvar(const QString& nome_padrao, QString* motivo) {
     return true;
 }
 
+// Grava o arquivo em outra pasta, com o nome que ele tem no deck, sem mudar a pasta do deck aberto nem
+// a marca de alterado.
+bool DadosDeck::salvarEm(const QString& nome_padrao, const QString& pasta, QString* motivo) {
+    auto it = arquivos_.find(nome_padrao);
+    if (it == arquivos_.end() || !it->second.lido) return true;
+    aplicarPendentes(nome_padrao);
+    Entrada& e = it->second;
+    const std::filesystem::path caminho(QDir(pasta).filePath(nomeNoDeck(nome_padrao)).toStdWString());
+    const bool modificado = e.eh_binario ? e.binario.modificado() : e.arquivo.modificado();
+    Resultado r = e.eh_binario ? e.binario.salvar(caminho) : e.arquivo.salvar(caminho);
+    if (e.eh_binario) e.binario.definirModificado(modificado);
+    else e.arquivo.definirModificado(modificado);
+    if (!r.ok) {
+        if (motivo) *motivo = QString::fromUtf8(r.mensagem);
+        return false;
+    }
+    return true;
+}
+
 QStringList DadosDeck::modificados() const {
     QStringList nomes;
     for (const auto& [nome, entrada] : arquivos_)

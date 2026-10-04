@@ -49,6 +49,7 @@ public:
     Resultado remover(const QString& nome_padrao, int secao, int registro, int nivel);
     Resultado mudarPatamares(Patamares tipo, int delta, QStringList* avisos = nullptr);
     bool salvar(const QString& nome_padrao, QString* motivo = nullptr);
+    bool salvarEm(const QString& nome_padrao, const QString& pasta, QString* motivo = nullptr);
     QStringList modificados() const;
     void iniciarLote();
     void concluirLote();

@@ -20,6 +20,7 @@ class PainelProblemas;
 class VistaCascata;
 struct ProblemaUsina;
 
+class DialogoBusca;
 class JanelaPrincipal : public QMainWindow {
     Q_OBJECT
 public:
@@ -55,6 +56,10 @@ private slots:
     void salvar();
     void salvarComo();
     void salvarTudo();
+    void abrirDeck();
+    void salvarDeckComo();
+    void procurarNoDeck();
+    void compararComOutroDeck();
     QUndoStack* pilhaAtiva() const;
     void exportarCsv();
     void exportarIncrementais();
@@ -88,6 +93,10 @@ private:
     QAction* acao_salvar_como_;
     QAction* acao_exportar_;
     QAction* acao_incrementais_;
+    QAction* acao_salvar_deck_como_;
+    QAction* acao_procurar_;
+    QAction* acao_comparar_;
+    DialogoBusca* busca_ = nullptr;
     QMenu* menu_usina_;
     QMenu* menu_recentes_;
     bool dimensionado_ = false;

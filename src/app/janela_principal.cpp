@@ -3,6 +3,7 @@
 #include <QCloseEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QDir>
 #include <QFontInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -31,6 +32,10 @@
 #include "ajuste_colunas.h"
 #include "recursos_tabela.h"
 #include "botao_combo.h"
+#include "busca_deck.h"
+#include "comparacao_deck.h"
+#include "dados_deck.h"
+#include "deck_newave.h"
 #include "delegate_numerico.h"
 #include "exportador_csv.h"
 #include "filtro_usinas.h"
@@ -290,10 +295,12 @@ void JanelaPrincipal::criarMenus() {
 
     QMenu* arquivo = menuBar()->addMenu(QStringLiteral("&Arquivo"));
     arquivo->addAction(QStringLiteral("&Abrir..."), QKeySequence::Open, this, &JanelaPrincipal::abrir);
+    arquivo->addAction(QStringLiteral("Abrir &deck (pasta)..."), this, &JanelaPrincipal::abrirDeck);
     menu_recentes_ = arquivo->addMenu(QStringLiteral("&Recentes"));
     acao_salvar_ = arquivo->addAction(QStringLiteral("&Salvar"), QKeySequence::Save, this, &JanelaPrincipal::salvar);
     acao_salvar_como_ = arquivo->addAction(QStringLiteral("Salvar &como..."), QKeySequence::SaveAs, this, &JanelaPrincipal::salvarComo);
     arquivo->addAction(QStringLiteral("Salvar &tudo"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S), this, &JanelaPrincipal::salvarTudo);
+    acao_salvar_deck_como_ = arquivo->addAction(QStringLiteral("Salvar deck em outra &pasta..."), this, &JanelaPrincipal::salvarDeckComo);
     arquivo->addSeparator();
     acao_exportar_ = arquivo->addAction(QStringLiteral("&Exportar CSV..."), this, &JanelaPrincipal::exportarCsv);
     arquivo->addSeparator();
@@ -313,6 +320,9 @@ void JanelaPrincipal::criarMenus() {
         desfazer->setEnabled(true);
         refazer->setEnabled(true);
     });
+    editar->addSeparator();
+    acao_procurar_ = editar->addAction(QStringLiteral("&Procurar no deck..."), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F), this,
+                                       &JanelaPrincipal::procurarNoDeck);
 
     QMenu* ver = menuBar()->addMenu(QStringLiteral("&Ver"));
     ocultar_vazias_ = ver->addAction(QStringLiteral("Ocultar registros &vazios"));
@@ -345,11 +355,15 @@ void JanelaPrincipal::criarMenus() {
     QMenu* ferramentas = menuBar()->addMenu(QStringLiteral("&Ferramentas"));
     acao_incrementais_ = ferramentas->addAction(QStringLiteral("Exportar vazões &incrementais..."), this,
                                                 &JanelaPrincipal::exportarIncrementais);
+    acao_comparar_ = ferramentas->addAction(QStringLiteral("&Comparar com outro deck..."), this, &JanelaPrincipal::compararComOutroDeck);
 
     acao_salvar_->setEnabled(false);
     acao_salvar_como_->setEnabled(false);
     acao_exportar_->setEnabled(false);
     acao_incrementais_->setEnabled(false);
+    acao_salvar_deck_como_->setEnabled(false);
+    acao_comparar_->setEnabled(false);
+    acao_procurar_->setEnabled(false);
 
     QMenu* ajuda = menuBar()->addMenu(QStringLiteral("A&juda"));
     ajuda->addAction(QStringLiteral("&Sobre..."), this, [this] {
@@ -396,11 +410,119 @@ void JanelaPrincipal::selecionarLinha(int linha) {
     tabela_->scrollTo(ix);
 }
 
+// hidr.dat da pasta, com o nome em qualquer caixa; vazio se a pasta nao tem um.
+static QString hidrNaPasta(const QString& pasta) {
+    for (const QFileInfo& f : QDir(pasta).entryInfoList(QDir::Files))
+        if (f.fileName().compare(QStringLiteral("hidr.dat"), Qt::CaseInsensitive) == 0) return f.absoluteFilePath();
+    return {};
+}
+
+// Abre o hidr.dat escolhido ou, se o escolhido for o caso.dat ou o arquivos.dat, o hidr.dat da mesma
+// pasta, que traz junto o deck inteiro.
 void JanelaPrincipal::abrir() {
     if (!confirmarDescarte()) return;
     QString caminho = QFileDialog::getOpenFileName(this, QStringLiteral("Abrir cadastro hidr.dat"), {},
-                                                   QStringLiteral("Cadastro de usinas hidráulicas do NEWAVE ou do DESSEM (hidr.dat *.dat);;Todos (*.*)"));
-    if (!caminho.isEmpty()) abrirCaminho(caminho);
+                                                   QStringLiteral("Cadastro de usinas ou arquivo do caso (hidr.dat caso.dat arquivos.dat *.dat);;Todos (*.*)"));
+    if (caminho.isEmpty()) return;
+    const QString nome = QFileInfo(caminho).fileName().toLower();
+    if (nome == QStringLiteral("caso.dat") || nome == QStringLiteral("arquivos.dat")) {
+        const QString hidr = hidrNaPasta(QFileInfo(caminho).absolutePath());
+        if (hidr.isEmpty()) {
+            QMessageBox::warning(this, QStringLiteral("Abrir deck"), QStringLiteral("A pasta do %1 não tem um hidr.dat.").arg(QFileInfo(caminho).fileName()));
+            return;
+        }
+        caminho = hidr;
+    }
+    abrirCaminho(caminho);
+}
+
+// Abre o deck pela pasta: o hidr.dat dela e, com ele, os demais arquivos.
+void JanelaPrincipal::abrirDeck() {
+    if (!confirmarDescarte()) return;
+    const QString pasta = QFileDialog::getExistingDirectory(this, QStringLiteral("Abrir deck"), {});
+    if (pasta.isEmpty()) return;
+    const QString hidr = hidrNaPasta(pasta);
+    if (hidr.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("Abrir deck"), QStringLiteral("A pasta escolhida não tem um hidr.dat."));
+        return;
+    }
+    abrirCaminho(hidr);
+}
+
+// Revisao nova a partir da atual: copia todos os arquivos da pasta do deck (sem subpastas) para a
+// pasta escolhida, grava nela o que estiver alterado no cadastro de usinas e nos arquivos do deck e
+// abre o deck novo. A pasta original fica como estava no disco.
+void JanelaPrincipal::salvarDeckComo() {
+    if (modelo_->caminho().isEmpty()) return;
+    const QString origem = QFileInfo(modelo_->caminho()).absolutePath();
+    const QString destino = QFileDialog::getExistingDirectory(this, QStringLiteral("Salvar deck em outra pasta"), QFileInfo(origem).absolutePath());
+    if (destino.isEmpty()) return;
+    if (QDir(destino) == QDir(origem)) {
+        salvarTudo();
+        return;
+    }
+    if (!QDir(destino).entryList(QDir::Files).isEmpty() &&
+        QMessageBox::question(this, QStringLiteral("Salvar deck em outra pasta"),
+                              QStringLiteral("A pasta escolhida já tem arquivos. Os arquivos com o mesmo nome serão substituídos. Continuar?")) !=
+            QMessageBox::Yes)
+        return;
+    if (!modelo_->pilhaUndo()->isClean() && !validarAntesDeSalvar()) return;
+    for (const QFileInfo& f : QDir(origem).entryInfoList(QDir::Files)) {
+        const QString alvo = QDir(destino).filePath(f.fileName());
+        if (QFile::exists(alvo)) QFile::remove(alvo);
+        if (!QFile::copy(f.absoluteFilePath(), alvo)) {
+            QMessageBox::critical(this, QStringLiteral("Salvar deck em outra pasta"), QStringLiteral("Não foi possível copiar %1.").arg(f.fileName()));
+            return;
+        }
+    }
+    const QString hidr_novo = QDir(destino).filePath(QFileInfo(modelo_->caminho()).fileName());
+    if (!modelo_->pilhaUndo()->isClean()) {
+        Resultado r = modelo_->arquivo().salvar(paraPath(hidr_novo));
+        if (!r.ok) {
+            QMessageBox::critical(this, QStringLiteral("Salvar deck em outra pasta"), QString::fromUtf8(r.mensagem));
+            return;
+        }
+    }
+    QString motivo;
+    if (!navegador_->salvarTodosEm(destino, &motivo)) {
+        QMessageBox::critical(this, QStringLiteral("Salvar deck em outra pasta"), QStringLiteral("Não foi possível salvar %1").arg(motivo));
+        return;
+    }
+    modelo_->pilhaUndo()->setClean();
+    abrirCaminho(hidr_novo);
+    statusBar()->showMessage(QStringLiteral("Deck salvo em %1").arg(QDir::toNativeSeparators(destino)), 5000);
+}
+
+// Busca em todos os arquivos do deck, numa janela que fica aberta ao lado; escolher um resultado leva
+// ao arquivo e ao registro.
+void JanelaPrincipal::procurarNoDeck() {
+    if (!busca_) {
+        busca_ = new DialogoBusca(navegador_->dados(), modelo_, this);
+        connect(busca_, &DialogoBusca::escolhido, this, [this](const QString& nome, int secao, int registro) {
+            navegador_->mostrarRegistro(nome, secao, registro);
+            if (nome == QStringLiteral("hidr.dat") && registro >= 0) selecionarLinha(registro);
+        });
+    }
+    busca_->show();
+    busca_->raise();
+    busca_->activateWindow();
+}
+
+// Compara o deck aberto, com as edicoes ainda nao salvas, com o deck de outra pasta.
+void JanelaPrincipal::compararComOutroDeck() {
+    navegador_->aplicarEdicoesPendentes();
+    const QString atual = QFileInfo(modelo_->caminho()).absolutePath();
+    const QString pasta = QFileDialog::getExistingDirectory(this, QStringLiteral("Comparar com o deck da pasta"), QFileInfo(atual).absolutePath());
+    if (pasta.isEmpty()) return;
+    DadosDeck outro;
+    outro.carregar(pasta, lerArquivosDat(paraPath(QDir(pasta).filePath(QStringLiteral("arquivos.dat")))));
+    ArquivoHidr hidr_outro;
+    const QString caminho_hidr = hidrNaPasta(pasta);
+    const bool tem_hidr = !caminho_hidr.isEmpty() && hidr_outro.carregar(paraPath(caminho_hidr)).ok;
+    auto* dialogo = new DialogoComparacao(QDir::toNativeSeparators(atual), QDir::toNativeSeparators(pasta),
+                                          compararDecks(*navegador_->dados(), &modelo_->arquivo(), outro, tem_hidr ? &hidr_outro : nullptr), this);
+    dialogo->setAttribute(Qt::WA_DeleteOnClose);
+    dialogo->show();
 }
 
 void JanelaPrincipal::abrirCaminho(const QString& caminho) {
@@ -422,6 +544,9 @@ void JanelaPrincipal::abrirCaminho(const QString& caminho) {
     acao_salvar_como_->setEnabled(true);
     acao_exportar_->setEnabled(true);
     acao_incrementais_->setEnabled(true);
+    acao_salvar_deck_como_->setEnabled(true);
+    acao_comparar_->setEnabled(true);
+    acao_procurar_->setEnabled(true);
     menu_usina_->setEnabled(true);
     painel_problemas_->definirProblemas({});
     if (modelo_->numUsinas() > 0) selecionarLinha(0);

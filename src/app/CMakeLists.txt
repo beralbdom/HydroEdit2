@@ -27,6 +27,8 @@ qt_add_library(hydroedit_ui STATIC
     modelo_modif.cpp modelo_modif.h
     formulario_arquivo.cpp formulario_arquivo.h
     layout_colunas.cpp layout_colunas.h
+    busca_deck.cpp busca_deck.h
+    comparacao_deck.cpp comparacao_deck.h
     recursos_tabela.cpp recursos_tabela.h
     pagina_arquivo_fixo.cpp pagina_arquivo_fixo.h
     dados_deck.cpp dados_deck.h

@@ -21,7 +21,9 @@ public:
     static bool temFormulario(const LayoutArquivoFixo& layout);
     static bool secaoEmTabela(const LayoutArquivoFixo& layout, int secao);
     static bool paginaUnica(const LayoutArquivoFixo& layout);
+    static int itemDaSecao(const LayoutArquivoFixo& layout, int secao);
     void mostrarSecao(int secao);
+    void selecionarRegistro(int secao, int registro);
 
 protected:
     void showEvent(QShowEvent* evento) override;

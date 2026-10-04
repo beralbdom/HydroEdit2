@@ -16,5 +16,6 @@ add_library(hidrcore STATIC
     layouts_newave.cpp
     patamares_newave.cpp
     modif_newave.cpp
+    diferencas.cpp
 )
 target_include_directories(hidrcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

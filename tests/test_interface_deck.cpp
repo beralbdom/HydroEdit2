@@ -10,9 +10,14 @@
 #include <QStandardItemModel>
 #include <QHeaderView>
 #include <QTableView>
+#include <QTemporaryDir>
+#include <QDir>
+#include <QFile>
 #include <QtTest>
 #include <filesystem>
+#include "busca_deck.h"
 #include "catalogo_newave.h"
+#include "comparacao_deck.h"
 #include "dados_deck.h"
 #include "delegate_referencia.h"
 #include "deck_newave.h"
@@ -239,6 +244,63 @@ private slots:
         QCOMPARE(colunas->heightForWidth(450), 410);
         QCOMPARE(colunas->heightForWidth(300), 520);
         QCOMPARE(colunas->minimumSize().width(), 200);
+    }
+
+    void procuraNoDeckPorNomeECodigo() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "confhd.dat")) QSKIP("deck ausente");
+        DadosDeck dados;
+        dados.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        auto contem = [](const std::vector<ResultadoBusca>& rs, const QString& nome, const QString& motivo) {
+            return std::any_of(rs.begin(), rs.end(), [&](const ResultadoBusca& r) { return r.nome_padrao == nome && r.motivo.contains(motivo); });
+        };
+        const std::vector<ResultadoBusca> furnas = procurarNoDeck(dados, nullptr, QStringLiteral("furnas"));
+        QVERIFY(contem(furnas, QStringLiteral("confhd.dat"), QStringLiteral("FURNAS")));
+        QVERIFY(contem(furnas, QStringLiteral("modif.dat"), QStringLiteral("FURNAS")));
+        for (const ResultadoBusca& r : furnas) {
+            QVERIFY(r.linha >= 0 || r.registro >= 0);
+            if (r.linha >= 0) QVERIFY(!r.texto.isEmpty());
+        }
+        const std::vector<ResultadoBusca> seis = procurarNoDeck(dados, nullptr, QStringLiteral("6"));
+        QVERIFY(contem(seis, QStringLiteral("confhd.dat"), QStringLiteral("FURNAS (6)")));
+        QVERIFY(contem(seis, QStringLiteral("postos.dat"), QStringLiteral("código")));
+        QVERIFY(procurarNoDeck(dados, nullptr, QStringLiteral("   ")).empty());
+    }
+
+    void comparaDecksESalvaEmOutraPasta() {
+        const fs::path deck(DIR_DECK);
+        if (!fs::exists(deck / "patamar.dat")) QSKIP("deck ausente");
+        DadosDeck a;
+        DadosDeck b;
+        a.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        b.carregar(QString::fromStdWString(deck.wstring()), lerArquivosDat(deck / "arquivos.dat"));
+        QVERIFY(compararDecks(a, nullptr, b, nullptr).empty());
+        QVERIFY(b.definir(QStringLiteral("patamar.dat"), 1, 0, 3, QStringLiteral("0.5")).ok);
+        QVERIFY(b.definirInteiroBinario(QStringLiteral("vazoes.dat"), 0, 0, QStringLiteral("123456")).ok);
+        const std::vector<DiferencaArquivo> d = compararDecks(a, nullptr, b, nullptr);
+        QCOMPARE(d.size(), size_t(2));
+        for (const DiferencaArquivo& arquivo : d)
+            QCOMPARE(arquivo.alteracoes, arquivo.nome_padrao == QStringLiteral("patamar.dat") ? 2 : 1);
+        QVERIFY(std::any_of(d.begin(), d.end(), [](const DiferencaArquivo& x) { return x.nome_padrao == QStringLiteral("vazoes.dat"); }));
+        QVERIFY(std::any_of(d.begin(), d.end(), [](const DiferencaArquivo& x) { return x.nome_padrao == QStringLiteral("patamar.dat"); }));
+
+        QTemporaryDir pasta;
+        QVERIFY(pasta.isValid());
+        QVERIFY(b.salvarEm(QStringLiteral("patamar.dat"), pasta.path()));
+        QVERIFY(b.modificados().contains(QStringLiteral("patamar.dat")));
+        QFile salvo(QDir(pasta.path()).filePath(b.nomeNoDeck(QStringLiteral("patamar.dat"))));
+        QVERIFY(salvo.open(QIODevice::ReadOnly));
+        QCOMPARE(QString::fromLatin1(salvo.readAll()).replace(QStringLiteral("\r\n"), QStringLiteral("\n")), b.texto(QStringLiteral("patamar.dat")));
+    }
+
+    void secaoDeFormularioLevaAoTemaDela() {
+        const LayoutArquivoFixo& dger = *layoutNewave("dger.dat");
+        for (int s = 0; s < static_cast<int>(dger.secoes.size()); ++s) QVERIFY(PaginaArquivoFixo::itemDaSecao(dger, s) <= -2);
+        const LayoutArquivoFixo& sistema = *layoutNewave("sistema.dat");
+        for (int s = 0; s < static_cast<int>(sistema.secoes.size()); ++s) {
+            const int item = PaginaArquivoFixo::itemDaSecao(sistema, s);
+            QCOMPARE(item, PaginaArquivoFixo::secaoEmTabela(sistema, s) ? s : -1);
+        }
     }
 
     void formulariosDoDeckReal() {

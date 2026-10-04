@@ -252,4 +252,43 @@ bool NavegadorDeck::salvarTodos(QString* motivo) {
     return true;
 }
 
+// Grava os arquivos alterados em outra pasta (Salvar deck em outra pasta), cada um com o nome que tem
+// no deck; para no primeiro que falhar.
+bool NavegadorDeck::salvarTodosEm(const QString& pasta, QString* motivo) {
+    aplicarEdicoesPendentes();
+    for (const QString& nome : dados_->modificados()) {
+        QString erro;
+        if (dados_->salvarEm(nome, pasta, &erro)) continue;
+        if (motivo) *motivo = QStringLiteral("%1: %2").arg(dados_->nomeNoDeck(nome), erro);
+        return false;
+    }
+    return true;
+}
+
 QUndoStack* NavegadorDeck::pilhaUndo() const { return dados_->pilhaUndo(); }
+
+// Leva a aba e a arvore ate o arquivo, no item que mostra a secao, e seleciona o registro na tabela
+// dela. O modif.dat so troca para a aba Modificacoes.
+void NavegadorDeck::mostrarRegistro(const QString& nome_padrao, int secao, int registro) {
+    if (nome_padrao == QStringLiteral("modif.dat")) {
+        setCurrentWidget(pilha_modificacoes_);
+        return;
+    }
+    for (const ItemArquivo& i : itens_) {
+        if (i.nome_padrao != nome_padrao) continue;
+        auto* divisor = qobject_cast<QSplitter*>(i.arvore->parentWidget());
+        if (!divisor) return;
+        setCurrentWidget(divisor);
+        const LayoutArquivoFixo* layout = layoutNewave(nome_padrao.toStdString());
+        const int alvo_secao = layout ? PaginaArquivoFixo::itemDaSecao(*layout, secao) : -1;
+        QStandardItem* alvo = i.item;
+        for (int f = 0; f < i.item->rowCount(); ++f)
+            if (i.item->child(f)->data(PAPEL_SECAO).toInt() == alvo_secao) alvo = i.item->child(f);
+        i.arvore->setCurrentIndex(alvo->index());
+        auto* paginas = qobject_cast<QStackedWidget*>(divisor->widget(1));
+        if (!paginas || modo_texto_) return;
+        if (auto* pagina = qobject_cast<PaginaArquivoFixo*>(paginas->widget(alvo->data(PAPEL_PAGINA).toInt())))
+            pagina->selecionarRegistro(secao, registro);
+        return;
+    }
+}

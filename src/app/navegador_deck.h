@@ -24,7 +24,10 @@ public:
     void aplicarEdicoesPendentes();
     QStringList arquivosModificados() const;
     bool salvarTodos(QString* motivo = nullptr);
+    bool salvarTodosEm(const QString& pasta, QString* motivo = nullptr);
     QUndoStack* pilhaUndo() const;
+    const DadosDeck* dados() const { return dados_; }
+    void mostrarRegistro(const QString& nome_padrao, int secao, int registro);
 
 protected:
     void changeEvent(QEvent* evento) override;

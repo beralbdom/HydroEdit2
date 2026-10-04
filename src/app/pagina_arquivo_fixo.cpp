@@ -10,6 +10,7 @@
 #include <QTabWidget>
 #include <QTableView>
 #include <QVBoxLayout>
+#include <algorithm>
 #include "ajuste_colunas.h"
 #include "dados_deck.h"
 #include "delegate_referencia.h"
@@ -133,6 +134,30 @@ PaginaArquivoFixo::PaginaArquivoFixo(const ArquivoNewave& arquivo, const LayoutA
         atualizar();
     });
     mostrarSecao(formulario_ ? -1 : primeira_tabela_);
+}
+
+// Item da arvore do navegador que mostra a secao (o valor que ele passa a mostrarSecao): a propria
+// secao, se for de tabela; o tema que cita a secao, nos parametros agrupados por tema; -1, o
+// formulario, nos demais casos.
+int PaginaArquivoFixo::itemDaSecao(const LayoutArquivoFixo& layout, int secao) {
+    if (secao < 0 || secao >= static_cast<int>(layout.secoes.size())) return -1;
+    if (secaoEmTabela(layout, secao)) return secao;
+    const std::string& titulo = layout.secoes[static_cast<size_t>(secao)].titulo;
+    for (int k = 0; k < static_cast<int>(layout.abas.size()); ++k)
+        for (const GrupoFormulario& g : layout.abas[static_cast<size_t>(k)].grupos)
+            if (std::find(g.secoes.begin(), g.secoes.end(), titulo) != g.secoes.end()) return -2 - k;
+    return -1;
+}
+
+// Mostra a secao e, se ela e de tabela, seleciona o registro e rola ate ele, limpando o filtro da
+// tabela quando ele esconde o registro.
+void PaginaArquivoFixo::selecionarRegistro(int secao, int registro) {
+    mostrarSecao(itemDaSecao(layout_, secao));
+    if (!tabela_ || !modelo_ || !secaoEmTabela(layout_, secao) || modelo_->secao() != secao) return;
+    if (registro < 0 || registro >= modelo_->rowCount()) return;
+    if (tabela_->isRowHidden(registro)) limparFiltros(tabela_);
+    tabela_->selectRow(registro);
+    tabela_->scrollTo(modelo_->index(registro, 0), QAbstractItemView::PositionAtCenter);
 }
 
 // Secao -1 (ou secao que nao e de tabela) mostra o formulario; as demais, a tabela da secao. Na
